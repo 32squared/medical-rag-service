@@ -22,5 +22,6 @@ ENV DATA_DIR=/data
 
 EXPOSE 8080
 
-# RUN_MODE 환경변수로 service / job 분기 (entrypoint.sh 참고)
+# 기본 = RAG 서비스(rag_server.py). RUN_MODE=migrate 면 마이그레이션 1회 실행 (entrypoint.sh 참고)
+ENV RUN_MODE=rag
 ENTRYPOINT ["/app/entrypoint.sh"]
