@@ -55,7 +55,7 @@ try {
     $existsOutput = ""
 }
 $Action = if ($existsOutput -and ($existsOutput -match $JobName)) { "update" } else { "create" }
-Write-Host "[1/2] Job $Action: $JobName..." -ForegroundColor Yellow
+Write-Host "[1/2] Job ${Action}: $JobName..." -ForegroundColor Yellow
 
 # ── gcloud args 배열로 구성 ──
 $gcloudArgs = @(
