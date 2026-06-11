@@ -11,7 +11,10 @@ param(
     [string]$DbName      = "medical_app_dev",
     [string]$DbPassword  = "",
     [string]$TrustSecret = "",
-    [switch]$Prod
+    [switch]$Prod,
+    # 이미 빌드된 이미지로 배포만 수행 (gcloud 로컬 아카이브가 백신에 잠기는
+    # WinError 32 우회: tar 직접 생성 → gs:// 업로드 → builds submit gs://... 후 사용)
+    [switch]$SkipBuild
 )
 
 if ($Prod) {
@@ -41,9 +44,13 @@ Write-Host "DB Password: ****" -ForegroundColor Green
 $DatabaseUrl = "postgresql://app_user:${DbPassword}@/${DbName}?host=/cloudsql/${SqlConnection}"
 
 # ── 이미지 빌드 ──
-Write-Host "[1/2] Building image..." -ForegroundColor Yellow
-gcloud builds submit --tag $ImageUri .
-if ($LASTEXITCODE -ne 0) { Write-Host "Build failed!" -ForegroundColor Red; exit 1 }
+if ($SkipBuild) {
+    Write-Host "[1/2] Build skipped (-SkipBuild) — 기존 이미지 사용: $ImageUri" -ForegroundColor Yellow
+} else {
+    Write-Host "[1/2] Building image..." -ForegroundColor Yellow
+    gcloud builds submit --tag $ImageUri .
+    if ($LASTEXITCODE -ne 0) { Write-Host "Build failed!" -ForegroundColor Red; exit 1 }
+}
 
 # ── 배포 (RUN_MODE=rag) ──
 Write-Host "[2/2] Deploying RAG service..." -ForegroundColor Yellow
