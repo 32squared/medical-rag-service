@@ -7,6 +7,9 @@ param(
     [string]$DbPassword      = "",
     [string]$ServiceAccount  = "716262961556-compute@developer.gserviceaccount.com",
     [string]$VpcConnector    = "medical-connector",
+    # 실행할 시드 스크립트 (기본: phase1). KB 확장 P1~P6 일괄: seed_kb_expansion.py
+    # 사용 시 JobName도 함께 변경 권장: -JobName kb-seed-expansion -Script seed_kb_expansion.py
+    [string]$Script          = "seed_kb_phase1.py",
     [switch]$Upsert,
     [switch]$Execute,
     [switch]$Wait
@@ -39,8 +42,8 @@ Write-Host "DB Password: ****" -ForegroundColor Green
 $DatabaseUrl = "postgresql://app_user:${DbPassword}@/medical_app?host=/cloudsql/${SqlConnection}"
 
 # ── seed_kb_phase1.py CMD args ──
-$SeedArgs = "seed_kb_phase1.py"
-if ($Upsert) { $SeedArgs = "seed_kb_phase1.py,--upsert" }
+$SeedArgs = $Script
+if ($Upsert) { $SeedArgs = "${Script},--upsert" }
 
 # ── EnvSpec (';' 구분자 — DATABASE_URL 안의 ',' 방지) ──
 $EnvSpec = "^;^DATABASE_URL=$DatabaseUrl"

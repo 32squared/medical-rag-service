@@ -25,9 +25,10 @@ import argparse
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
-# 한글 출력 보장
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+# 한글 출력 보장 (CLI 실행 시에만 — import 부작용으로 pytest capture가 깨지는 것 방지)
+if __name__ == "__main__":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 
 # 프로젝트 루트를 sys.path 에 추가
 _REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -114,6 +115,14 @@ _SOURCE_ID_MFDS = "mfds"
 _SOURCE_ID_NEMC = "nemc"
 _SOURCE_ID_KDCA = "kdca_api"
 _SOURCE_ID_HEALTH_KDCA = "health_kdca"
+
+# 식약처 의약품개요정보(e약은요) OpenAPI — KB 확장 P1-3
+# 일반인용 의약품 설명(효능·사용법·주의사항). DUR 금기 목록과 별개의
+# "이 약이 뭔가요" 답변용. 공공데이터포털 인증키(DATA_GO_KR_KEY) 필요.
+_DRUG_INFO_API = (
+    "https://apis.data.go.kr/1471000/DrbEasyDrugInfoService/getDrbEasyDrugList"
+)
+_SOURCE_ID_DRUG_INFO = "mfds_drug_info"
 
 
 # ────────────────────────────────────────────────────────────
@@ -381,6 +390,160 @@ def fetch_mfds_safety_letters(limit: int = 100) -> List[Dict]:
 
 # 응급의료포털(E-Gen) 실제 URL 구조 (2026년 기준 사이트맵 확인)
 # /nemc/first_aid_step.do 는 404 → /egen/ 하위 도메인으로 변경됨
+# ────────────────────────────────────────────────────────────
+#  식약처 의약품개요정보(e약은요) 수집 — KB 확장 P1-3
+# ────────────────────────────────────────────────────────────
+
+# e약은요 응답 필드 → 마크다운 섹션 제목
+_DRUG_INFO_SECTIONS = [
+    ("efcyQesitm", "효능"),
+    ("useMethodQesitm", "사용법"),
+    ("atpnWarnQesitm", "사용 전 꼭 알아야 할 경고"),
+    ("atpnQesitm", "사용상 주의사항"),
+    ("intrcQesitm", "다른 약·음식과의 상호작용"),
+    ("seQesitm", "이상반응(부작용)"),
+    ("depositMethodQesitm", "보관 방법"),
+]
+
+_DRUG_INFO_DISCLAIMER = (
+    "본 정보는 식약처 의약품개요정보(e약은요)의 일반 안내이며, 개인별 복용 여부·용량은 "
+    "반드시 의사·약사와 상담하시기 바랍니다."
+)
+
+
+def build_drug_info_md(item: Dict) -> str:
+    """e약은요 응답 1건 → 마크다운 본문 (순수 함수 — 테스트 가능)."""
+    name = (item.get("itemName") or "").strip()
+    entp = (item.get("entpName") or "").strip()
+    lines = [f"# 의약품 정보: {name}", ""]
+    if entp:
+        lines.append(f"제조/수입사: {entp}")
+        lines.append("")
+    for field, heading in _DRUG_INFO_SECTIONS:
+        text = (item.get(field) or "").strip()
+        if not text:
+            continue
+        # e약은요 텍스트의 잔여 HTML 태그 제거
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"[ \t]{2,}", " ", text).strip()
+        lines.append(f"## {heading}")
+        lines.append("")
+        lines.append(text)
+        lines.append("")
+    lines.append(_DRUG_INFO_DISCLAIMER)
+    return "\n".join(lines)
+
+
+def _register_drug_info_source() -> None:
+    """mfds_drug_info 출처를 kb_sources에 등록(멱등) + priority_rank=1 보강."""
+    try:
+        from kb_ingest import seed_kb_sources
+        seed_kb_sources([{
+            "id": _SOURCE_ID_DRUG_INFO,
+            "name": "식약처 의약품개요정보 (e약은요)",
+            "source_type": "public",
+            "license": "kogl_type1",
+            "update_frequency": "monthly",
+            "is_active": 1,
+        }])
+        from dbcommon import get_conn, _p
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"UPDATE kb_sources SET priority_rank = 1, jurisdiction = 'KR', "
+                f"institution = '식품의약품안전처' WHERE id = {_p()}",
+                (_SOURCE_ID_DRUG_INFO,),
+            )
+    except Exception as e:
+        logger.warning("[DrugInfo] 출처 등록 보강 생략: %s", str(e)[:80])
+
+
+def fetch_mfds_drug_info(
+    api_key: str,
+    item_names: Optional[List[str]] = None,
+    limit: int = 100,
+) -> List[Dict]:
+    """
+    식약처 의약품개요정보(e약은요) OpenAPI 수집.
+
+    Args:
+        api_key:    공공데이터포털 인증키 (DATA_GO_KR_KEY)
+        item_names: 수집할 의약품명 리스트 (None이면 전체 목록 페이지 순회)
+        limit:      최대 수집 건수
+
+    Returns:
+        [{'title', 'content_md', 'source_url', 'source_fetched_at', 'source_checksum'}]
+    """
+    if not _HAS_REQUESTS:
+        logger.error("[DrugInfo] requests 없음 — 수집 불가")
+        return []
+    if not api_key:
+        logger.warning("[DrugInfo] DATA_GO_KR_KEY 미설정 — e약은요 수집 스킵")
+        return []
+
+    session = _make_session()
+    fetched_at = _now_iso()
+    results: List[Dict] = []
+    page_size = min(limit, 100)
+
+    # itemName 지정 수집 또는 전체 페이지 순회
+    queries = [{"itemName": n} for n in item_names] if item_names else [{}]
+    for q in queries:
+        page = 1
+        while len(results) < limit:
+            params = {
+                "serviceKey": api_key,
+                "type": "json",
+                "pageNo": page,
+                "numOfRows": page_size,
+            }
+            params.update(q)
+            try:
+                resp = session.get(_DRUG_INFO_API, params=params, timeout=_REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                data = resp.json()
+            except Exception as e:
+                logger.warning("[DrugInfo] API 오류 (page=%d, q=%s): %s", page, q, e)
+                break
+
+            body = (data.get("body") or {}) if isinstance(data, dict) else {}
+            items_raw = body.get("items") or []
+            if isinstance(items_raw, dict):  # 단건 응답 호환
+                items_raw = [items_raw]
+            if not items_raw:
+                break
+
+            for item in items_raw:
+                if len(results) >= limit:
+                    break
+                if not isinstance(item, dict):
+                    continue
+                name = (item.get("itemName") or "").strip()
+                if not name:
+                    continue
+                content_md = build_drug_info_md(item)
+                if len(content_md) < 100:  # 내용이 사실상 빈 항목 스킵
+                    continue
+                checksum = _sha256(content_md)
+                item_seq = item.get("itemSeq") or ""
+                results.append({
+                    "title": f"의약품 정보: {name}",
+                    "content_md": content_md,
+                    "source_url": (
+                        f"https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?itemSeq={item_seq}"
+                        if item_seq else "https://nedrug.mfds.go.kr"
+                    ),
+                    "source_fetched_at": fetched_at,
+                    "source_checksum": checksum,
+                })
+            total = int(body.get("totalCount") or 0)
+            if page * page_size >= total:
+                break
+            page += 1
+
+    logger.info("[DrugInfo] e약은요 수집: %d건", len(results))
+    return results
+
+
 _NEMC_TOPICS = [
     # 기본응급처치 (first_aid_basics.do)
     {"key": "cpr_aed",          "name": "심폐소생술 및 자동심장충격기", "url": "/egen/first_aid_basics.do?contentsno=16"},
@@ -982,7 +1145,11 @@ def label_evidence_topic(text: str, title: str = "") -> str:
 # ════════════════════════════════════════════════════════════
 
 # 공공 출처 source_id 집합 — 정보성 콘텐츠로 간주하여 KB 콘텐츠 컨텍스트 적용
-_PUBLIC_SOURCES = {"health_kdca", "nemc", "mfds", "kdca_api", "consultation_seed", "guideline_internal"}
+_PUBLIC_SOURCES = {
+    "health_kdca", "nemc", "mfds", "kdca_api", "consultation_seed", "guideline_internal",
+    # KB 확장 P1~P6 신규 공공/정보성 출처
+    "nip", "mfds_drug_info", "vital_refs", "lifecycle_kr", "navigation_kr", "safety_kr",
+}
 
 # KB 콘텐츠 컨텍스트: 정보성 문서에 게재 부적합한 패턴만 차단
 # (진단·처방·검사 지시·면책조항 누락 등 환자 응답 가드레일 제외)
@@ -1209,9 +1376,10 @@ def collect_all(
         }
     """
     if sources is None:
-        sources = ["mfds", "nemc", "kdca", "health_kdca"]
+        sources = ["mfds", "nemc", "kdca", "health_kdca", "drug_info"]
 
     kdca_key = os.environ.get("KDCA_API_KEY", "")
+    data_go_kr_key = os.environ.get("DATA_GO_KR_KEY", "")
 
     stats = {
         "fetched": 0,
@@ -1273,6 +1441,21 @@ def collect_all(
             all_items.extend(items)
         except Exception as e:
             msg = f"health_kdca 수집 오류: {e}"
+            logger.error("[Collect] %s", msg)
+            stats["errors"].append(msg)
+
+    if "drug_info" in sources:
+        logger.info("[Collect] e약은요(의약품개요정보) 수집 시작 (max=%d)", max_per_source)
+        try:
+            items = fetch_mfds_drug_info(api_key=data_go_kr_key, limit=max_per_source)
+            if items and not dry_run:
+                _register_drug_info_source()
+            for item in items:
+                item["_source"] = "drug_info"
+                item["_source_id"] = _SOURCE_ID_DRUG_INFO
+            all_items.extend(items)
+        except Exception as e:
+            msg = f"drug_info 수집 오류: {e}"
             logger.error("[Collect] %s", msg)
             stats["errors"].append(msg)
 
@@ -1491,7 +1674,7 @@ def _cli_main():
     )
     parser.add_argument(
         "--source",
-        choices=["mfds", "nemc", "kdca", "health_kdca", "all"],
+        choices=["mfds", "nemc", "kdca", "health_kdca", "drug_info", "all"],
         default="all",
         help="수집할 출처 (기본: all)",
     )

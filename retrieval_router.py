@@ -22,7 +22,7 @@ from typing import Dict, List
 
 # source_id ↔ priority_rank (작업지시서 §3.1, 낮을수록 우선)
 SOURCE_PRIORITY = {
-    "LEGAL_POLICY": 1, "KDCA": 1, "MFDS_DUR": 1, "HIRA_DUR": 1,
+    "LEGAL_POLICY": 1, "KDCA": 1, "MFDS_DUR": 1, "HIRA_DUR": 1, "NEMC": 1,
     "KR_GUIDELINE": 2, "NIP": 2,
     "WHO": 3, "CDC": 3, "NICE": 3, "USPSTF": 3,
     "DAILYMED": 4,
@@ -31,12 +31,17 @@ SOURCE_PRIORITY = {
 }
 
 # 현 KB의 실제 source_id 매핑 (라우트 라벨 → kb_sources.source_id 후보)
+# KB 확장 P1~P6 신규 출처: nip(예방접종), mfds_drug_info(e약은요),
+# vital_refs(참조범위), lifecycle_kr(생애주기), navigation_kr(의료이용),
+# safety_kr(중독·소아응급), kr_law(법령)
 ROUTE_TO_KB_SOURCE = {
+    "LEGAL_POLICY": ["kr_law"],
     "KDCA": ["kdca", "kdca_api", "health_kdca"],
-    "MFDS_DUR": ["mfds", "mfds_dur"],
+    "NIP": ["nip"],
+    "MFDS_DUR": ["mfds", "mfds_dur", "mfds_drug_info"],
     "HIRA_DUR": ["hira", "hira_dur"],
-    "KR_GUIDELINE": ["guideline", "kmle"],
-    "NEMC": ["nemc"],
+    "KR_GUIDELINE": ["guideline", "kmle", "vital_refs", "lifecycle_kr", "navigation_kr"],
+    "NEMC": ["nemc", "safety_kr"],
     "PUBMED": ["pubmed"],
     "PMC_OA": ["pmc_oa"],
 }
