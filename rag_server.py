@@ -33,6 +33,7 @@ from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, unquote
 
 from rag_routes import RagRoutesMixin
+from service_routes import ServiceRoutesMixin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rag_server")
@@ -43,8 +44,9 @@ RAG_TRUST_SECRET = os.environ.get('RAG_TRUST_SECRET', '')
 _SCHEMA_VERSION_CACHE = "unknown"
 
 
-class RagHandler(RagRoutesMixin, BaseHTTPRequestHandler):
-    """RagRoutesMixin 단독 서빙. 믹스인이 요구하는 8개 헬퍼를 자체 구현(trust-header 인증)."""
+class RagHandler(ServiceRoutesMixin, RagRoutesMixin, BaseHTTPRequestHandler):
+    """RagRoutesMixin(+Phoenix 호환 ServiceRoutesMixin) 서빙.
+    믹스인이 요구하는 8개 헬퍼를 자체 구현(trust-header 인증)."""
 
     server_version = "RagService/1.0"
 
@@ -144,13 +146,16 @@ class RagHandler(RagRoutesMixin, BaseHTTPRequestHandler):
                 "version": os.environ.get('K_REVISION', 'local'),
                 "schema": _SCHEMA_VERSION_CACHE,
             })
-        if not path.startswith('/api/rag/'):
-            return self._send_error(404, 'RAG 서비스는 /api/rag/* 만 처리합니다')
+        if not (path.startswith('/api/rag/') or path.startswith('/api/service/')):
+            return self._send_error(404, 'RAG 서비스는 /api/rag/* · /api/service/* 만 처리합니다')
         body = None
         if method in ('POST', 'PUT', 'DELETE'):
             length = int(self.headers.get('Content-Length', 0) or 0)
             body = self.rfile.read(length) if length else b''
         try:
+            if path.startswith('/api/service/'):
+                # Phoenix Run Graph 호환 계층 (COMPAT-run-graph.md)
+                return self._handle_service_route(method, path, parsed, body)
             return self._handle_rag_route(method, path, parsed, body)
         except Exception as e:
             logger.exception("RAG route error: %s", e)
