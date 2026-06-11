@@ -44,7 +44,18 @@ def _load_symptom_keywords() -> Dict[str, List[str]]:
 
 
 def _match_symptom(query: str, sym_kw: Dict[str, List[str]]) -> str:
-    """질의에서 매칭되는 증상명 1개(첫 매칭) 반환, 없으면 'unmapped'."""
+    """질의에서 매칭되는 증상 1개 반환, 없으면 'unmapped'.
+
+    1차: symptom_matcher(증상명·동의어 기반, 구어체 도달률 높음) — 있으면 우선.
+    2차: 기존 키워드 substring 매칭(호환 폴백).
+    matcher가 매칭한 symptom_key는 그대로 반환(집계 키로 사용 가능)."""
+    try:
+        from symptom_matcher import match_symptoms
+        keys = match_symptoms(query)
+        if keys:
+            return keys[0]
+    except Exception:
+        pass
     for name, kws in sym_kw.items():
         for kw in kws:
             if kw and kw in query:
@@ -62,6 +73,9 @@ def aggregate_gaps(rows: List[Dict], sym_kw: Dict[str, List[str]] = None) -> Dic
     by_intent = collections.Counter()       # insufficient 질의의 intent 분포
     by_symptom = collections.Counter()       # insufficient 질의의 증상 분포
     samples: Dict[str, List[str]] = collections.defaultdict(list)
+    # 커버리지 확장 수요: 증상 매칭 실패(unmapped) 질의 — 새 증상 추가의 공식 신호
+    uncovered_samples: List[str] = []
+    uncovered_counter = collections.Counter()
     total = 0
     insuff = 0
 
@@ -85,12 +99,22 @@ def aggregate_gaps(rows: List[Dict], sym_kw: Dict[str, List[str]] = None) -> Dic
         by_symptom[sym] += 1
         if len(samples[sym]) < 3:
             samples[sym].append(qt[:60])
+        # unmapped = 어떤 증상에도 도달 못 함 → 커버리지 공백 후보로 수집
+        if sym == "unmapped" and qt:
+            uncovered_counter[qt.strip()[:80]] += 1
+            if len(uncovered_samples) < 50:
+                uncovered_samples.append(qt[:80])
 
     # 수집 우선순위: insufficient 건수 많은 증상/intent 순
     priority = [
         {"symptom": sym, "insufficient_count": cnt, "samples": samples.get(sym, [])}
         for sym, cnt in by_symptom.most_common()
         if sym != "unmapped"
+    ]
+    # 커버리지 확장 수요 큐: 자주 반복되는 unmapped 질의 우선
+    coverage_expansion_demand = [
+        {"query": qt, "count": cnt}
+        for qt, cnt in uncovered_counter.most_common(20)
     ]
     return {
         "total": total,
@@ -100,6 +124,9 @@ def aggregate_gaps(rows: List[Dict], sym_kw: Dict[str, List[str]] = None) -> Dic
         "by_intent_insufficient": dict(by_intent.most_common()),
         "collection_priority": priority,
         "unmapped_insufficient": by_symptom.get("unmapped", 0),
+        # Sprint 2: 증상 매칭 실패 질의 = 새 증상 추가 수요 신호 (gap→커버리지 환류)
+        "coverage_expansion_demand": coverage_expansion_demand,
+        "uncovered_samples": uncovered_samples,
     }
 
 
@@ -134,6 +161,9 @@ def main():
     print("--- 수집 우선순위 (근거부족 많은 증상 순) ---", flush=True)
     for i, p in enumerate(res["collection_priority"][:20], 1):
         print(f"{i:2d}. {p['symptom']}  부족={p['insufficient_count']}  예: {p['samples'][:2]}", flush=True)
+    print("--- 커버리지 확장 수요 (증상 미도달 unmapped 질의 — 새 증상 추가 신호) ---", flush=True)
+    for i, d in enumerate(res.get("coverage_expansion_demand", [])[:20], 1):
+        print(f"{i:2d}. {d['query']}  반복={d['count']}", flush=True)
     print("===GAP_ANALYSIS_END===", flush=True)
 
 
