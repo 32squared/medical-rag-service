@@ -432,6 +432,25 @@
       "query": "환율이 궁금해요",
       "colloquial": false,
       "expect_symptom": null
+    },
+    {
+      "id": "sym-radiating-1",
+      "query": "왼쪽 견갑골에서 팔로 내려가는 방사통이 있어 너무 아파",
+      "colloquial": true,
+      "expect_symptom": "radiating_arm_pain",
+      "expect_department": "신경외과"
+    },
+    {
+      "id": "sym-radiating-2",
+      "query": "목디스크 때문인지 팔이 저려요",
+      "colloquial": true,
+      "expect_symptom": "radiating_arm_pain"
+    },
+    {
+      "id": "sym-radiating-3",
+      "query": "날개뼈 쪽이 아프고 팔까지 아파요",
+      "colloquial": true,
+      "expect_symptom": "radiating_arm_pain"
     }
   ]
 }

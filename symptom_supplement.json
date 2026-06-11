@@ -242,6 +242,27 @@
       ]
     },
     {
+      "symptom_key": "radiating_arm_pain",
+      "symptom_name": "팔 방사통",
+      "category": "musculoskeletal",
+      "detail": "방사통, 견갑골, 날개뼈, 팔저림, 목디스크",
+      "department": "신경외과",
+      "required_questions": [
+        {"label": "위치/경로", "keywords": ["목", "견갑골", "어디", "어느 팔"]},
+        {"label": "유발 요인", "keywords": ["목 움직", "고개", "기침", "자세"]}
+      ],
+      "red_flags": [
+        {"label": "가슴통증·압박감 동반(심장 감별)", "keywords": ["가슴", "흉통", "압박", "쥐어짜"]},
+        {"label": "식은땀·호흡곤란 동반", "keywords": ["식은땀", "호흡", "숨"]},
+        {"label": "양팔 위약/보행 이상(척수 신호)", "keywords": ["양팔", "힘이 빠", "걷기", "보행", "대소변"]},
+        {"label": "외상 후 발생", "keywords": ["사고", "부딪", "낙상", "외상"]}
+      ],
+      "context_questions": [
+        {"label": "목 통증 동반", "keywords": ["목", "뒷목"]},
+        {"label": "저림 분포", "keywords": ["저림", "손가락", "감각"]}
+      ]
+    },
+    {
       "symptom_key": "jaundice",
       "symptom_name": "황달",
       "category": "digestive",

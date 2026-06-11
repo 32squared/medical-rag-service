@@ -4,6 +4,8 @@ param(
     [string]$JobName         = "kb-seed-phase1",
     [string]$ServiceName     = "medical-rag-dev",
     [string]$SqlInstance     = "medical-db",
+    # 대상 DB (기본: 운영 medical_app — 기존 동작 유지). DEV 적재 시 -DbName medical_app_dev
+    [string]$DbName          = "medical_app",
     [string]$DbPassword      = "",
     [string]$ServiceAccount  = "716262961556-compute@developer.gserviceaccount.com",
     [string]$VpcConnector    = "medical-connector",
@@ -39,7 +41,7 @@ if (-not $DbPassword) {
 }
 Write-Host "DB Password: ****" -ForegroundColor Green
 
-$DatabaseUrl = "postgresql://app_user:${DbPassword}@/medical_app?host=/cloudsql/${SqlConnection}"
+$DatabaseUrl = "postgresql://app_user:${DbPassword}@/${DbName}?host=/cloudsql/${SqlConnection}"
 
 # ── seed_kb_phase1.py CMD args ──
 $SeedArgs = $Script
