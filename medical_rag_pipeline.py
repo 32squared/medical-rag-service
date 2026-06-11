@@ -152,6 +152,15 @@ def _finalize(answer_id, masked, classification, routing, pack, answer,
     except Exception:
         pass
 
+    # 진료과 트리아지 (증상 매칭 → 진료과 안내). 위기/응급은 안전 우선이라 제외.
+    triage = {"symptom_keys": [], "departments": [], "hint": ""}
+    if safety_level not in ("crisis_guidance", "emergency_guidance"):
+        try:
+            from symptom_matcher import department_hint
+            triage = department_hint(masked.get("masked_text", ""))
+        except Exception:
+            pass
+
     stages.append("audit")
     evidence_ids = [e["evidence_id"] for e in (pack or {}).get("evidence_items", [])] if pack else []
     audit = {
@@ -175,6 +184,7 @@ def _finalize(answer_id, masked, classification, routing, pack, answer,
         "citation": cite,
         "review": review,
         "safety_level": safety_level,
+        "triage": triage,
         "audit": audit,
         "stages": stages,
     }

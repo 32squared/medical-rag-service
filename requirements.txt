@@ -7,3 +7,6 @@ beautifulsoup4>=4.12.0
 markdownify>=0.11.6
 google-cloud-run>=0.10.0
 openpyxl>=3.1.0
+# 한국어 형태소 분석 (선택적 — 미설치 시 korean_tokenizer가 휴리스틱 폴백).
+# 구어체 증상 도달률 개선용. 설치 실패해도 서비스는 정상 동작.
+kiwipiepy>=0.17.0

@@ -64,9 +64,15 @@ _RRF_K = 60         # RRF 파라미터
 
 # ─── consultation_checklists.json 1회 로딩 ───────────────────
 def _load_checklists() -> dict:
-    """consultation_checklists.json → {"symptoms": {symptom_key: {...}}} (consultation_loader 위임)."""
-    import consultation_loader
-    return consultation_loader.load_checklists_by_symptom()
+    """증상 카탈로그 → {"symptoms": {symptom_key: {...}}}.
+    symptom_catalog 경유로 기존 42증상 + repo-local 보강(symptom_supplement)을 병합한다.
+    실패 시 consultation_loader 직접 폴백(무손상)."""
+    try:
+        from symptom_catalog import load_catalog_by_symptom
+        return load_catalog_by_symptom()
+    except Exception:
+        import consultation_loader
+        return consultation_loader.load_checklists_by_symptom()
 
 
 CHECKLISTS: dict = _load_checklists()
@@ -270,6 +276,12 @@ def _sparse_search(
 
     # 의미 토큰(조사·어미 제거) — tsvector OR 질의 + ILIKE fallback 공용
     _kw_tokens = _korean_meaningful_tokens(query)
+    # 동의어 확장 (일반인 표현↔의학 용어 — recall 보강, 실패 시 원본 유지)
+    try:
+        from synonym_expander import expand_tokens as _expand_syn
+        _kw_tokens = _expand_syn(_kw_tokens)
+    except Exception:
+        pass
     # tsvector OR 질의식: '가슴 | 통증 | 답답' (to_tsquery용, 한글/영숫자만)
     _safe_tokens = [_re.sub(r"[^가-힣a-zA-Z0-9]", "", t) for t in _kw_tokens]
     _safe_tokens = [t for t in _safe_tokens if t]
@@ -541,6 +553,14 @@ def detect_symptom_keys(query: str, checklists: dict) -> List[str]:
         매칭된 symptom_key 리스트 (중복 제거)
     """
     matched = []
+    # 1차: 증상 이름·세부표현·동의어 기반 매칭 (symptom_matcher — 구어체 도달률 개선).
+    #      "머리아파"→headache 같이 증상 표현 자체로 도달. 실패해도 무해(아래 키워드 매칭 보강).
+    try:
+        from symptom_matcher import match_symptoms
+        matched.extend(match_symptoms(query))
+    except Exception:
+        pass
+    # 2차: 기존 문진/red_flag 키워드 매칭 (호환 — 누락분 보강)
     symptoms = checklists.get("symptoms", {})
     for symptom_key, data in symptoms.items():
         found = False
@@ -562,7 +582,7 @@ def detect_symptom_keys(query: str, checklists: dict) -> List[str]:
                         break
                 if found:
                     break
-    return list(set(matched))
+    return list(dict.fromkeys(matched))  # 순서 보존 dedup (matcher 우선순위 유지)
 
 
 def apply_red_flag_boost(

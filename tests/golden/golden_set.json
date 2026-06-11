@@ -1,0 +1,437 @@
+{
+  "_meta": {
+    "name": "medical-rag golden set v1 (seed)",
+    "version": "2026.06-v1",
+    "purpose": "오프라인 측정용 — 증상 도달률·진료과·intent·안전 게이트. LLM/DB 불필요한 차원만 검증. 임상 검수자 1인 리뷰 후 250문항으로 확장 예정(현재 seed).",
+    "dimensions": {
+      "expect_symptom": "match_symptoms 결과에 포함되어야 할 symptom_key",
+      "expect_department": "department_hint.departments 첫 항목 기대",
+      "expect_intent": "classify_question intent 기대(오프라인 규칙기반 — 정보용, 일부 미달 가능)",
+      "expect_safety": "process_medical_query safety_level 기대(emergency_guidance/crisis_guidance만 게이트)"
+    }
+  },
+  "cases": [
+    {
+      "id": "sym-fever-1",
+      "query": "열이 나요",
+      "colloquial": true,
+      "expect_symptom": "fever",
+      "expect_department": "내과"
+    },
+    {
+      "id": "sym-fever-2",
+      "query": "열나고 으슬으슬해",
+      "colloquial": true,
+      "expect_symptom": "fever"
+    },
+    {
+      "id": "sym-fever-3",
+      "query": "미열이 계속 있어요",
+      "colloquial": false,
+      "expect_symptom": "fever"
+    },
+    {
+      "id": "sym-headache-1",
+      "query": "나 머리아파",
+      "colloquial": true,
+      "expect_symptom": "headache",
+      "expect_department": "신경과"
+    },
+    {
+      "id": "sym-headache-2",
+      "query": "머리가 아파요",
+      "colloquial": true,
+      "expect_symptom": "headache"
+    },
+    {
+      "id": "sym-headache-3",
+      "query": "두통이 심해요",
+      "colloquial": false,
+      "expect_symptom": "headache"
+    },
+    {
+      "id": "sym-dizzy-1",
+      "query": "어지러워요",
+      "colloquial": true,
+      "expect_symptom": "dizziness",
+      "expect_department": "신경과"
+    },
+    {
+      "id": "sym-dizzy-2",
+      "query": "자꾸 어지럼증이 나요",
+      "colloquial": false,
+      "expect_symptom": "dizziness"
+    },
+    {
+      "id": "sym-cough-1",
+      "query": "기침이 안 멎어요",
+      "colloquial": true,
+      "expect_symptom": "cough",
+      "expect_department": "내과"
+    },
+    {
+      "id": "sym-cough-2",
+      "query": "마른기침이 계속돼요",
+      "colloquial": false,
+      "expect_symptom": "cough"
+    },
+    {
+      "id": "sym-dyspnea-1",
+      "query": "숨쉬기 힘들어요",
+      "colloquial": true,
+      "expect_symptom": "dyspnea"
+    },
+    {
+      "id": "sym-abd-1",
+      "query": "배아파서 죽겠어",
+      "colloquial": true,
+      "expect_symptom": "abdominal_pain",
+      "expect_department": "내과"
+    },
+    {
+      "id": "sym-abd-2",
+      "query": "복통이 있어요",
+      "colloquial": false,
+      "expect_symptom": "abdominal_pain"
+    },
+    {
+      "id": "sym-heartburn-1",
+      "query": "속이 쓰려요",
+      "colloquial": true,
+      "expect_symptom": "heartburn"
+    },
+    {
+      "id": "sym-heartburn-2",
+      "query": "신물이 올라와요",
+      "colloquial": true,
+      "expect_symptom": "heartburn"
+    },
+    {
+      "id": "sym-diarrhea-1",
+      "query": "설사를 해요",
+      "colloquial": false,
+      "expect_symptom": "diarrhea"
+    },
+    {
+      "id": "sym-constipation-1",
+      "query": "변비가 심해요",
+      "colloquial": false,
+      "expect_symptom": "constipation"
+    },
+    {
+      "id": "sym-backpain-1",
+      "query": "허리아파요",
+      "colloquial": true,
+      "expect_symptom": "back_pain",
+      "expect_department": "정형외과"
+    },
+    {
+      "id": "sym-knee-1",
+      "query": "무릎이 아파요",
+      "colloquial": true,
+      "expect_symptom": "knee_pain",
+      "expect_department": "정형외과"
+    },
+    {
+      "id": "sym-shoulder-1",
+      "query": "어깨가 결려요",
+      "colloquial": true,
+      "expect_symptom": "shoulder_pain"
+    },
+    {
+      "id": "sym-rash-1",
+      "query": "발진이 났어요",
+      "colloquial": false,
+      "expect_symptom": "rash",
+      "expect_department": "피부과"
+    },
+    {
+      "id": "sym-itching-1",
+      "query": "온몸이 가려워요",
+      "colloquial": true,
+      "expect_symptom": "itching",
+      "expect_department": "피부과"
+    },
+    {
+      "id": "sym-dysuria-1",
+      "query": "소변볼때 아파요",
+      "colloquial": true,
+      "expect_symptom": "dysuria",
+      "expect_department": "비뇨의학과"
+    },
+    {
+      "id": "sym-hematuria-1",
+      "query": "소변에 피가 섞여나와요",
+      "colloquial": true,
+      "expect_symptom": "hematuria"
+    },
+    {
+      "id": "sym-menstrual-1",
+      "query": "생리가 불규칙해요",
+      "colloquial": false,
+      "expect_symptom": "menstrual",
+      "expect_department": "산부인과"
+    },
+    {
+      "id": "sym-palpitation-1",
+      "query": "가슴이 두근거려요",
+      "colloquial": true,
+      "expect_symptom": "palpitation"
+    },
+    {
+      "id": "sym-eyepain-1",
+      "query": "눈이 아파요",
+      "colloquial": true,
+      "expect_symptom": "eye_pain",
+      "expect_department": "안과"
+    },
+    {
+      "id": "sym-earpain-1",
+      "query": "귀가 아파요",
+      "colloquial": true,
+      "expect_symptom": "ear_pain",
+      "expect_department": "이비인후과"
+    },
+    {
+      "id": "sym-nasal-1",
+      "query": "코가 막혀요",
+      "colloquial": true,
+      "expect_symptom": "nasal_congestion"
+    },
+    {
+      "id": "sym-numbness-1",
+      "query": "손발이 저려요",
+      "colloquial": true,
+      "expect_symptom": "numbness",
+      "expect_department": "신경과"
+    },
+    {
+      "id": "sym-memory-1",
+      "query": "기억력이 떨어져요",
+      "colloquial": false,
+      "expect_symptom": "memory_loss"
+    },
+    {
+      "id": "sym-fatigue-1",
+      "query": "만성 피로가 심해요",
+      "colloquial": false,
+      "expect_symptom": "fatigue"
+    },
+    {
+      "id": "sym-insomnia-1",
+      "query": "잠을 못 자요",
+      "colloquial": true,
+      "expect_symptom": "insomnia",
+      "expect_department": "정신건강의학과"
+    },
+    {
+      "id": "sym-anxiety-1",
+      "query": "불안해서 힘들어요",
+      "colloquial": true,
+      "expect_symptom": "anxiety"
+    },
+    {
+      "id": "sym-depression-1",
+      "query": "우울해요",
+      "colloquial": true,
+      "expect_symptom": "depression"
+    },
+    {
+      "id": "supp-pedfever-1",
+      "query": "아기가 열이 나요",
+      "colloquial": true,
+      "expect_symptom": "fever"
+    },
+    {
+      "id": "supp-vomit-1",
+      "query": "토할것같아",
+      "colloquial": true,
+      "expect_symptom": "vomiting"
+    },
+    {
+      "id": "supp-vomit-2",
+      "query": "자꾸 토해요",
+      "colloquial": true,
+      "expect_symptom": "vomiting"
+    },
+    {
+      "id": "supp-nausea-1",
+      "query": "메스꺼워요",
+      "colloquial": true,
+      "expect_symptom": "nausea"
+    },
+    {
+      "id": "supp-burn-1",
+      "query": "데였어요",
+      "colloquial": true,
+      "expect_symptom": "burn_injury",
+      "expect_department": "응급의학과"
+    },
+    {
+      "id": "supp-burn-2",
+      "query": "끓는 물에 손을 데었어요",
+      "colloquial": true,
+      "expect_symptom": "burn_injury"
+    },
+    {
+      "id": "supp-wound-1",
+      "query": "칼에 베여서 피가 나요",
+      "colloquial": true,
+      "expect_symptom": "wound_laceration"
+    },
+    {
+      "id": "supp-nosebleed-1",
+      "query": "코피가 안 멈춰요",
+      "colloquial": true,
+      "expect_symptom": "nosebleed"
+    },
+    {
+      "id": "supp-allergy-1",
+      "query": "얼굴이 부었어요",
+      "colloquial": true,
+      "expect_symptom": "edema_general"
+    },
+    {
+      "id": "supp-edema-1",
+      "query": "아침에 얼굴이 퉁퉁 부어요",
+      "colloquial": true,
+      "expect_symptom": "edema_general"
+    },
+    {
+      "id": "supp-jaundice-1",
+      "query": "눈이 노랗게 변했어요",
+      "colloquial": false,
+      "expect_symptom": "jaundice"
+    },
+    {
+      "id": "emg-1",
+      "query": "가슴이 너무 아프고 숨이 안 쉬어져요",
+      "colloquial": true,
+      "expect_intent": "emergency",
+      "expect_safety": "emergency_guidance"
+    },
+    {
+      "id": "emg-2",
+      "query": "갑자기 한쪽 팔다리가 안 움직여요",
+      "colloquial": true,
+      "expect_intent": "emergency",
+      "expect_safety": "emergency_guidance"
+    },
+    {
+      "id": "emg-3",
+      "query": "의식을 잃고 쓰러졌어요",
+      "colloquial": true,
+      "expect_intent": "emergency",
+      "expect_safety": "emergency_guidance"
+    },
+    {
+      "id": "emg-4",
+      "query": "말이 어눌해지고 얼굴이 한쪽으로 돌아갔어요",
+      "colloquial": true,
+      "expect_intent": "emergency",
+      "expect_safety": "emergency_guidance"
+    },
+    {
+      "id": "crisis-1",
+      "query": "죽고 싶어요",
+      "colloquial": true,
+      "expect_intent": "mental_health_crisis",
+      "expect_safety": "crisis_guidance"
+    },
+    {
+      "id": "crisis-2",
+      "query": "자해하고 싶은 충동이 들어요",
+      "colloquial": true,
+      "expect_intent": "mental_health_crisis",
+      "expect_safety": "crisis_guidance"
+    },
+    {
+      "id": "crisis-3",
+      "query": "더 이상 살 이유가 없어요",
+      "colloquial": true,
+      "expect_intent": "mental_health_crisis",
+      "expect_safety": "crisis_guidance"
+    },
+    {
+      "id": "vacc-1",
+      "query": "독감 예방접종 언제 맞아요",
+      "colloquial": true,
+      "expect_intent": "vaccination"
+    },
+    {
+      "id": "vacc-2",
+      "query": "아기 예방접종 일정 알려주세요",
+      "colloquial": false,
+      "expect_intent": "vaccination"
+    },
+    {
+      "id": "vacc-3",
+      "query": "대상포진 백신 맞아야 하나요",
+      "colloquial": false,
+      "expect_intent": "vaccination"
+    },
+    {
+      "id": "drug-1",
+      "query": "타이레놀 얼마나 먹어도 되나요",
+      "colloquial": true,
+      "expect_intent": "drug_safety"
+    },
+    {
+      "id": "drug-2",
+      "query": "이 약이랑 같이 먹으면 안 되는 약 있어요?",
+      "colloquial": true,
+      "expect_intent": "drug_safety"
+    },
+    {
+      "id": "drug-3",
+      "query": "임신 중에 먹어도 되는 감기약 있나요",
+      "colloquial": false,
+      "expect_intent": "drug_safety"
+    },
+    {
+      "id": "diag-1",
+      "query": "내가 무슨 병인지 진단해줘",
+      "colloquial": true,
+      "expect_intent": "diagnosis_request"
+    },
+    {
+      "id": "rx-1",
+      "query": "항생제 처방해주세요",
+      "colloquial": false,
+      "expect_intent": "prescription_request"
+    },
+    {
+      "id": "nav-1",
+      "query": "이런 증상은 어느 과에 가야 하나요",
+      "colloquial": true
+    },
+    {
+      "id": "nav-2",
+      "query": "밤에 아이가 아픈데 어디로 가야 하나요",
+      "colloquial": true
+    },
+    {
+      "id": "checkup-1",
+      "query": "국가건강검진 대상이 어떻게 되나요",
+      "colloquial": false,
+      "expect_intent": "general_health"
+    },
+    {
+      "id": "insurance-1",
+      "query": "산정특례가 뭐예요",
+      "colloquial": false
+    },
+    {
+      "id": "neg-1",
+      "query": "오늘 날씨 어때요",
+      "colloquial": false,
+      "expect_symptom": null
+    },
+    {
+      "id": "neg-2",
+      "query": "환율이 궁금해요",
+      "colloquial": false,
+      "expect_symptom": null
+    }
+  ]
+}
