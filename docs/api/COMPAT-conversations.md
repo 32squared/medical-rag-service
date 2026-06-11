@@ -182,4 +182,14 @@ CREATE INDEX IF NOT EXISTS idx_conv_user_status ON conversations(user_id, displa
 | 4 | 생성/스트리밍 엔드포인트 | **해소** → 그게 `Run_Graph_Conversation` PDF였음. [COMPAT-run-graph.md](COMPAT-run-graph.md)로 별도 정의. |
 | 5 | `display_type=DOCUMENT_CHAT` | 미해소 — 현재 우리는 SEARCH형만. 문서 기반 대화 지원 여부 확인 필요. |
 
-**이번 구현 범위(프로젝트 보류 반영)**: 대화 목록(3.1)·검색(3.2)·상세(3.3)·수정(3.4)·삭제(3.5)만. 프로젝트 4종은 스키마 컬럼(`project_strid`)만 예약하고 엔드포인트는 추후.
+**이번 구현 범위(프로젝트 보류 반영)**: 대화 목록(3.1)·검색(3.2)·상세(3.3)·수정(3.4)·삭제(3.5)만. 프로젝트 4종은 스키마 컬럼(`project_strid`)만 예약하고 엔드포인트는 501 응답.
+
+## 7. 구현 완료 (2026-06-11)
+
+| 구성요소 | 파일 | 비고 |
+|---|---|---|
+| 마이그레이션 | `migrations/011_conversation_compat.sql`(+sqlite) | conversations 보강 컬럼 + 인덱스. **신규 DB는 `--apply`, 기존 DB는 `--sync`로 적용** |
+| 직렬화 | `conversation_serializer.py` | Conversation/Chat/SearchResult/snippet — 순수 함수 |
+| 라우트 | `rag_history_routes.py` (`HistoryRoutesMixin`) | 대화 5종 + projects 501. user_id 스코프, 소프트 삭제 |
+| 배선 | `rag_server.py` | `/api/data_management/` 디스패치 + `do_PATCH` |
+| 테스트 | `tests/test_conversation_serializer.py`(CI) + SQLite 엔드투엔드 스모크(목록·검색·상세·권한404·수정·소프트삭제) 통과 | |

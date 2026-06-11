@@ -96,6 +96,7 @@ jobs:
   #   test_golden_eval           — 골든셋 오프라인 회귀 게이트 (안전 100% 필수)
   #   test_gap_coverage_demand   — gap 루프 커버리지 확장 수요 신호 (Sprint 2)
   #   test_phoenix_compat        — Phoenix Run Graph 호환(SSE 변환·인증·vital 파서)
+  #   test_conversation_serializer — Phoenix 대화관리 직렬화(Conversation/Chat/snippet)
   #
   # EXCLUDED (pre-existing failures / server-required / API-key-required):
   #   test_rag_legal_eval / test_rag_consultation_eval — 평가 모듈은 호스트 잔류(P1 결정), RAG repo 에 없음
@@ -156,4 +157,5 @@ jobs:
             tests/test_golden_eval.py \
             tests/test_gap_coverage_demand.py \
             tests/test_phoenix_compat.py \
+            tests/test_conversation_serializer.py \
             -v --tb=short -q

@@ -34,6 +34,7 @@ from urllib.parse import urlparse, unquote
 
 from rag_routes import RagRoutesMixin
 from service_routes import ServiceRoutesMixin
+from rag_history_routes import HistoryRoutesMixin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rag_server")
@@ -44,8 +45,9 @@ RAG_TRUST_SECRET = os.environ.get('RAG_TRUST_SECRET', '')
 _SCHEMA_VERSION_CACHE = "unknown"
 
 
-class RagHandler(ServiceRoutesMixin, RagRoutesMixin, BaseHTTPRequestHandler):
-    """RagRoutesMixin(+Phoenix 호환 ServiceRoutesMixin) 서빙.
+class RagHandler(HistoryRoutesMixin, ServiceRoutesMixin, RagRoutesMixin,
+                 BaseHTTPRequestHandler):
+    """RagRoutesMixin(+Phoenix 호환 Service/History 믹스인) 서빙.
     믹스인이 요구하는 8개 헬퍼를 자체 구현(trust-header 인증)."""
 
     server_version = "RagService/1.0"
@@ -146,16 +148,21 @@ class RagHandler(ServiceRoutesMixin, RagRoutesMixin, BaseHTTPRequestHandler):
                 "version": os.environ.get('K_REVISION', 'local'),
                 "schema": _SCHEMA_VERSION_CACHE,
             })
-        if not (path.startswith('/api/rag/') or path.startswith('/api/service/')):
-            return self._send_error(404, 'RAG 서비스는 /api/rag/* · /api/service/* 만 처리합니다')
+        if not (path.startswith('/api/rag/') or path.startswith('/api/service/')
+                or path.startswith('/api/data_management/')):
+            return self._send_error(
+                404, 'RAG 서비스는 /api/rag/* · /api/service/* · /api/data_management/* 만 처리합니다')
         body = None
-        if method in ('POST', 'PUT', 'DELETE'):
+        if method in ('POST', 'PUT', 'DELETE', 'PATCH'):
             length = int(self.headers.get('Content-Length', 0) or 0)
             body = self.rfile.read(length) if length else b''
         try:
             if path.startswith('/api/service/'):
                 # Phoenix Run Graph 호환 계층 (COMPAT-run-graph.md)
                 return self._handle_service_route(method, path, parsed, body)
+            if path.startswith('/api/data_management/'):
+                # Phoenix 대화관리 호환 계층 (COMPAT-conversations.md)
+                return self._handle_dm_route(method, path, parsed, body)
             return self._handle_rag_route(method, path, parsed, body)
         except Exception as e:
             logger.exception("RAG route error: %s", e)
@@ -175,6 +182,9 @@ class RagHandler(ServiceRoutesMixin, RagRoutesMixin, BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         self._route('DELETE')
+
+    def do_PATCH(self):
+        self._route('PATCH')
 
     def do_OPTIONS(self):
         self.send_response(204)
