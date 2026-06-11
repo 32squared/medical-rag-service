@@ -21,8 +21,13 @@
 | 환경 | 주소 | 비고 |
 |---|---|---|
 | 로컬 | `http://localhost:8080` | `python rag_server.py --port 8080` (또는 `PORT` 환경변수) |
-| Cloud Run(DEV) | `https://<cloud-run-host>` | `deploy-rag.ps1`로 배포된 `medical-rag-dev` 서비스. 실제 호스트는 배포 후 `gcloud run services describe medical-rag-dev --region asia-northeast3 --format 'value(status.url)'`로 확인 |
-| Cloud Run(운영) | `https://<cloud-run-host>` | `deploy-rag.ps1 -Prod`의 `medical-rag` 서비스 |
+| **Cloud Run(DEV)** | **`https://medical-rag-dev-cbtevhmzrq-du.a.run.app`** | 2026-06-11 배포·검증 완료. 비공개(`--no-allow-unauthenticated`) — Google ID 토큰 필요(아래) |
+| Cloud Run(운영) | `https://<cloud-run-host>` | `deploy-rag.ps1 -Prod`의 `medical-rag` 서비스 (미배포) |
+
+> Cloud Run은 고정 IP가 아닌 HTTPS URL로 접근한다. DEV는 IAM 비공개 서비스라
+> 요청에 `Authorization: Bearer $(gcloud auth print-identity-token)` (Google ID 토큰)이 필요하며,
+> 호출 계정에 `roles/run.invoker` 권한이 있어야 한다. 앱 레벨 사용자 식별은 별도로 `X-User-Id` 헤더 사용.
+> 외부 팀 계정 허용: `gcloud run services add-iam-policy-binding medical-rag-dev --region asia-northeast3 --member=user:<email> --role=roles/run.invoker`
 
 > 본 문서의 예시는 `BASE=http://localhost:8080` 기준. 운영 호스트로 바꾸면 동일하게 동작.
 
