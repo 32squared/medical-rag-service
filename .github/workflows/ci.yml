@@ -88,6 +88,13 @@ jobs:
   #   test_rag_guardrail_fp_filter — _filter_guardrail_false_positives, DB 불필요
   #   test_medical_rag_pipeline  — MockLLM + mock retrieve, OpenAI/DB 불필요
   #   test_migrate_runner        — 임시 SQLite + 임시 migrations dir, 완전 독립
+  #   test_synonym_expander      — 동의어 질의 확장 순수 로직 (KB 확장 P2-9)
+  #   test_reference_ranges      — 참조범위 빌더 순수 함수 (KB 확장 P2)
+  #   test_seed_kb_expansion     — P1/P3/P4/P6 시드 빌더 + KB 게이트 통과 검증
+  #   test_context_feeds         — 컨텍스트 피드 등급/요약 순수 함수 (KB 확장 P5)
+  #   test_symptom_matcher       — 증상 매칭·진료과·카탈로그·토크나이저 (Sprint 1/2)
+  #   test_golden_eval           — 골든셋 오프라인 회귀 게이트 (안전 100% 필수)
+  #   test_gap_coverage_demand   — gap 루프 커버리지 확장 수요 신호 (Sprint 2)
   #
   # EXCLUDED (pre-existing failures / server-required / API-key-required):
   #   test_rag_legal_eval / test_rag_consultation_eval — 평가 모듈은 호스트 잔류(P1 결정), RAG repo 에 없음
@@ -140,4 +147,11 @@ jobs:
             tests/test_rag_guardrail_fp_filter.py \
             tests/test_medical_rag_pipeline.py \
             tests/test_migrate_runner.py \
+            tests/test_synonym_expander.py \
+            tests/test_reference_ranges.py \
+            tests/test_seed_kb_expansion.py \
+            tests/test_context_feeds.py \
+            tests/test_symptom_matcher.py \
+            tests/test_golden_eval.py \
+            tests/test_gap_coverage_demand.py \
             -v --tb=short -q
