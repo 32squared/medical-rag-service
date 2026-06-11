@@ -145,7 +145,7 @@ def build_vaccination_documents(defs: List[Dict] = None) -> List[Dict]:
             "title": title,
             "content_md": content_md,
             "source_id": _SOURCE_ID,
-            "source_url": _BASE_URL,
+            "source_url": f"{_BASE_URL}#{d.get('key','')}",
             "metadata": {
                 "evidence_level": "A",
                 "source_priority": 2,

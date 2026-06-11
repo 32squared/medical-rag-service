@@ -352,7 +352,9 @@ def build_lifecycle_documents(defs: List[Dict] = None) -> List[Dict]:
             "title": title,
             "content_md": content_md,
             "source_id": _SOURCE_ID,
-            "source_url": d.get("url", ""),
+            # 문서별 고유 URL(앵커) — 같은 출처 다수 문서가 source_url을 공유해
+            # ingest 멱등성 체크(title OR source_url)에서 서로 덮어쓰는 문제 방지
+            "source_url": (f"{d.get('url','')}#{d.get('key','')}" if d.get("url") else ""),
             "metadata": {
                 "evidence_level": "B",
                 "source_priority": 2,

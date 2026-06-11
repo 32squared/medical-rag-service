@@ -157,7 +157,7 @@ def build_navigation_documents(defs: List[Dict] = None) -> List[Dict]:
             "title": title,
             "content_md": content_md,
             "source_id": _SOURCE_ID,
-            "source_url": d.get("url", ""),
+            "source_url": (f"{d.get('url','')}#{d.get('key','')}" if d.get("url") else ""),
             "metadata": {
                 "evidence_level": "B",
                 "source_priority": 2,
