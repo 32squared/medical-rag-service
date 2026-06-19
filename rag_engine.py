@@ -481,6 +481,32 @@ def rrf_fusion(
 _EVIDENCE_LEVEL_SCORE = {"A": 1.0, "B": 0.75, "C": 0.5, "D": 0.25, "F": 0.1}
 
 
+def _freshness_score(date_str, today=None) -> float:
+    """발행/개정일(ISO 'YYYY-MM-DD…') → 신선도 0~1. 의학정보는 최신성=정확성.
+
+    최근 1년 이내 1.0 → 6년에 걸쳐 0.3까지 선형 감쇠. 미상/파싱불가/미래 날짜는
+    0.5(중립) — 날짜 미색인 문서는 기존 동작과 동일(무회귀).
+    today: 테스트 결정성용 기준일(미지정 시 date.today()).
+    """
+    if not date_str:
+        return 0.5
+    try:
+        from datetime import date
+        s = str(date_str)[:10]
+        doc = date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+        ref = today or date.today()
+        years = (ref - doc).days / 365.0
+        if years < 0:
+            return 0.5
+        if years <= 1:
+            return 1.0
+        if years >= 6:
+            return 0.3
+        return round(1.0 - (years - 1) * (0.7 / 5.0), 3)
+    except Exception:
+        return 0.5
+
+
 def _weighted_rerank(
     fused: List[dict],
     dense_results: List[dict],
@@ -517,7 +543,9 @@ def _weighted_rerank(
         except Exception:
             sp = 3
         sp_score = max(0.0, (7 - sp) / 6.0)             # 1→1.0 … 6→0.17
-        fresh = 0.5                                       # revised_at 미색인 → 중립
+        # 신선도: 개정일/발행일이 chunk에 있으면 반영, 없으면 0.5 중립(무회귀).
+        # (날짜 색인은 후속 — 마이그레이션+SELECT+ingestion. 로직은 선반영.)
+        fresh = _freshness_score(c.get("revised_at") or c.get("published_at"))
         dom = float(c.get("topic_alignment_score") or 0.5)
         dom = min(max(dom, 0.0), 1.0)
         evl = _EVIDENCE_LEVEL_SCORE.get((c.get("evidence_level") or "").upper(), 0.5)
