@@ -1153,11 +1153,41 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] 분류 스킵: %s", _e)
 
+    # ── 1.6 멀티턴: 후속질의면 직전 주제로 *검색 질의* 재작성 (06 §3) ──
+    # 안전 분류는 위에서 원본 질의로 끝남(§6-1). 재작성은 검색에만 적용.
+    # 실패는 비차단(원본 질의 유지). intent emergency/crisis면 재작성 안 함.
+    _retrieval_query = query
+    _is_followup = False
+    _mt_ctx = {}
+    _mt_cur_keys = []
+    _rewrite_method = "none"
+    try:
+        import conversation_context as _cc
+        _mt = _cc.resolve_retrieval_query(
+            query, conversation_id,
+            intent=(_classification or {}).get("intent"),
+        )
+        _retrieval_query = _mt["retrieval_query"]
+        _is_followup = _mt["is_followup"]
+        _mt_ctx = _mt["context"]
+        _mt_cur_keys = _mt["current_symptom_keys"]
+        _rewrite_method = _mt["rewrite_method"]
+        if _rewrite_method != "none":
+            logger.info(
+                "[RAGEngine][Multiturn] 후속질의 재작성 method=%s → 검색질의 전환",
+                _rewrite_method,
+            )
+    except Exception as _e:
+        logger.debug("[RAGEngine] 멀티턴 해석 스킵: %s", _e)
+
     # ── 1.7 트리아지: 비의료/대화성 입력은 4단 의료답변 대신 되묻기 ──
     # "배고파", "안녕" 등 의료 신호 없는 모호 입력에 응급징후·문진을 들이대는
     # 과의료화 방지. 검색·LLM 호출을 건너뛰어 비용도 절약(0원).
+    # 멀티턴 재작성이 성공하면(검색질의 확보) 되묻기를 건너뛴다 —
+    # "언제 병원 가야해요?" 같은 후속질의가 비의료 모호입력으로 오인돼
+    # 되묻기 막다른길에 빠지던 문제 해소.
     _clarify_reason = _should_clarify(query, _classification)
-    if _clarify_reason:
+    if _clarify_reason and _rewrite_method == "none":
         logger.info(
             "[RAGEngine][Triage] 비의료/모호 입력 되묻기 query=%r reason=%s",
             query[:40], _clarify_reason,
@@ -1178,7 +1208,7 @@ def generate_response(
     # ── 2. Hybrid search ──────────────────────────────────────
     retrieval_start = time.time()
     try:
-        chunks = hybrid_search(query, top_k=top_k)
+        chunks = hybrid_search(_retrieval_query, top_k=top_k)
     except Exception as e:
         logger.error("[RAGEngine] hybrid_search 오류: %s", e)
         yield {"type": "ERROR", "message": f"검색 오류: {e}"}
@@ -1490,6 +1520,28 @@ def generate_response(
                 })
     except Exception as _e:
         logger.debug("[RAGEngine] 감사/검수 스킵: %s", _e)
+
+    # ── 7.6 멀티턴 세션 컨텍스트 갱신 (06 §3 step 5, 가드) ─────
+    # 비식별 요약만 저장(증상키·intent·진료과). 후속질의(증상 0건)는 직전 주제를
+    # carry-forward 해 대화 주제를 유지한다. 실패는 비차단.
+    try:
+        import conversation_context as _cc
+        _persist_keys = _cc.keys_to_persist(_mt_cur_keys, _mt_ctx)
+        _persist_depts = []
+        if _persist_keys:
+            try:
+                from symptom_matcher import departments_for
+                _persist_depts = departments_for(_persist_keys)
+            except Exception:
+                _persist_depts = []
+        _cc.update_context(
+            conversation_id,
+            symptom_keys=_persist_keys,
+            intent=(_classification or {}).get("intent"),
+            departments=_persist_depts,
+        )
+    except Exception as _e:
+        logger.debug("[RAGEngine] 멀티턴 컨텍스트 갱신 스킵: %s", _e)
 
     # ── 8. STOP 이벤트 ────────────────────────────────────────
     _total_ms = int((time.time() - start_ts) * 1000)

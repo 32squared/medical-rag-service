@@ -353,6 +353,56 @@ class TestCitationZeroRegeneration:
 #  TC-6: EMERGENCY 감지 → 상태 전환
 # ════════════════════════════════════════════════════════════
 
+class TestMultiturnWiring:
+    """멀티턴 배선 end-to-end: 후속질의가 검색 단계에서 재작성되는지 검증."""
+
+    def test_followup_rewrites_hybrid_search_query(self):
+        from unittest.mock import MagicMock
+        spy = MagicMock(return_value=[_make_chunk("C1")])
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", spy), \
+             patch("conversation_context.load_context", return_value={
+                 "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+                 "last_departments": ["신경과"], "turn_count": 1}), \
+             patch("conversation_context.update_context"), \
+             patch("llm_router.get_llm_provider", return_value=_make_provider_mock()), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            list(generate_response("언제 병원 가야 해요?", "conv-mt-1", enable_guardrails=True))
+
+        # hybrid_search가 *재작성된* 질의로 호출되어야 함(원본과 다름)
+        called_query = spy.call_args[0][0]
+        assert called_query != "언제 병원 가야 해요?", "검색 질의가 재작성되지 않음"
+        assert "진료" in called_query, f"재작성 템플릿 누락: {called_query}"
+
+    def test_emergency_followup_not_rewritten(self):
+        """후속 신호가 있어도 이번 턴이 응급이면 재작성하지 않는다(안전)."""
+        from unittest.mock import MagicMock
+        spy = MagicMock(return_value=[_make_chunk("C1")])
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", spy), \
+             patch("conversation_context.load_context", return_value={
+                 "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+                 "last_departments": ["신경과"], "turn_count": 1}), \
+             patch("conversation_context.update_context"), \
+             patch("llm_router.get_llm_provider", return_value=_make_provider_mock()), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            # 응급 신호 + 후속처럼 짧은 질의
+            list(generate_response("숨을 못 쉬겠어요", "conv-mt-2", enable_guardrails=True))
+
+        called_query = spy.call_args[0][0]
+        assert called_query == "숨을 못 쉬겠어요", "응급 질의가 재작성됨(안전 위반)"
+
+
 class TestGuardrailFailSafe:
     """가드레일 예외 시 fail-open이 아니라 감사가능·면책보장으로 처리."""
 

@@ -88,6 +88,61 @@ def test_turn_count_increments(temp_db):
     assert ctx["last_symptom_keys"] == ["fever"]
 
 
+# ── resolve_retrieval_query / keys_to_persist (DB는 monkeypatch) ──────────────
+
+def test_resolve_emergency_intent_no_rewrite(monkeypatch):
+    """emergency intent면 컨텍스트가 있어도 재작성하지 않는다(안전 §6-1)."""
+    monkeypatch.setattr(cc, "load_context", lambda cid: {
+        "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+        "last_departments": ["신경과"], "turn_count": 2})
+    out = cc.resolve_retrieval_query("가슴이 너무 아파요", "c", intent="emergency")
+    assert out["retrieval_query"] == "가슴이 너무 아파요"
+    assert out["rewrite_method"] == "none"
+
+
+def test_resolve_followup_rewrites(monkeypatch):
+    """직전 주제가 있고 후속 신호면 검색 질의가 재작성된다."""
+    monkeypatch.setattr(cc, "load_context", lambda cid: {
+        "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+        "last_departments": ["신경과"], "turn_count": 1})
+    out = cc.resolve_retrieval_query("언제 병원 가야 해요?", "c", intent="unknown")
+    assert out["is_followup"] is True
+    assert out["rewrite_method"] == "rule"
+    assert out["retrieval_query"] != "언제 병원 가야 해요?"
+
+
+def test_resolve_non_followup_when_query_has_symptom(monkeypatch):
+    """질의 자체에 증상이 잡히면 재작성하지 않는다."""
+    monkeypatch.setattr(cc, "load_context", lambda cid: {
+        "last_symptom_keys": ["headache"], "turn_count": 1,
+        "last_intent": None, "last_departments": []})
+    out = cc.resolve_retrieval_query("배가 아파요", "c", intent="symptom_info")
+    assert out["is_followup"] is False
+    assert out["retrieval_query"] == "배가 아파요"
+
+
+def test_resolve_first_turn_no_rewrite(monkeypatch):
+    monkeypatch.setattr(cc, "load_context", lambda cid: {
+        "last_symptom_keys": [], "turn_count": 0,
+        "last_intent": None, "last_departments": []})
+    out = cc.resolve_retrieval_query("언제 병원 가야 해요?", "c", intent="unknown")
+    assert out["is_followup"] is False
+    assert out["rewrite_method"] == "none"
+
+
+def test_keys_to_persist_prefers_current():
+    assert cc.keys_to_persist(["fever"], {"last_symptom_keys": ["headache"]}) == ["fever"]
+
+
+def test_keys_to_persist_carries_forward_on_followup():
+    """현재 턴에 증상이 없으면(후속) 직전 주제를 유지한다."""
+    assert cc.keys_to_persist([], {"last_symptom_keys": ["headache"]}) == ["headache"]
+
+
+def test_keys_to_persist_empty():
+    assert cc.keys_to_persist([], {}) == []
+
+
 def test_context_does_not_touch_emergency_state(temp_db):
     """컨텍스트 갱신이 emergency_state를 건드리지 않아야 한다."""
     import rag_db

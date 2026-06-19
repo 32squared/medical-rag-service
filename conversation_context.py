@@ -73,3 +73,49 @@ def last_symptom_name(context: Dict) -> str:
     """컨텍스트의 첫 last_symptom_key → 대표 한글명(재작성 주어). 없으면 ''."""
     keys = (context or {}).get("last_symptom_keys") or []
     return name_for_key(keys[0]) if keys else ""
+
+
+def resolve_retrieval_query(
+    query: str, conversation_id: str, intent: Optional[str] = None
+) -> Dict:
+    """후속질의면 직전 주제로 *검색 질의*를 재작성한다(06 §3 step 1~3).
+
+    안전(§6-1): intent가 emergency/mental_health_crisis면 재작성하지 않는다 —
+    문맥이 안전 분기를 약화시키지 않도록 원본 질의를 그대로 쓴다.
+    실패는 비차단(원본 질의 유지) — 멀티턴이 단일턴 동작을 깨지 않게.
+
+    Returns:
+        {retrieval_query, is_followup, rewrite_method, context, current_symptom_keys}
+    """
+    ctx = load_context(conversation_id)
+    out = {
+        "retrieval_query": query,
+        "is_followup": False,
+        "rewrite_method": "none",
+        "context": ctx,
+        "current_symptom_keys": [],
+    }
+    if intent in ("emergency", "mental_health_crisis"):
+        return out
+    try:
+        from symptom_matcher import match_symptoms
+        from followup_rewriter import is_followup, rewrite_followup
+        cur_keys = match_symptoms(query)
+        out["current_symptom_keys"] = cur_keys
+        if is_followup(query, ctx.get("turn_count", 0), cur_keys):
+            out["is_followup"] = True
+            rq, method = rewrite_followup(query, last_symptom_name(ctx))
+            if method != "none":
+                out["retrieval_query"] = rq
+                out["rewrite_method"] = method
+    except Exception as e:
+        logger.debug("[ConvCtx] resolve 실패(원본 질의 유지): %s", e)
+    return out
+
+
+def keys_to_persist(current_symptom_keys: List[str], context: Dict) -> List[str]:
+    """이번 턴에 저장할 증상키 결정. 현재 턴에 증상이 잡히면 그것을,
+    후속질의(증상 0건)면 직전 주제를 carry-forward 해 대화 주제를 유지한다."""
+    if current_symptom_keys:
+        return current_symptom_keys
+    return (context or {}).get("last_symptom_keys") or []
