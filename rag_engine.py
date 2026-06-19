@@ -1465,6 +1465,25 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] citation_verify 스킵: %s", _e)
 
+    # ── 6.6 claim↔근거 의미일치(어휘 겹침) shadow 검증 (07 §9.1) ──
+    # 인용 마커 범위(verify_citations)를 넘어, 인용 문장이 실제 근거 청크와
+    # 겹치는지 결정적으로 점검. shadow — 로그·검수 신호로만(차단/삭제 없음).
+    try:
+        from citation_verifier import check_citation_grounding
+        _ev_by_marker = {}
+        for _i, _c in enumerate(chunks, 1):
+            _txt = _c.get("content") or _c.get("snippet") or ""
+            _ev_by_marker[str(_i)] = _txt
+            _ev_by_marker[f"E{_i}"] = _txt
+        _grounding = check_citation_grounding(full_text, _ev_by_marker)
+        if _grounding.get("checked") and _grounding.get("weak_claims"):
+            logger.info(
+                "[RAGEngine][Grounding] 근거일치율=%.2f weak=%d (shadow)",
+                _grounding["grounded_ratio"], len(_grounding["weak_claims"]),
+            )
+    except Exception as _e:
+        logger.debug("[RAGEngine] grounding shadow 스킵: %s", _e)
+
     # ── 7. rag_queries INSERT ─────────────────────────────────
     rag_query_id = _insert_rag_query(
         conversation_id=conversation_id,

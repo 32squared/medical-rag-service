@@ -66,6 +66,86 @@ def _is_medical_claim(sent: str) -> bool:
     return bool(re.search(r"(?:다|요|음|함|됨)$", core))
 
 
+# ── claim↔근거 의미일치(어휘 겹침) 검증 (07-revised-plan.md §9.1) ──────────────
+# 기존 verify_citations는 인용 *마커 범위*만 본다. 이 검사는 인용된 문장이 실제
+# 인용 근거 청크와 어휘적으로 겹치는지(결정적 근거일치의 1차 근사)를 본다.
+# LLM 비의존·결정적. 겹침 미달은 weak_grounding으로 *표시만* 한다(삭제/차단 아님 —
+# 오거부 위험 회피, 감사·검수 신호로만 사용).
+
+_TOKEN_RE = re.compile(r"[가-힣A-Za-z0-9]{2,}")
+# 내용어가 아닌 일반/연결 표현 — 겹침 계산에서 제외(노이즈 감소)
+_GROUNDING_STOP = {
+    "그리고", "그러나", "합니다", "입니다", "있습니다", "없습니다", "경우",
+    "관련", "대한", "위해", "통해", "수도", "있어요", "대해", "정보", "일반",
+    "가능", "권장", "다양", "또는", "그리고", "하지만", "때문", "위한", "있는",
+    "됩니다", "수도있습니다", "참고", "확인", "필요", "상담", "의료진",
+}
+
+
+def _content_tokens(text: str) -> List[str]:
+    """내용어 토큰 추출(2자 이상 한글/영숫자, 불용어 제외)."""
+    return [t for t in _TOKEN_RE.findall(text or "") if t not in _GROUNDING_STOP]
+
+
+def check_citation_grounding(answer: str, evidence_by_marker: Dict[str, str],
+                             min_overlap: float = 0.2) -> Dict:
+    """인용된 문장이 인용 근거 청크와 어휘적으로 겹치는지 검증(결정적 근거일치 근사).
+
+    Args:
+        answer: 생성 답변(인용 마커 [E#]/[N] 포함).
+        evidence_by_marker: 마커키 → 근거 청크 텍스트. 키는 "1","E1" 등 모두 허용.
+        min_overlap: claim 내용어 중 근거에 등장한 비율 임계(기본 0.2).
+
+    Returns:
+        {checked, grounded, grounded_ratio, weak_claims:[{sentence,overlap}], notes}
+        근거 없거나 인용 없으면 checked=0, grounded_ratio=1.0(스킵).
+    """
+    if not answer or not evidence_by_marker:
+        return {"checked": 0, "grounded": 0, "grounded_ratio": 1.0,
+                "weak_claims": [], "notes": "skip"}
+
+    sentences = [s for s in _SENT_SPLIT_RE.split(answer) if s.strip()]
+    checked = 0
+    grounded = 0
+    weak: List[Dict] = []
+
+    for sent in sentences:
+        markers = _CITATION_RE.findall(sent)
+        if not markers:
+            continue
+        checked += 1
+        claim_toks = set(_content_tokens(_CITATION_RE.sub("", sent)))
+        if not claim_toks:
+            grounded += 1  # 내용어 없는 인용 문장은 검사 대상 아님(통과)
+            continue
+        best = 0.0
+        for m in markers:
+            key = m.strip("[]")
+            chunk = (
+                evidence_by_marker.get(key)
+                or evidence_by_marker.get(f"E{key}")
+                or evidence_by_marker.get(key.lstrip("E"))
+                or ""
+            )
+            if not chunk:
+                continue
+            matched = sum(1 for t in claim_toks if t in chunk)
+            best = max(best, matched / len(claim_toks))
+        if best >= min_overlap:
+            grounded += 1
+        else:
+            weak.append({"sentence": sent.strip(), "overlap": round(best, 3)})
+
+    ratio = (grounded / checked) if checked else 1.0
+    return {
+        "checked": checked,
+        "grounded": grounded,
+        "grounded_ratio": round(ratio, 3),
+        "weak_claims": weak,
+        "notes": f"min_overlap={min_overlap}",
+    }
+
+
 def verify_citations(answer: str, evidence_ids: List[str] = None) -> Dict:
     """답변의 claim-level 인용/안전 검증."""
     if not answer:
