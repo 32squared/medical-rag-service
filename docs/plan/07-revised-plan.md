@@ -155,3 +155,26 @@ consent_ledger → `ingest_server.py`(혈압 1종) → `vital_rules` v0.1 → `p
 - Phase 0 종료 게이트 교체.
 - KPI에 유용성·거절률·경쟁우월성·데이터 신선도 추가.
 - §4 데이터 수집 파이프라인을 신규 1급 작업군으로 승격.
+
+## 10. 구현 현황 로그 (2026-06-20 — 자율 구현 트랙)
+
+비개인화 도달·안전·품질 트랙을 증분 구현(전체 테스트 green 유지, feature 브랜치).
+
+| 영역 | 산출물 | 상태 |
+|---|---|---|
+| 도달(reach) | 응급·위기 구어체 탐지, 매처·분류기 **부사삽입 내성**(`_strip_fillers`) | ✅ |
+| 거절 최소화(D2) | 근거부족 시 **거절→길안내 전환**(진료과+준비 안내) | ✅ |
+| 안전 버그 | ① emergency 오탐(면책문구 119/응급실 → 상태오염) 수정 ② 가드레일 fail-open→'error'+면책보장 | ✅ |
+| 멀티턴 | followup_rewriter·conversation_context·generate_response 배선·골든게이트(≥80%)·감사(`013`) | ✅ (06 완료) |
+| 결정적 검증(§9.1) | claim↔근거 어휘겹침 `check_citation_grounding` (shadow) | ✅ |
+| KB 메타데이터 | 출처 티어 `evidence_level`(수집기 'B일괄' 교체), freshness 점수 로직 | ✅ (freshness 로직만) |
+| 수집 건전성(§4-4) | `assess_collection_health` 0건/급감 경고 | ✅ |
+| CI 신뢰성 | stale 테스트 30→0(회귀 아닌 미갱신 동기화), 실제 회귀 없음 확인 | ✅ |
+
+### 남은 항목 — 자율 부적합(사람 검토/인프라/측정 필요)
+- **freshness 활성화 2/2**: `_freshness_score` 로직은 반영됨. 활성화하려면 kb_documents에 `published_at`/`revised_at` 컬럼(마이그레이션) + **hybrid_search PG SELECT 색인** + ingestion 저장 필요. hybrid_search는 **PG 전용**(SQLite NotImplementedError)이라 CI로 검증 불가 → PG 환경 측정 + 배포순서(마이그레이션 선행) 검토 후 적용.
+- **수집 자동화**: Cloud Scheduler → Cloud Run Job 주기 실행(§4-1), MFDS NAT IP 등록(차단 해소) — 인프라/운영.
+- **변경감지 재크롤**(§4-2): 재fetch→checksum 변경분만 upsert + 구버전 보존.
+- **경쟁 벤치마크 골든셋**: GPT/Gemini 대비 — 외부 API 키 필요.
+- **그라운딩 shadow→enforce 승격**: 실트래픽 근거일치율 측정 후(측정 우선 §0).
+- **개인화(Phase 1)**: consent_ledger·ingest_server·vital_rules — 별도 Phase.
