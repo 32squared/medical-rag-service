@@ -6,7 +6,7 @@ Anthropic/Vertex는 Phase 3에서 추가.
   LLMProvider         — 추상 기본 인터페이스
   OpenAIProvider      — OpenAI GPT 구현체
   get_llm_provider()  — 프로바이더 팩토리 (환경변수 기반)
-  get_fallback_provider() — 재생성용 저비용 모델 (gpt-5-mini)
+  get_fallback_provider() — 재생성용 저비용 모델 (gpt-5.4-mini)
 """
 
 import os
@@ -271,7 +271,7 @@ def get_fallback_provider() -> LLMProvider:
     """
     가드레일 재생성용 저비용 모델 프로바이더를 반환한다.
 
-    기본: gpt-5-mini (환경변수 RAG_LLM_FALLBACK_MODEL로 재정의 가능).
+    기본: gpt-5.4-mini (환경변수 RAG_LLM_FALLBACK_MODEL로 재정의 가능).
     사용자 정상 응답은 get_llm_provider()를 사용할 것.
     """
     model_id = os.environ.get("RAG_LLM_FALLBACK_MODEL", "gpt-5.4-mini")

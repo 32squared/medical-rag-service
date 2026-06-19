@@ -101,7 +101,7 @@ class TestOpenAIProviderInit:
         assert p.provider_id == "openai_gpt5_mini"
 
     def test_model_id_from_env(self):
-        """RAG_LLM_MODEL 환경변수가 없으면 gpt-5 기본값 사용."""
+        """RAG_LLM_MODEL 환경변수가 없으면 gpt-5.4-mini 기본값 사용."""
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
             os.environ.pop("RAG_LLM_MODEL", None)
             import openai as _openai
@@ -112,7 +112,7 @@ class TestOpenAIProviderInit:
                 p = OpenAIProvider()
             finally:
                 _openai.OpenAI = original_cls
-        assert p.model_id == "gpt-5"
+        assert p.model_id == "gpt-5.4-mini"
 
     def test_abstract_interface_properties(self):
         """provider_id, model_id 프로퍼티가 존재한다."""
@@ -360,13 +360,13 @@ class TestGetLLMProviderUnknown:
 
 class TestGetFallbackProvider:
     def test_fallback_returns_gpt5_mini(self):
-        """환경변수 없을 때 gpt-5-mini 반환."""
+        """환경변수 없을 때 기본 fallback 모델(gpt-5.4-mini) 반환."""
         with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
             os.environ.pop("RAG_LLM_FALLBACK_MODEL", None)
             with patch("openai.OpenAI"):
                 from llm_router import get_fallback_provider
                 p = get_fallback_provider()
-        assert p.model_id == "gpt-5-mini"
+        assert p.model_id == "gpt-5.4-mini"
 
     def test_fallback_env_override(self):
         """RAG_LLM_FALLBACK_MODEL 환경변수로 모델 변경 가능."""
