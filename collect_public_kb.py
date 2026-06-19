@@ -1462,6 +1462,20 @@ def collect_all(
     stats["fetched"] = len(all_items)
     logger.info("[Collect] 총 %d건 수집 완료", stats["fetched"])
 
+    # 수집 건전성 평가 (07 §4-4) — 출처 0건/급감을 경고로 표면화
+    try:
+        from collection_health import assess_collection_health
+        _per_source: Dict[str, int] = {}
+        for _it in all_items:
+            _s = _it.get("_source", "?")
+            _per_source[_s] = _per_source.get(_s, 0) + 1
+        _health = assess_collection_health(_per_source, expected_sources=sources)
+        stats["health"] = _health
+        for _w in _health["warnings"]:
+            logger.warning("[Collect][Health] %s", _w)
+    except Exception as e:
+        logger.debug("[Collect] 건전성 평가 스킵: %s", e)
+
     # ── dry_run 미리보기 ─────────────────────────────────────
     if dry_run:
         print(f"\n[DRY RUN] 수집 총 {stats['fetched']}건 — 상위 {_DRY_RUN_PREVIEW}건 미리보기\n")
