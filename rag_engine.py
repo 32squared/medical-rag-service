@@ -1489,6 +1489,11 @@ def generate_response(
             from review_queue import should_review
             _answer_id = "ans_" + rag_query_id[:12]
             _model_v = getattr(provider, "model_id", None) or getattr(provider, "provider_id", "unknown")
+            # 멀티턴 재작성 추적(06 §6-4): 재작성 방법 + 원 질의 해시(원문 미저장)
+            _rewritten_from = None
+            if _rewrite_method != "none":
+                import hashlib as _hl
+                _rewritten_from = _hl.sha1((query or "").encode("utf-8")).hexdigest()[:16]
             _rag_db.update_rag_query_audit(
                 rag_query_id,
                 answer_id=_answer_id,
@@ -1498,6 +1503,8 @@ def generate_response(
                 evidence_pack_json=(
                     json.dumps(_evidence_pack, ensure_ascii=False) if _evidence_pack else None
                 ),
+                rewrite_method=_rewrite_method,
+                rewritten_from=_rewritten_from,
             )
             _decision = should_review(
                 classification=_classification,

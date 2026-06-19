@@ -220,7 +220,8 @@ def update_rag_query_audit(rag_query_id: str, **fields):
     if not rag_query_id or not fields:
         return False
     allowed = {"answer_id", "model_version", "prompt_version",
-               "classification_json", "evidence_pack_json"}
+               "classification_json", "evidence_pack_json",
+               "rewrite_method", "rewritten_from"}
     cols = [k for k in fields if k in allowed]
     if not cols:
         return False
