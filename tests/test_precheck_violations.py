@@ -67,9 +67,14 @@ def test_public_source_false_efficacy_blocked():
 
 
 def test_category_set_sizes():
-    """KB_CONTENT와 PATIENT_RESPONSE 카테고리 집합 크기 검증."""
-    assert len(KB_CONTENT_VIOLATION_CATEGORIES) == 3, (
-        f"KB_CONTENT 카테고리가 3개여야 함: {KB_CONTENT_VIOLATION_CATEGORIES}"
+    """KB_CONTENT와 PATIENT_RESPONSE 카테고리 집합 크기 검증.
+
+    KB_CONTENT는 정보성 콘텐츠라 환자응답 가드레일을 면제하고 게재 부적합
+    패턴(prescription·misleading_ad)만 검사한다. emergency_guidance는
+    KB 문서가 응급처치 지침을 담으므로 의도적으로 제외됨(collect_public_kb.py 참조).
+    """
+    assert KB_CONTENT_VIOLATION_CATEGORIES == {"prescription", "misleading_ad"}, (
+        f"KB_CONTENT 카테고리 불일치: {KB_CONTENT_VIOLATION_CATEGORIES}"
     )
     assert len(PATIENT_RESPONSE_VIOLATION_CATEGORIES) == 12, (
         f"PATIENT_RESPONSE 카테고리가 12개여야 함: {PATIENT_RESPONSE_VIOLATION_CATEGORIES}"

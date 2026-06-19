@@ -643,11 +643,13 @@ def check_evidence_topic_alignment(
 ) -> List[dict]:
     """
     각 청크의 evidence_topic이 질의와 의미적으로 연결되는지 검증.
-    완전히 무관한 청크(예: 소아 발열 질의에 항말라리아제 자료)는 제거.
+    완전히 무관한 청크(예: 소아 발열 질의에 항말라리아제 자료)에 낮은
+    topic_alignment_score를 부여한다. **청크를 제거하지는 않으며**, 실제
+    컷오프(게이팅)는 evaluate_retrieval_gate()가 score를 보고 판단한다.
 
     양현종(소아청소년과) 자문 반영:
     - "소아 발열 시나리오에서 아토피·movement disorder·항말라리아제 참고문헌이
-       노출된 문제"를 retrieval 단계에서 차단.
+       노출된 문제"를 score 기반 게이트로 걸러낸다.
 
     Args:
         results: boost 적용 후 청크 리스트
@@ -656,10 +658,9 @@ def check_evidence_topic_alignment(
         threshold: 코사인 유사도 임계값 (기본 0.20, 한글 임베딩 의미공간 기준)
 
     Returns:
-        topic alignment 검증을 통과한 청크 리스트.
-        evidence_topic이 없는 청크는 그대로 통과.
-        topic_alignment_score 필드가 추가됨.
-        제거된 청크는 filtered_reason 필드에 이유 기록 (로그용).
+        입력 청크 전체(제거 없음). evidence_topic이 있는 청크에는
+        topic_alignment_score 필드가 추가됨(낮아도 유지). evidence_topic이
+        없는 청크는 score 미부여로 그대로 통과.
     """
     if not results:
         return results
