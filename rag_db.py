@@ -42,9 +42,27 @@ def ensure_rag_schema():
                    conversation_id         TEXT PRIMARY KEY,
                    emergency_state         TEXT NOT NULL DEFAULT 'NORMAL',
                    emergency_redirected_at TEXT,
+                   last_symptom_keys       TEXT DEFAULT '[]',
+                   last_intent             TEXT,
+                   last_departments        TEXT DEFAULT '[]',
+                   turn_count              INTEGER DEFAULT 0,
+                   context_updated_at      TEXT,
                    updated_at              TEXT NOT NULL
                )"""
         )
+        # 기존(컬럼 없는) 테이블 대비 additive ALTER — 멱등(중복 컬럼 오류 무시).
+        # 멀티턴 세션 컨텍스트 컬럼(06-multiturn-design.md §4). 원문 질의는 미저장(개인정보 최소화).
+        for ddl in (
+            "ALTER TABLE rag_conversation_state ADD COLUMN last_symptom_keys TEXT DEFAULT '[]'",
+            "ALTER TABLE rag_conversation_state ADD COLUMN last_intent TEXT",
+            "ALTER TABLE rag_conversation_state ADD COLUMN last_departments TEXT DEFAULT '[]'",
+            "ALTER TABLE rag_conversation_state ADD COLUMN turn_count INTEGER DEFAULT 0",
+            "ALTER TABLE rag_conversation_state ADD COLUMN context_updated_at TEXT",
+        ):
+            try:
+                cur.execute(ddl)
+            except Exception:
+                pass  # 이미 존재 → 무시(멱등)
         conn.commit()
 
 
@@ -95,6 +113,76 @@ def set_conversation_state(conversation_id: str, state: str) -> None:
             f"updated_at = {_p()}",
             (conversation_id, state, redirected_at, now,
              state, redirected_at, now),
+        )
+        conn.commit()
+
+
+def _ctx_loads(val) -> list:
+    """저장된 JSON 문자열 → 리스트(오류 시 빈 리스트)."""
+    if not val:
+        return []
+    try:
+        out = json.loads(val)
+        return out if isinstance(out, list) else []
+    except Exception:
+        return []
+
+
+def get_conversation_context(conversation_id: str) -> dict:
+    """멀티턴 세션 컨텍스트 조회(06-multiturn-design.md §3).
+
+    반환: {last_symptom_keys: [...], last_intent: str|None,
+           last_departments: [...], turn_count: int}
+    행 없음/오류 시 빈 컨텍스트(turn_count=0).
+    """
+    empty = {"last_symptom_keys": [], "last_intent": None,
+             "last_departments": [], "turn_count": 0}
+    _ensure_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"SELECT last_symptom_keys, last_intent, last_departments, turn_count "
+                f"FROM rag_conversation_state WHERE conversation_id = {_p()}",
+                (conversation_id,),
+            )
+            row = cur.fetchone()
+    except Exception:
+        return empty
+    if not row:
+        return empty
+    rd = _row_to_dict(row)
+    return {
+        "last_symptom_keys": _ctx_loads(rd.get("last_symptom_keys")),
+        "last_intent": rd.get("last_intent"),
+        "last_departments": _ctx_loads(rd.get("last_departments")),
+        "turn_count": int(rd.get("turn_count") or 0),
+    }
+
+
+def update_conversation_context(conversation_id: str, symptom_keys=None,
+                                intent=None, departments=None) -> None:
+    """이번 턴 결과로 세션 컨텍스트 갱신 + turn_count 증가(UPSERT).
+
+    비식별 요약만 저장(증상키/intent/진료과). 원문 질의는 저장하지 않는다(§6-3).
+    emergency_state 는 건드리지 않는다(별도 set_conversation_state 소관).
+    """
+    _ensure_once()
+    now = datetime.now(timezone.utc).isoformat()
+    sk = json.dumps(symptom_keys or [], ensure_ascii=False)
+    dp = json.dumps(departments or [], ensure_ascii=False)
+    with get_conn() as (conn, cur):
+        cur.execute(
+            f"INSERT INTO rag_conversation_state "
+            f"(conversation_id, emergency_state, last_symptom_keys, last_intent, "
+            f" last_departments, turn_count, context_updated_at, updated_at) "
+            f"VALUES ({_p()},{_p()},{_p()},{_p()},{_p()},{_p()},{_p()},{_p()}) "
+            f"ON CONFLICT (conversation_id) DO UPDATE SET "
+            f"last_symptom_keys = {_p()}, last_intent = {_p()}, "
+            f"last_departments = {_p()}, "
+            f"turn_count = rag_conversation_state.turn_count + 1, "
+            f"context_updated_at = {_p()}, updated_at = {_p()}",
+            (conversation_id, "NORMAL", sk, intent, dp, 1, now, now,
+             sk, intent, dp, now, now),
         )
         conn.commit()
 
