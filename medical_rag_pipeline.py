@@ -42,6 +42,32 @@ def _answer_id(question: str, salt: str = "") -> str:
     return f"ans_{h}"
 
 
+def _insufficient_with_navigation(masked_text: str) -> str:
+    """근거 부족 시 '그냥 거절' 대신 길 안내로 전환 (D2: 거절 최소화).
+
+    공인 근거가 부족해 단정은 못 하더라도, 증상이 인식되면 진료과 안내 등
+    의료법상 가장 안전한 '길 안내' 정보를 최대한 제공한다. 진단·처방은 하지 않는다.
+    (07-revised-plan.md D2 — 거절 최소화를 길안내·실용정보로 달성)
+    """
+    base = "확인된 출처가 부족해 증상에 대해 단정적으로 답변드리기는 어렵습니다."
+    parts = [base]
+    hint = ""
+    try:
+        from symptom_matcher import department_hint
+        hint = (department_hint(masked_text) or {}).get("hint", "")
+    except Exception:
+        hint = ""
+    if hint:
+        parts.append("다만 도움이 될 수 있는 안내를 드립니다: " + hint)
+        parts.append(
+            "진료 시 증상 시작 시점·지속 기간·동반 증상·복용 중인 약을 메모해 가시면 "
+            "상담에 도움이 됩니다."
+        )
+    else:
+        parts.append("증상이 지속되거나 악화되면 의료진 또는 약사와 상담해 주세요.")
+    return " ".join(parts)
+
+
 def _mock_generate(evidence_pack: Dict, masked_question: str) -> str:
     """MockLLM: Evidence Pack 근거에 [E#] 인용을 붙인 보수적 답변(테스트/오프라인용)."""
     items = evidence_pack.get("evidence_items", [])
@@ -119,8 +145,7 @@ def process_medical_query(
     # 6) 근거 부족 → insufficient
     if pack.get("insufficient_evidence"):
         stages.append("insufficient_information")
-        msg = ("확인된 출처가 부족해 단정적으로 답변할 수 없습니다. "
-               "증상이 지속되거나 악화되면 의료진 또는 약사와 상담해 주세요.")
+        msg = _insufficient_with_navigation(mq)
         return _finalize(answer_id, masked, classification, routing, pack, msg,
                          {"overall_pass": True, "unsupported_claims": [],
                           "verified_answer": msg, "citation_coverage": 1.0},
