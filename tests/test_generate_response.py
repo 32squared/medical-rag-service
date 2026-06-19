@@ -353,6 +353,34 @@ class TestCitationZeroRegeneration:
 #  TC-6: EMERGENCY 감지 → 상태 전환
 # ════════════════════════════════════════════════════════════
 
+class TestGuardrailFailSafe:
+    """가드레일 예외 시 fail-open이 아니라 감사가능·면책보장으로 처리."""
+
+    def test_guardrail_exception_marks_error_and_keeps_disclaimer(self):
+        """analyzer가 예외를 던지면 guardrail_action='error'로 표시되고
+        면책문구가 부착된다(예외를 'pass'로 오라벨하지 않음)."""
+        mock_provider = _make_provider_mock(response_text="두통 정보입니다. [1]")
+        with patch("rag_engine.hybrid_search", return_value=[_make_chunk("C1")]), \
+             patch("llm_router.get_llm_provider", return_value=mock_provider), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._set_conversation_state"), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.side_effect = RuntimeError("analyzer boom")
+
+            from rag_engine import generate_response
+            events = list(generate_response(
+                "두통이 있어요", "conv-err-001", enable_guardrails=True
+            ))
+
+        stop = next(e for e in events if e["type"] == "STOP")
+        assert stop["guardrail_action"] == "error", \
+            f"가드레일 예외가 'error'로 표시되지 않음: {stop['guardrail_action']}"
+        # 예외 시에도 면책문구가 부착되어야 함
+        assert ("건강정보" in stop["text"]) or ("의료진" in stop["text"]), \
+            "가드레일 예외 시 면책문구 누락"
+
+
 class TestEmergencyDetection:
     def test_emergency_keyword_triggers_state_change(self):
         """응답에 '119'가 포함되면 _set_conversation_state가 EMERGENCY_REDIRECTED로 호출된다."""

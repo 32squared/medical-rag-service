@@ -1392,7 +1392,18 @@ def generate_response(
                 )
 
         except Exception as e:
-            logger.error("[RAGEngine] 가드레일 오류 (스킵): %s", e)
+            # fail-open 완화: 가드레일이 예외로 미완료되면 'pass'로 오라벨하지 않고
+            # 'error'로 표시해 감사·검수가 인지하게 한다. 면책문구는 예외 시에도
+            # 반드시 부착(예외가 disclaimer 부착 전에 발생하면 누락되던 컴플라이언스 갭).
+            # 가용성을 위해 응답 자체를 차단하지는 않는다(과도차단 방지).
+            logger.error("[RAGEngine] 가드레일 오류 — fail-safe 처리(action=error): %s", e)
+            if guardrail_result.get("action") == "pass":
+                guardrail_result["action"] = "error"
+            try:
+                full_text = _ensure_disclaimer(full_text)
+                full_text = _ensure_top_disclaimer(full_text)
+            except Exception:
+                pass
 
     # ── 6. 인용 매핑 추출 ────────────────────────────────────
     citations = _extract_citations(full_text, chunks)
