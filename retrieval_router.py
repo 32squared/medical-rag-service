@@ -119,3 +119,22 @@ def source_priority_for(source_id: str) -> int:
         if sid in kb_ids:
             return SOURCE_PRIORITY.get(route_label, 6)
     return 6  # 기본: 논문 수준
+
+
+def evidence_level_for_source(source_id: str) -> str:
+    """출처 → evidence_level(A/B/C) — priority_rank 기반 결정적 매핑.
+
+    04-kb-expansion-list.md §2: 출처 티어로 A(공식 지침·국내 공공)/B(글로벌 공인)/
+    C(논문·일반) 라벨. 자동 수집기의 'B 일괄' 문제를 출처 기반 차등으로 교체해
+    _weighted_rerank의 evidence_level 인자(5%)를 실효화한다.
+
+    rank 1~2(국내 공공·NIP·공식 지침) → A
+    rank 3~4(WHO/CDC/NICE/DailyMed)  → B
+    rank ≥5(Cochrane/PubMed 등 논문)  → C
+    """
+    rank = source_priority_for(source_id)
+    if rank <= 2:
+        return "A"
+    if rank <= 4:
+        return "B"
+    return "C"

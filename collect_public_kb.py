@@ -1494,12 +1494,19 @@ def collect_all(
         evidence_topic = label_evidence_topic(content_md, title=title)
 
         try:
+            # 출처 티어 기반 evidence_level (04 §2) — 'B 일괄' 대신 차등 라벨.
+            # KDCA/MFDS/NEMC 등 국내 공공 권위 출처는 A.
+            try:
+                from retrieval_router import evidence_level_for_source
+                _ev_level = evidence_level_for_source(source_id)
+            except Exception:
+                _ev_level = "B"
             result = ingest_document(
                 title=title,
                 content_md=content_md,
                 source_id=source_id,
                 metadata={
-                    "evidence_level": "B",
+                    "evidence_level": _ev_level,
                     "symptom_tags": [],
                     "department": "general",
                 },
