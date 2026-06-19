@@ -1,8 +1,9 @@
 # 멀티턴 문맥화 설계 (Sprint 3 착수 문서)
 
 > 작성: 2026-06-11 · [05-execution-plan.md](05-execution-plan.md) Sprint 3 항목 7.
-> 상태: **설계 문서** (구현 전). 현 시스템은 emergency_state만 대화 단위로 보존하고,
-> 일반 멀티턴 문맥은 없다([00-vision-master-plan.md](00-vision-master-plan.md) 약점 진단).
+> 상태: **구현 완료** (2026-06-20). followup_rewriter(§5) + conversation_context(§3·4) +
+> generate_response 배선(§3) + 골든셋 게이트(§8) + 재작성 감사(§6-4) 완료.
+> 남은 항목: LLM 폴백(§5, live·비용가드, 선택). 안전 불변식(§6)은 테스트로 보장.
 
 ---
 
