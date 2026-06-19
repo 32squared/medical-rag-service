@@ -37,6 +37,26 @@ def _normalize(s: str) -> str:
     return (s or "").replace(" ", "").lower()
 
 
+# 정도·빈도 부사(필러) — 증상 표면형 사이에 끼어 substring 매칭을 깨뜨린다.
+# 예: "머리가 계속 아파요" → 동의어 "머리가아파"가 "머리가계속아파요"에서 미발견.
+# 이 부사들을 제거하면 기존 표면형으로 도달한다. (reach: 부사삽입 내성)
+# 주의: 1~2글자 필러는 증상어의 부분문자열을 깨뜨릴 수 있어 제외("막"→"결막염" 파손).
+# 안전하게 제거 가능한, 증상어에 거의 등장하지 않는 정도·빈도 부사만 등록.
+_FILLERS = [
+    "계속해서", "계속", "자꾸만", "자꾸", "지속적으로", "꾸준히",
+    "너무너무", "너무", "정말", "진짜", "되게", "엄청", "무척",
+    "조금", "약간", "살짝", "심하게", "요즘", "요새", "최근에", "그냥",
+]
+
+
+def _strip_fillers(s: str) -> str:
+    """정도·빈도 부사 제거 (증상 매칭 recall 보조). 분류기 안전신호와 무관."""
+    out = s or ""
+    for f in _FILLERS:
+        out = out.replace(f, " ")
+    return out
+
+
 def _name_terms_for(item: dict) -> List[str]:
     """증상의 *대표* 표현 (symptom_name) — 동의어 확장 대상.
     detail은 동반증상을 포함할 수 있어 확장하면 오염되므로 분리한다."""
@@ -114,7 +134,8 @@ def match_symptoms(query: str, max_results: int = 4) -> List[str]:
     _build_index()
     if not query:
         return []
-    nq = _normalize(query)
+    # 정도·빈도 부사를 제거해 표면형 substring 매칭의 부사삽입 내성을 확보
+    nq = _normalize(_strip_fillers(query))
 
     matched: List[str] = []
     matched_set = set()
