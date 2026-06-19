@@ -174,6 +174,10 @@ class TestGuardrailCriticalBlock:
         critical_v.rule_id = "harmful_assumption"
         critical_v.severity = "CRITICAL"
         critical_v.matched_text = "자해"
+        # context는 실제 analyzer가 문자열로 채운다. RAG 오탐필터가
+        # context를 정규식 검사하므로 mock도 문자열이어야 한다(MagicMock이면
+        # 필터가 TypeError→가드레일 우회). 부정/면책/용량 없는 문맥 → 보존됨.
+        critical_v.context = "사용자가 자해 충동을 호소함"
         analysis = MagicMock()
         analysis.violations = [critical_v]
         return analysis
@@ -213,6 +217,8 @@ class TestGuardrailHighRegeneration:
         high_v.rule_id = rule_id
         high_v.severity = "HIGH"
         high_v.matched_text = "응급"
+        # context는 문자열이어야 RAG 오탐필터가 정상 동작(MagicMock이면 우회).
+        high_v.context = "응급 증상 가능성 언급"
         analysis = MagicMock()
         analysis.violations = [high_v]
         return analysis
@@ -616,11 +622,17 @@ class TestGenerateResponseStopEvent:
             assert f in stop, f"STOP 이벤트에 필드 누락: {f}"
 
     def test_info_event_has_search_results(self):
-        """INFO 이벤트에 search_results가 포함된다."""
+        """INFO 이벤트 중 정확히 하나가 search_results를 포함한다.
+
+        generate_response는 'started' 상태 INFO와 search_results INFO를
+        각각 1회 emit한다(총 INFO 2개). 여기서는 후자의 존재를 검증한다.
+        """
         events = _run_generate_response(enable_guardrails=False)
-        info_events = [e for e in events if e["type"] == "INFO"]
-        assert len(info_events) == 1
-        assert "search_results" in info_events[0]["data"]
+        sr_events = [
+            e for e in events
+            if e["type"] == "INFO" and "search_results" in e.get("data", {})
+        ]
+        assert len(sr_events) == 1
 
     def test_generation_events_present(self):
         """GENERATION 이벤트가 최소 1개 있다."""
