@@ -97,10 +97,35 @@ def _has(text: str, words: List[str]) -> bool:
     return any(w in text for w in words)
 
 
+# 정도·빈도 부사(필러) — 안전신호 키워드 사이에 끼어 substring 탐지를 깨뜨린다.
+# 예: "가슴이 너무 조여요"는 키워드 "가슴이 조여"와 불일치 → 응급 미탐지(위험).
+# 원본과 '필러 제거본'을 함께 스캔하므로 누락만 보강하고 오탐은 만들지 않는다.
+_FILLERS = [
+    "계속해서", "계속", "자꾸만", "자꾸", "지속적으로",
+    "너무너무", "너무", "되게", "엄청", "약간", "조금", "살짝",
+    "심하게", "갑자기", "막", "그냥", "요즘", "방금", "자꾸요",
+]
+
+
+def _strip_fillers(text: str) -> str:
+    """정도·빈도 부사 제거(안전신호 탐지 recall 보조). 원본과 병행 스캔용.
+
+    제거 후 다중 공백을 1개로 정규화해야 "가슴이 조여"(공백1)가
+    "가슴이  조여"(다중공백)와 매칭된다.
+    """
+    out = text or ""
+    for f in _FILLERS:
+        out = out.replace(f, " ")
+    return re.sub(r"\s+", " ", out).strip()
+
+
 def classify_rule_based(text: str) -> Dict:
     """키워드 휴리스틱 분류 (LLM 없이 동작)."""
     t = (text or "").strip()
     tl = t.lower()
+    # 안전신호(crisis/emergency)는 부사삽입 내성을 위해 원본+필러제거본을 함께 스캔.
+    # 경계('\n')를 둬 제거 경계를 넘는 우발적 매칭을 방지한다.
+    t_scan = t + "\n" + _strip_fillers(t)
 
     red_flags: List[str] = []
     intent = "general_health"
@@ -112,12 +137,12 @@ def classify_rule_based(text: str) -> Dict:
     law_risk = False
 
     # 우선순위: crisis > emergency > prescription/diagnosis > drug > infection/vaccination > symptom
-    if _has(t, _KW["mental_health_crisis"]):
+    if _has(t_scan, _KW["mental_health_crisis"]):
         intent, risk, mode = "mental_health_crisis", "crisis", "crisis_guidance"
         red_flags.append("suicidal_ideation")
         clinician = True
         routes = ["LEGAL_POLICY", "KR_GUIDELINE"]
-    elif _has(t, _KW["emergency"]):
+    elif _has(t_scan, _KW["emergency"]):
         intent, risk, mode = "emergency", "very_high", "emergency_guidance"
         clinician = True
         routes = ["KR_GUIDELINE", "KDCA"]
@@ -133,7 +158,7 @@ def classify_rule_based(text: str) -> Dict:
             "아나필락시스": "severe_allergic_reaction",
         }
         for kw, flag in _RF_MAP.items():
-            if kw in t:
+            if kw in t_scan:
                 red_flags.append(flag)
         red_flags = list(dict.fromkeys(red_flags))
     elif _has(t, _KW["prescription_request"]):

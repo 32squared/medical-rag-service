@@ -77,6 +77,26 @@ def test_crisis_sets_crisis_guidance_mode():
         assert "suicidal_ideation" in r["red_flags"], text
 
 
+# 부사(필러)가 키워드 사이에 끼어도 응급/위기로 탐지되어야 한다(안전 급소)
+_FILLER_EMERGENCY = [
+    ("가슴이 너무 조여요", "emergency"),
+    ("숨을 자꾸 못 쉬겠어요", "emergency"),
+    ("갑자기 가슴이 막 조여와요", "emergency"),
+    ("계속 가슴이 답답해요", "emergency"),
+    ("너무 죽고 싶어요", "mental_health_crisis"),
+    ("그냥 다 사라지고 싶어요", "mental_health_crisis"),
+]
+
+
+def test_filler_interleaved_safety_signal_detected():
+    misses = []
+    for text, intent in _FILLER_EMERGENCY:
+        r = classify_rule_based(text)
+        if r["intent"] != intent:
+            misses.append((text, r["intent"]))
+    assert not misses, f"부사삽입 안전신호 미탐지: {misses}"
+
+
 def test_no_false_positive_emergency():
     """일상·경증 표현이 응급으로 오분류되지 않아야 한다(과대 트리아지 가드)."""
     fp = []
