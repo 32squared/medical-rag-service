@@ -49,14 +49,22 @@ def use_temp_db(tmp_path, monkeypatch):
 
 
 def _init_test_db(db_path: str):
-    """테스트용 SQLite DB에 필요한 테이블 생성 및 시드 소스 삽입."""
-    sql_path = REPO_ROOT / "migrations" / "001_rag_tables_sqlite.sql"
+    """테스트용 SQLite DB에 필요한 테이블 생성 및 시드 소스 삽입.
+
+    실제 스키마와 일치하도록 모든 sqlite 마이그레이션(001·003·004·005·…)을
+    파일명 순서대로 적용한다. 001만 적용하면 003 이후 추가된 컬럼
+    (source_url·source_checksum 등)이 없어 kb_ingest INSERT가 실패한다.
+    """
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
 
-    # RAG 테이블 생성 (sqlite migration 파일 실행)
-    if sql_path.exists():
+    # 모든 sqlite 마이그레이션을 순서대로 적용 (additive)
+    migration_files = sorted(
+        (REPO_ROOT / "migrations").glob("*_sqlite.sql"),
+        key=lambda p: p.name,
+    )
+    for sql_path in migration_files:
         sql_text = sql_path.read_text(encoding="utf-8")
         # BEGIN/COMMIT 제거, 세미콜론으로 분할 실행
         for stmt in sql_text.split(";"):
@@ -74,6 +82,7 @@ def _init_test_db(db_path: str):
             try:
                 conn.execute(stmt)
             except Exception:
+                # SQLite ADD COLUMN은 IF NOT EXISTS 미지원 → 중복 컬럼 등 무시(멱등)
                 pass
 
     # 테스트에서 사용하는 kb_sources 시드 INSERT
