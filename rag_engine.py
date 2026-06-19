@@ -1368,9 +1368,14 @@ def generate_response(
             if citations_action == "regenerated":
                 guardrail_result["action"] = "regenerated_citation"
 
+            # EMERGENCY 감지는 *모델 응답* 기준으로 먼저 판정한다.
+            # 고정 상단 고지문에 "즉시 119 또는 응급실" 문구가 포함되므로,
+            # 면책문구 부착 이후 감지하면 모든 일반 응답이 EMERGENCY로 오탐된다.
+            emergency_detected = _detect_emergency_signal(full_text)
+
             # 면책조항 자동 부착 (하단)
             full_text = _ensure_disclaimer(full_text)
-            # 상단 고지 자동 부착 (필수 고정 문구)
+            # 상단 고지 자동 부착 (필수 고정 문구 — 119·응급실 문구 포함)
             full_text = _ensure_top_disclaimer(full_text)
 
             # 4단 응답 구조 헤더 검증
@@ -1378,8 +1383,8 @@ def generate_response(
             if not structure_ok and guardrail_result["action"] == "pass":
                 guardrail_result["action"] = "missing_structure"
 
-            # EMERGENCY 감지 → 상태 전환
-            if _detect_emergency_signal(full_text):
+            # EMERGENCY 감지 → 상태 전환 (면책문구 부착 전 판정값 사용)
+            if emergency_detected:
                 _set_conversation_state(conversation_id, "EMERGENCY_REDIRECTED")
                 logger.info(
                     "[RAGEngine] EMERGENCY 감지 → conversation_id=%s EMERGENCY_REDIRECTED 전환",
