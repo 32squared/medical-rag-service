@@ -22,12 +22,25 @@ def _all():
 
 def test_dataset_schema():
     personas = _all()
-    assert len(personas) >= 12
+    assert len(personas) >= 20, "페르소나 최소 20개 요건"
     ids = [p["id"] for p in personas]
     assert len(ids) == len(set(ids)), "persona id 중복"
     for p in personas:
         assert p.get("name") and p.get("sample_queries"), p["id"]
         assert isinstance(p.get("vitals"), list)
+
+
+def test_every_persona_has_personalization_data():
+    """각 페르소나에 상황에 맞는 개인화 데이터가 채워져 있어야 한다."""
+    for p in _all():
+        # vitals에 측정 신호가 1개 이상
+        vit = p.get("vitals") or []
+        assert vit, f"{p['id']}: vitals 비어있음"
+        signal_keys = {k for r in vit for k in r if k != "create_date"}
+        assert signal_keys, f"{p['id']}: 측정 신호 없음"
+        # 환경·PHR 필드 존재(빈 값이라도 키는 채움)
+        assert "air_quality" in p and "phr" in p, p["id"]
+        assert p.get("expected_label"), f"{p['id']}: expected_label 누락"
 
 
 def test_agent_input_roundtrips():
