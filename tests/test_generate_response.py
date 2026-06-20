@@ -489,6 +489,31 @@ class TestEmergencyDetection:
 
         mock_set_state.assert_not_called()
 
+    def test_cautionary_119_in_answer_does_not_latch_emergency(self):
+        """비응급 질의의 답변이 조건부 '119/응급실' 안내를 포함해도 EMERGENCY로
+        잠그지 않는다(과대 트리아지 고착 버그 회귀 — 질의 분류 기준 판정)."""
+        mock_provider = _make_provider_mock(
+            response_text=(
+                "【① 즉시 행동】 머리 외상이 있으면 즉시 119 또는 응급실을 이용하세요.\n"
+                "【② 의심 원인 요약】 일반적인 두통\n"
+                "【③ 상세 설명】 [1] 휴식이 도움이 됩니다.\n"
+                "【④ 추가 확인 사항】 지속되면 신경과 상담을 고려하세요.\n"
+            )
+        )
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", return_value=[_make_chunk("C1")]), \
+             patch("llm_router.get_llm_provider", return_value=mock_provider), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._set_conversation_state") as mock_set, \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            # 질의는 비응급(두통/symptom_info) — 답변에 119가 있어도 잠그면 안 됨
+            list(generate_response("3일째 머리가 아파", "conv-headache", enable_guardrails=True))
+        mock_set.assert_not_called()
+
 
 # ════════════════════════════════════════════════════════════
 #  TC-7: EMERGENCY 상태에서 고정 응답

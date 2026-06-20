@@ -1426,10 +1426,12 @@ def generate_response(
             if citations_action == "regenerated":
                 guardrail_result["action"] = "regenerated_citation"
 
-            # EMERGENCY 감지는 *모델 응답* 기준으로 먼저 판정한다.
-            # 고정 상단 고지문에 "즉시 119 또는 응급실" 문구가 포함되므로,
-            # 면책문구 부착 이후 감지하면 모든 일반 응답이 EMERGENCY로 오탐된다.
-            emergency_detected = _detect_emergency_signal(full_text)
+            # EMERGENCY 잠금은 *사용자 질의 분류*(intent=emergency)로만 판정한다.
+            # 답변 본문(4단 구조의 【① 즉시 행동】)·면책문구에는 "…면 119/응급실"
+            # 같은 조건부 안내가 정상 답변에도 흔히 들어가므로, 답변 텍스트를 스캔하면
+            # 일반 대화가 영구 응급-리다이렉트로 고착된다(과대 트리아지, 레드팀 #4).
+            # 분류기는 구어체·부사삽입 내성을 갖춰 실제 응급 질의를 잡는다.
+            emergency_detected = (_classification or {}).get("intent") == "emergency"
 
             # 면책조항 자동 부착 (하단)
             full_text = _ensure_disclaimer(full_text)
