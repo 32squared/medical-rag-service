@@ -90,7 +90,7 @@
 
 ### 3.2 시드 진화 (기존 안 깨고)
 - `_RANGES[*].ranges` 각 원소에 `rule`(불변) 옆 `bands` 추가. `build_reference_documents`는 `rule`만 읽으므로(`seed:321`) **KB 인용 본문 바이트 동일**(회귀 가드: 본문 골든 스냅샷 1건). `build_reference_rows`의 `json.dumps(ranges)`(`:287`)가 `bands`를 자동 직렬화 → `ranges_json`에 실림. **lookup은 `bands`키만 소비**.
-- `migrations/011_vital_reference_bands.sql`(신규): `schema_version INTEGER DEFAULT 1` 추가, `bands` 채운 행만 `2`. lookup은 `schema_version>=2`만 신뢰(미구조화 행 **fail-closed**). `ranges_json`은 TEXT JSON 유지(정규화 분해 안 함 — 010 단순성). 멱등 `ADD COLUMN IF NOT EXISTS`.
+- `migrations/012_vital_reference_bands.sql`(신규 — **011은 conversation_compat이 점유, 012가 빈 슬롯**): `schema_version INTEGER DEFAULT 1` 추가, `bands` 채운 행만 `2`. lookup은 `schema_version>=2`만 신뢰(미구조화 행 **fail-closed**). `ranges_json`은 TEXT JSON 유지(정규화 분해 안 함 — 010 단순성). 멱등 `ADD COLUMN IF NOT EXISTS`.
 - **공존 불변식 CI**: 각 밴드 `(min,max,inclusive)`가 `rule` 자연어와 정합(rule "130-139" ⇒ band 130/139). 사람이 둘을 따로 고치다 어긋나는 사고 차단.
 
 ---
