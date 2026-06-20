@@ -1,6 +1,6 @@
-# 대화 관리 API — Phoenix Lab 호환 인터페이스 정의서
+# 대화 관리 API — wraith Lab 호환 인터페이스 정의서
 
-> 목적: 현재 사용 중인 RAG(Phoenix Lab / SKIX)의 **대화·프로젝트 관리 API**(`Conversations_20260608.pdf`)를
+> 목적: 현재 사용 중인 RAG(wraith Lab / SKIX)의 **대화·프로젝트 관리 API**(`Conversations_20260608.pdf`)를
 > 우리 `medical-rag-service`로 **드롭인 교체**하기 위한 호환 스펙. 프론트엔드를 수정하지 않고
 > 베이스 URL만 우리 서비스로 바꿔도 동작하는 것을 목표로 한다.
 >
@@ -12,9 +12,9 @@
 ## 0. 두 API 계층의 관계 (중요)
 
 이 PDF가 정의하는 것은 **대화 이력 관리(data_management)** 계층이다. "질문을 보내 답변을 생성"하는
-**실행/스트리밍** 계층은 이 문서에 없다(별도 엔드포인트 — Phoenix는 `/api/service/conversations/{graph_type}` 추정).
+**실행/스트리밍** 계층은 이 문서에 없다(별도 엔드포인트 — wraith는 `/api/service/conversations/{graph_type}` 추정).
 
-| 계층 | Phoenix(현행) | 우리(medical-rag-service) |
+| 계층 | wraith(현행) | 우리(medical-rag-service) |
 |---|---|---|
 | 생성/스트리밍 | (이 PDF 밖) `/api/service/...` | `POST /api/rag/chat` (SSE) — [INTERFACE.md](INTERFACE.md) |
 | **이력 관리** | **`/api/data_management/conversations`·`/projects`** | **본 문서에서 신규 정의(호환)** |

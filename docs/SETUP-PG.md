@@ -44,7 +44,7 @@ docker run -d --name medrag-pg -e POSTGRES_PASSWORD=dev -p 5432:5432 pgvector/pg
   RAG_LLM_MODEL=gpt-4o-mini      # 계정 모델 목록에 맞춰 조정
   ```
 - 서버: `python rag_server.py` → `POST /api/rag/chat`(SSE), `/api/service/conversations/{graph_type}`,
-  `/api/data_management/conversations|projects` (Phoenix 호환).
+  `/api/data_management/conversations|projects` (wraith 호환).
 
 ## 트러블슈팅
 - `NotImplementedError ... PostgreSQL`: DATABASE_URL 미설정 → SQLite 모드. `.env` 확인.

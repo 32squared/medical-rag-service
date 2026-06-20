@@ -139,7 +139,7 @@ consent_ledger → `ingest_server.py`(혈압 1종) → `vital_rules` v0.1 → `p
 
 ### 9.2 멀티턴 — 미구현 확정
 - `followup_rewriter.py`·`conversation_context.py` **부재**. `medical_rag_pipeline.py`에 followup/rewrite/last_symptom 배선 **없음**.
-- `conversation_serializer.py`·`rag_history_routes.py`·migration `011_conversation_compat`는 **Phoenix 대화 CRUD 호환**(목록·검색·상세)일 뿐, [06](06-multiturn-design.md)의 컨텍스트 이월·질의 재작성과 무관.
+- `conversation_serializer.py`·`rag_history_routes.py`·migration `011_conversation_compat`는 **wraith 대화 CRUD 호환**(목록·검색·상세)일 뿐, [06](06-multiturn-design.md)의 컨텍스트 이월·질의 재작성과 무관.
 - 현재 각 질의는 독립 처리 → 그 자체로 안전하나(매 질의 재분류) "상담 대화"는 둘째 턴부터 끊김. 구현 시 06 §6 안전 불변식의 **테스트 게이트가 선행 조건**(현재는 검증할 코드가 없어 테스트도 없음).
 
 ### 9.3 실시간 피드 staleness — 안전하게 처리됨

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 014_projects.sql — Phoenix 대화관리 Projects API 호환 테이블 (PostgreSQL)
+-- 014_projects.sql — wraith 대화관리 Projects API 호환 테이블 (PostgreSQL)
 -- Conversations_20260608.pdf §6~9 (List/Create/Update/Delete projects).
 -- conversations.project_strid 가 이 테이블의 strid 를 참조한다(느슨한 참조).
 -- =============================================================================

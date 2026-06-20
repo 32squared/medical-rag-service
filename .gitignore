@@ -61,3 +61,8 @@ reports/cost_report*.md
 
 # 임시 deploy/test 로그 (다른 worktree 산출물)
 prod_deploy_*.log
+node_modules/
+package.json
+package-lock.json
+*.png
+~$*

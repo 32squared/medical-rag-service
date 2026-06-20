@@ -1,14 +1,14 @@
 """
-phoenix_sse_adapter.py — 우리 SSE 이벤트 → Phoenix(Run Graph) SSE 이벤트 변환.
+wraith_sse_adapter.py — 우리 SSE 이벤트 → wraith(Run Graph) SSE 이벤트 변환.
 
 원본 계약: docs/api/COMPAT-run-graph.md (Run_Graph_Conversation_20260508.pdf 기준).
 우리 generate_response()의 이벤트(INFO/EVIDENCE_CHECK/GENERATION/KEEP_ALIVE/STOP/ERROR)를
-Phoenix 프론트가 기대하는 형식으로 재방출한다.
+wraith 프론트가 기대하는 형식으로 재방출한다.
 
 핵심 차이 처리:
 - 연결 직후 INFO{graph_usage_strid, conversation_strid} 발급 (start_event)
-- 우리 search_results(청크) → Phoenix SearchResult(WEBPAGE 형태) 매핑
-- 우리 EVIDENCE_CHECK → Phoenix PROGRESS(label=evidence_check)로 래핑
+- 우리 search_results(청크) → wraith SearchResult(WEBPAGE 형태) 매핑
+- 우리 EVIDENCE_CHECK → wraith PROGRESS(label=evidence_check)로 래핑
 - 우리 STOP{text,citations,tokens,...} → INFO(token_usage) + 빈 STOP 신호로 분해
 - ERROR 뒤에는 STOP이 따라온다(원본 규약)
 
@@ -58,7 +58,7 @@ def start_event(conversation_id: str, usage_strid: str = None) -> Dict:
 
 
 def chunk_to_search_result(chunk: Dict) -> Dict:
-    """우리 검색 청크(_format_search_result) → Phoenix SearchResult(WEBPAGE 형태).
+    """우리 검색 청크(_format_search_result) → wraith SearchResult(WEBPAGE 형태).
 
     KB 청크에는 논문 전용 필드(doi/authors 등)가 없으므로 WEBPAGE로 통일한다
     (COMPAT-run-graph.md §3.1). 프론트가 ARTICLE 카드를 요구하면 후속 조정.
@@ -92,7 +92,7 @@ def chunk_to_search_result(chunk: Dict) -> Dict:
 
 
 def _evidence_check_to_progress(ev: Dict) -> Dict:
-    """우리 EVIDENCE_CHECK → Phoenix PROGRESS (정보 손실 없이 metadata에 보존)."""
+    """우리 EVIDENCE_CHECK → wraith PROGRESS (정보 손실 없이 metadata에 보존)."""
     d = ev.get("data", {}) or {}
     return {
         "type": "PROGRESS",
@@ -109,7 +109,7 @@ def _evidence_check_to_progress(ev: Dict) -> Dict:
 
 
 def _stop_to_events(ev: Dict) -> List[Dict]:
-    """우리 STOP(최종 묶음) → Phoenix INFO(token_usage) + 빈 STOP.
+    """우리 STOP(최종 묶음) → wraith INFO(token_usage) + 빈 STOP.
 
     원본 STOP은 종료 신호만 갖는다. 우리 STOP의 부가정보(tokens 등)는
     INFO(token_usage)로 옮기고, citations는 GENERATION 본문 마커 + 앞선
@@ -132,7 +132,7 @@ def _stop_to_events(ev: Dict) -> List[Dict]:
 
 
 def adapt_event(ev: Dict) -> List[Dict]:
-    """우리 이벤트 1건 → Phoenix 이벤트 0..N건 (순수 함수).
+    """우리 이벤트 1건 → wraith 이벤트 0..N건 (순수 함수).
 
     호출 측은 반환 리스트를 순서대로 SSE로 emit한다.
     ERROR는 [ERROR, STOP]을 반환하므로 호출 측은 이후 STOP 중복 방지 필요

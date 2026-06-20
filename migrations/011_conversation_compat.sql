@@ -1,5 +1,5 @@
 -- =============================================================================
--- 011_conversation_compat.sql — Phoenix 대화관리 API 호환 보강 (PostgreSQL)
+-- 011_conversation_compat.sql — wraith 대화관리 API 호환 보강 (PostgreSQL)
 -- 계약: docs/api/COMPAT-conversations.md (/api/data_management/conversations)
 -- 멱등성: IF NOT EXISTS. projects 기능은 보류 — project_strid 컬럼만 예약.
 --
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     updated_at          TEXT
 );
 
--- Phoenix 호환 컬럼 (additive)
+-- wraith 호환 컬럼 (additive)
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS display_status TEXT DEFAULT 'ACTIVE';
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS display_type   TEXT DEFAULT 'SEARCH';
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS project_strid  TEXT;

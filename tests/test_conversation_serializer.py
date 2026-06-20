@@ -1,6 +1,6 @@
 """conversation_serializer 단위 테스트 — DB/네트워크 불필요.
 
-계약 기준: docs/api/COMPAT-conversations.md (Phoenix Conversations PDF).
+계약 기준: docs/api/COMPAT-conversations.md (wraith Conversations PDF).
 """
 
 import os
@@ -26,7 +26,7 @@ _CONV_ROW = {
 }
 
 
-def test_conversation_shape_matches_phoenix():
+def test_conversation_shape_matches_wraith():
     c = conversation_to_dict(_CONV_ROW, num_chats=3, last_query="열이 나요")
     # 원본 Conversation 필수 필드 전부 존재
     for f in ("strid", "title", "display_type", "display_status", "num_chats",

@@ -1,5 +1,5 @@
 """
-rag_history_routes.py — Phoenix 대화관리(data_management) 호환 라우트 믹스인.
+rag_history_routes.py — wraith 대화관리(data_management) 호환 라우트 믹스인.
 
 계약: docs/api/COMPAT-conversations.md (Conversations_20260608.pdf §1~9 전체).
   GET    /api/data_management/conversations            목록(필터·정렬·페이지)
@@ -59,7 +59,7 @@ def _like_op() -> str:
 
 
 class HistoryRoutesMixin:
-    """Phoenix 호환 /api/data_management/* 디스패처."""
+    """wraith 호환 /api/data_management/* 디스패처."""
 
     # ── 공통 가드 ────────────────────────────────────────────
     def _dm_user(self):

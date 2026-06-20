@@ -1,5 +1,5 @@
 """
-conversation_serializer.py — 우리 행(row) → Phoenix 대화관리 API 응답 객체 변환.
+conversation_serializer.py — 우리 행(row) → wraith 대화관리 API 응답 객체 변환.
 
 계약: docs/api/COMPAT-conversations.md (Conversations_20260608.pdf 기준).
 - conversations 행 → Conversation (목록: chats=null / 상세: chats 포함)
@@ -25,7 +25,7 @@ def _iso(val) -> Optional[str]:
 
 
 def citation_to_search_result(cit: Dict) -> Dict:
-    """rag_queries.citations_json 항목 → Phoenix SearchResult(WEBPAGE 최소형).
+    """rag_queries.citations_json 항목 → wraith SearchResult(WEBPAGE 최소형).
 
     citations에는 본문이 없으므로 title/url 중심의 축약형으로 만든다
     (output_state.search_results — 이력 조회용이라 충분).
@@ -50,7 +50,7 @@ def citation_to_search_result(cit: Dict) -> Dict:
 
 
 def rag_query_to_chat(row: Dict) -> Dict:
-    """rag_queries 행 → Phoenix Chat 객체."""
+    """rag_queries 행 → wraith Chat 객체."""
     response_text = row.get("response_text") or ""
     citations: List[Dict] = []
     raw_cit = row.get("citations_json")
@@ -84,7 +84,7 @@ def conversation_to_dict(
     last_query: str = "",
     chats: Optional[List[Dict]] = None,
 ) -> Dict:
-    """conversations 행 → Phoenix Conversation 객체.
+    """conversations 행 → wraith Conversation 객체.
 
     Args:
         row:        conversations 행 (display_status 등 011 컬럼 포함)
@@ -128,7 +128,7 @@ def build_snippet(text: str, search_query: str, width: int = 150) -> str:
 
 
 def toast(code: str, text: str, severity: str = "ERROR") -> Dict:
-    """Phoenix Toast 객체."""
+    """wraith Toast 객체."""
     return {"code": code, "metadata": {}, "alternate_text": text, "severity": severity}
 
 
@@ -161,7 +161,7 @@ def resolve_project_sort(sort_by: str, ascending: bool, default: str = "creation
 
 
 def project_to_dict(row: Dict) -> Dict:
-    """rag_projects 행 → Phoenix Project (Conversations PDF §6~9)."""
+    """rag_projects 행 → wraith Project (Conversations PDF §6~9)."""
     rd = row if isinstance(row, dict) else dict(row)
     return {
         "strid": rd.get("strid") or rd.get("id"),

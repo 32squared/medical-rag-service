@@ -26,7 +26,7 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
    table([1700,3260,2600,1800],["일","무엇","도구","비고"],[
      ["A. 행동 분석","이벤트·퍼널·리텐션·코호트·A/B·기능플래그·세션리플레이","PostHog (self-hosted)","✅ 핵심 적합"],
      ["B. 피드백 추출","대화에서 만족·거절수요·정정·재질문·👍/👎 추출","우리 LLM 파이프라인 + Feedback 온톨로지","우리가 직접"],
-     ["C. LLM 품질·관측","골든셋·judge·인용 정확도·지연·안전판정·프롬프트 버전","ANANTA / wraith (내부·국내)","Phoenix 대체"],
+     ["C. LLM 품질·관측","골든셋·judge·인용 정확도·지연·안전판정·프롬프트 버전","ANANTA (내부·국내)","Arize 대체"],
    ]),
    p("PostHog 하나로 B·C를 대신할 수 없음. PostHog는 행동(A)용.",{r:{bold:true},sp:{before:80}}),
 
@@ -74,6 +74,6 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
    p("핵심: 성능은 ‘대화에서 배워’ 좋아지되, 안전은 ‘골든셋 게이트’가 지킨다 — 개선이 안전을 무너뜨릴 수 없는 구조.",{r:{bold:true},sp:{before:120}}),
 
    h1("부록. 이미 있는 것 / 신규"),
-   p("• 이미: rag_gap_analysis(거절수요)·review_queue·감사 필드·골든셋. • 신규: feedback-ontology.ttl·비식별 이벤트 파이프라인·PostHog(self-hosted)·ANANTA/wraith 연동.",{r:{size:18}}),
+   p("• 이미: rag_gap_analysis(거절수요)·review_queue·감사 필드·골든셋. • 신규: feedback-ontology.ttl·비식별 이벤트 파이프라인·PostHog(self-hosted)·ANANTA 연동.",{r:{size:18}}),
   ]}]});
 Packer.toBuffer(doc).then(b=>{fs.writeFileSync("docs/개선루프_아키텍처_2026-06-21.docx",b);console.log("written:",b.length);});

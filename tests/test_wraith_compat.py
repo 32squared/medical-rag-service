@@ -1,6 +1,6 @@
-"""Phoenix Run Graph 호환 계층 단위 테스트 — DB/네트워크 불필요.
+"""wraith Run Graph 호환 계층 단위 테스트 — DB/네트워크 불필요.
 
-대상: phoenix_sse_adapter(이벤트 변환), auth_resolver(이중 인증), vital_input(개인화 파싱).
+대상: wraith_sse_adapter(이벤트 변환), auth_resolver(이중 인증), vital_input(개인화 파싱).
 계약 기준: docs/api/COMPAT-run-graph.md.
 """
 
@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from phoenix_sse_adapter import (
+from wraith_sse_adapter import (
     adapt_event,
     chunk_to_search_result,
     new_usage_strid,
@@ -46,7 +46,7 @@ def test_keepalive_passthrough():
     assert adapt_event({"type": "KEEP_ALIVE"}) == [{"type": "KEEP_ALIVE"}]
 
 
-def test_search_results_mapped_to_phoenix_shape():
+def test_search_results_mapped_to_wraith_shape():
     ours = {"type": "INFO", "data": {"search_results": [{
         "chunk_id": "c1", "document_id": "d1",
         "content": "발열은 38.0℃ 이상…", "source_id": "health_kdca",

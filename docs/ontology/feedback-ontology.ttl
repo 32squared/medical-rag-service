@@ -1,6 +1,6 @@
 # 피드백·개선 루프 온톨로지 (통합 온톨로지 확장) — Turtle/OWL
 # 대화·반응을 메모리화 → 피드백 추출 → 성능 개선의 폐루프.
-# phr-ontology + device + context 와 함께 로드. 관측·평가는 내부 시스템 ANANTA/wraith,
+# phr-ontology + device + context 와 함께 로드. 관측·평가는 내부 시스템 ANANTA,
 # 행동분석은 PostHog(self-hosted·비식별). 원시 건강 텍스트·수치·진단명은 외부 미전송(경계선 상속).
 
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
@@ -24,7 +24,7 @@ phr:Abandonment     rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "이탈"@ko 
 phr:DwellSignal     rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "체류/재방문"@ko .
 
 #################################################################
-#  품질 판정 (골든셋·LLM judge — ANANTA/wraith)
+#  품질 판정 (골든셋·LLM judge — ANANTA)
 #################################################################
 phr:QualityVerdict a owl:Class ; rdfs:label "품질 판정"@ko .
 phr:GroundingVerdict rdfs:subClassOf phr:QualityVerdict ; rdfs:label "근거 일치"@ko .
@@ -54,13 +54,13 @@ phr:CoverageGap   rdfs:subClassOf phr:ImprovementItem ; rdfs:label "도달/표�
 phr:AnalyticsEvent a owl:Class ; rdfs:label "비식별 이벤트"@ko ;
     rdfs:comment "PostHog(self-hosted)로 보내는 안전 이벤트. 라벨·카운트·불리언만 — 원시 텍스트·수치·진단명 금지(E2)."@ko .
 phr:ObservabilityTrace a owl:Class ; rdfs:label "관측 트레이스"@ko ;
-    rdfs:comment "내부 ANANTA/wraith — 지연·인용·토큰·안전판정 트레이스(국내)."@ko .
+    rdfs:comment "내부 ANANTA — 지연·인용·토큰·안전판정 트레이스(국내)."@ko .
 
 # 분석 도구(외부/내부)
-phr:AnalyticsTool a owl:Class ; rdfs:label "분석 도구"@ko ; owl:oneOf ( phr:PostHog phr:ANANTA phr:wraith ) .
+phr:AnalyticsTool a owl:Class ; rdfs:label "분석 도구"@ko ; owl:oneOf ( phr:PostHog phr:ANANTA ) .
 phr:PostHog a phr:AnalyticsTool ; rdfs:label "PostHog(행동분석·A/B·플래그, self-hosted)"@ko .
 phr:ANANTA  a phr:AnalyticsTool ; rdfs:label "ANANTA(내부 LLM 관측·평가)"@ko .
-phr:wraith  a phr:AnalyticsTool ; rdfs:label "wraith(내부 LLM 관측·평가)"@ko .
+# 참고: wraith는 대화 플랫폼(코드베이스)이라 분석도구 아님 — 평가/관측은 ANANTA.
 
 #################################################################
 #  관계 / 속성
@@ -92,5 +92,5 @@ E4  RefusalDemand(거절수요) = '원했으나 합법적으로 못 준' = KB확
 E5  자동 추출 피드백은 ReviewQueue(사람 검수) 경유 ; 자동 프롬프트/규칙 변경 금지
 E6  매 턴 응급 재평가·안전 불변식(I5·I7)은 실험·개선과 무관하게 항상 유지
 E7  실험(A/B)은 안전 동등성 전제 — 어느 변이도 진단단정·거짓안심·민감노출 0이어야 분배
-[도구] 행동분석=PostHog(self-hosted·비식별) / LLM 관측·평가=ANANTA·wraith(내부·국내) / 피드백 추출=우리 LLM 파이프라인
+[도구] 행동분석=PostHog(self-hosted·비식별) / LLM 관측·평가=ANANTA(내부·국내) / 피드백 추출=우리 LLM 파이프라인
 """ .

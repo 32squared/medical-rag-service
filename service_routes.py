@@ -1,9 +1,9 @@
 """
-service_routes.py — Phoenix `Run Graph Conversation` 호환 라우트 믹스인.
+service_routes.py — wraith `Run Graph Conversation` 호환 라우트 믹스인.
 
 POST /api/service/conversations/{graph_type}  (SSE)
   → 요청 바디(query, conversation_strid, source_types, agent_input_field_to_value...)를
-    우리 generate_response() 파이프라인에 연결하고, 이벤트를 phoenix_sse_adapter로
+    우리 generate_response() 파이프라인에 연결하고, 이벤트를 wraith_sse_adapter로
     원본 SSE 계약(INFO/PROGRESS/GENERATION/STOP/ERROR)으로 변환해 스트리밍한다.
 
 설계 (COMPAT-run-graph.md §7):
@@ -31,7 +31,7 @@ _KNOWN_GRAPH_TYPES = {"SUPERVISED_HYBRID_SEARCH", "ORCHESTRATED_HYBRID_SEARCH"}
 
 
 class ServiceRoutesMixin:
-    """Phoenix 호환 /api/service/* 디스패처. RagHandler의 베이스로 사용."""
+    """wraith 호환 /api/service/* 디스패처. RagHandler의 베이스로 사용."""
 
     def _handle_service_route(self, method, path, parsed, body):
         m = _SERVICE_PATH_RE.match(path)
@@ -135,8 +135,8 @@ class ServiceRoutesMixin:
         except Exception:
             pass
 
-        # 6) 스트리밍 — 우리 이벤트를 Phoenix 형식으로 변환해 emit
-        from phoenix_sse_adapter import adapt_event, start_event
+        # 6) 스트리밍 — 우리 이벤트를 wraith 형식으로 변환해 emit
+        from wraith_sse_adapter import adapt_event, start_event
 
         def _emit(ev) -> bool:
             """이벤트 1건 전송. 실패(끊김) 시 False."""
@@ -160,8 +160,8 @@ class ServiceRoutesMixin:
                 enable_guardrails=True,
                 personal_findings=_personal_findings,
             ):
-                phoenix_events = adapt_event(event)
-                for pev in phoenix_events:
+                wraith_events = adapt_event(event)
+                for pev in wraith_events:
                     if pev.get("type") == "STOP":
                         stop_sent = True
                     if client_gone:

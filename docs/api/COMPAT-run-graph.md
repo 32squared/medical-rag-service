@@ -1,4 +1,4 @@
-# 생성/스트리밍 API — Phoenix Lab `Run Graph Conversation` 호환 정의서
+# 생성/스트리밍 API — wraith Lab `Run Graph Conversation` 호환 정의서
 
 > 원본: `Run_Graph_Conversation_20260508.pdf` (`POST /api/service/conversations/{graph_type}`, SSE).
 > 목적: 이 **생성 엔드포인트**를 우리 `medical-rag-service`로 드롭인 교체하기 위한 호환 스펙 + 우리 파이프라인 매핑.
@@ -152,7 +152,7 @@ date           ← (KB는 발행일 색인 후) published_at | null
 ## 7. 구현 계획 (additive, 기존 `/api/rag/*` 무변경)
 
 1. **어댑터 라우트** `service_routes.py` (`ServiceRoutesMixin`): `POST /api/service/conversations/{graph_type}` 수신 → 바디 파싱 → `generate_response(...)` 호출 → **이벤트 변환기**로 원본 SSE 형식으로 재방출.
-2. **이벤트 변환기** `phoenix_sse_adapter.py` (순수 함수): 우리 이벤트(INFO/EVIDENCE_CHECK/GENERATION/STOP) → 원본 이벤트(INFO연결/PROGRESS/search_results/GENERATION/token_usage/STOP). search_result 필드 매핑(§3) 포함. **DB 없이 단위테스트 가능.**
+2. **이벤트 변환기** `wraith_sse_adapter.py` (순수 함수): 우리 이벤트(INFO/EVIDENCE_CHECK/GENERATION/STOP) → 원본 이벤트(INFO연결/PROGRESS/search_results/GENERATION/token_usage/STOP). search_result 필드 매핑(§3) 포함. **DB 없이 단위테스트 가능.**
 3. **인증 어댑터** `auth_resolver.py`: `Authorization: Bearer` 우선, 없으면 신뢰헤더. user_id 추출 일원화.
 4. **Vital Signs 파서** `vital_input.py`: `agent_input_field_to_value`의 Vital Signs JSON 파싱·검증(현재는 로깅, Phase 1에 규칙엔진 연결).
 5. **테스트**: SSE 변환·바디 파싱·vital 파서 단위테스트 + 골든 시나리오에 생체신호 케이스.

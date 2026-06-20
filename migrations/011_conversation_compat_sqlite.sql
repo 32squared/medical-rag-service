@@ -1,5 +1,5 @@
 -- =============================================================================
--- 011_conversation_compat_sqlite.sql — Phoenix 대화관리 API 호환 (SQLite 페어)
+-- 011_conversation_compat_sqlite.sql — wraith 대화관리 API 호환 (SQLite 페어)
 -- SQLite는 ADD COLUMN IF NOT EXISTS 미지원 — migrate_runner가
 -- "duplicate column" OperationalError를 멱등 처리한다.
 -- =============================================================================
