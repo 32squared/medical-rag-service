@@ -32,6 +32,14 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from urllib.parse import urlparse, unquote
 
+# .env 시크릿을 프로젝트 모듈 import 전에 주입(config/llm_router 등이 import 시점에 env를 읽음).
+# 이미 설정된 환경변수는 덮어쓰지 않음(배포 환경 우선).
+try:
+    from env_loader import load_env
+    load_env()
+except Exception:
+    pass
+
 from rag_routes import RagRoutesMixin
 from service_routes import ServiceRoutesMixin
 from rag_history_routes import HistoryRoutesMixin

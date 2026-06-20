@@ -112,6 +112,12 @@ def repl():
 
 
 def main():
+    # .env 시크릿 주입 — 스크립트 실행 시에만(테스트가 run_turn을 import할 때 누출 방지)
+    try:
+        from env_loader import load_env
+        load_env()
+    except Exception:
+        pass
     args = [a for a in sys.argv[1:]]
     as_json = "--json" in args
     args = [a for a in args if a != "--json"]

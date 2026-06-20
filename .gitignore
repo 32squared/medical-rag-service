@@ -17,6 +17,13 @@ app_*.db
 # 백업 파일
 *.bak
 
+# 시크릿 / 로컬 환경변수 (커밋 절대 금지)
+.env
+.env.*
+!.env.example
+*.key
+OPENAI_API_KEY*.txt
+
 # 로컬 개발 아티팩트
 .claude/dev_logs*.json
 .claude/all_logs.json

@@ -1684,6 +1684,12 @@ def analyze_blocked_documents(source_id: str = "health_kdca", limit: int = 200) 
 
 
 def _cli_main():
+    # .env 시크릿 주입(임베딩에 OPENAI_API_KEY 필요) — 스크립트 실행 시에만(테스트 누출 방지)
+    try:
+        from env_loader import load_env
+        load_env()
+    except Exception:
+        pass
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
