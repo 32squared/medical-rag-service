@@ -143,16 +143,16 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS display_type   TEXT DEFAULT '
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS project_strid  TEXT;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS parent_conversation_strid TEXT;
 
--- projects 신규
-CREATE TABLE IF NOT EXISTS projects (
-    id              TEXT PRIMARY KEY,
-    user_id         TEXT NOT NULL,
-    name            TEXT NOT NULL,
-    display_status  TEXT DEFAULT 'ACTIVE',
-    created_at      TEXT NOT NULL,
-    updated_at      TEXT NOT NULL
+-- projects 신규 → 실제 구현: migrations/014_projects.sql 의 rag_projects
+CREATE TABLE IF NOT EXISTS rag_projects (
+    strid              TEXT PRIMARY KEY,
+    user_id            TEXT,
+    name               TEXT,
+    display_status     TEXT DEFAULT 'ACTIVE',
+    creation_time      TEXT,
+    last_modified_time TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id, display_status);
+CREATE INDEX IF NOT EXISTS idx_rag_projects_user ON rag_projects(user_id, display_status);
 CREATE INDEX IF NOT EXISTS idx_conv_user_status ON conversations(user_id, display_status);
 ```
 > `conversations`는 "호스트 소유" 테이블이라는 분리 불변식이 있다([001 마이그레이션 §10 주석] 참고).
@@ -178,11 +178,11 @@ CREATE INDEX IF NOT EXISTS idx_conv_user_status ON conversations(user_id, displa
 |---|---|---|
 | 1 | 인증 방식 | **해소** → [COMPAT-run-graph.md](COMPAT-run-graph.md) §6. 권장: 신뢰헤더+공유시크릿(서버 대 서버) / 어댑터로 Bearer도 수용. 확인은 브라우저 Network 탭. |
 | 2 | `conversations` 소유권(ALTER 위치) | 미해소 — 분리 배포에서 호스트 소유 테이블 ALTER 정책 결정 필요. |
-| 3 | projects 사용 여부 | **보류 결정** → 본 문서 §3.6~3.9(프로젝트 엔드포인트)는 **이번 구현에서 제외**. `project_strid`는 항상 null로 처리, 컬럼만 예약. |
+| 3 | projects 사용 여부 | **구현 완료(2026-06-20)** → §3.6~3.9 프로젝트 4종 구현(`rag_projects`, 마이그레이션 014). user_id 스코프·소프트 삭제. |
 | 4 | 생성/스트리밍 엔드포인트 | **해소** → 그게 `Run_Graph_Conversation` PDF였음. [COMPAT-run-graph.md](COMPAT-run-graph.md)로 별도 정의. |
 | 5 | `display_type=DOCUMENT_CHAT` | 미해소 — 현재 우리는 SEARCH형만. 문서 기반 대화 지원 여부 확인 필요. |
 
-**이번 구현 범위(프로젝트 보류 반영)**: 대화 목록(3.1)·검색(3.2)·상세(3.3)·수정(3.4)·삭제(3.5)만. 프로젝트 4종은 스키마 컬럼(`project_strid`)만 예약하고 엔드포인트는 501 응답.
+**구현 범위(2026-06-20 갱신)**: 대화 5종(3.1~3.5) + **프로젝트 4종(3.6~3.9) 모두 구현**. 프로젝트는 `rag_projects` 테이블(마이그레이션 014), user_id 스코프, 소프트 삭제. PDF §1~9 전체 호환.
 
 ## 7. 구현 완료 (2026-06-11)
 
@@ -190,6 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_conv_user_status ON conversations(user_id, displa
 |---|---|---|
 | 마이그레이션 | `migrations/011_conversation_compat.sql`(+sqlite) | conversations 보강 컬럼 + 인덱스. **신규 DB는 `--apply`, 기존 DB는 `--sync`로 적용** |
 | 직렬화 | `conversation_serializer.py` | Conversation/Chat/SearchResult/snippet — 순수 함수 |
-| 라우트 | `rag_history_routes.py` (`HistoryRoutesMixin`) | 대화 5종 + projects 501. user_id 스코프, 소프트 삭제 |
+| 라우트 | `rag_history_routes.py` (`HistoryRoutesMixin`) | 대화 5종 + **프로젝트 4종(2026-06-20)**. user_id 스코프, 소프트 삭제 |
+| 프로젝트 마이그레이션 | `migrations/014_projects.sql`(+sqlite) | `rag_projects` 테이블 + 인덱스 |
 | 배선 | `rag_server.py` | `/api/data_management/` 디스패치 + `do_PATCH` |
 | 테스트 | `tests/test_conversation_serializer.py`(CI) + SQLite 엔드투엔드 스모크(목록·검색·상세·권한404·수정·소프트삭제) 통과 | |

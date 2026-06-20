@@ -144,3 +144,30 @@ def resolve_sort(sort_by: str, ascending: bool, default: str = "last_used_time")
     """정렬 파라미터 → 'ORDER BY <col> <dir>' 안전 조각."""
     col = SORT_COLUMNS.get(sort_by or default, SORT_COLUMNS[default])
     return f"{col} {'ASC' if ascending else 'DESC'}"
+
+
+# 프로젝트 정렬 파라미터 → 컬럼 (Conversations PDF §6: name/last_modified_time/creation_time)
+PROJECT_SORT_COLUMNS = {
+    "name": "name",
+    "last_modified_time": "last_modified_time",
+    "creation_time": "creation_time",
+}
+
+
+def resolve_project_sort(sort_by: str, ascending: bool, default: str = "creation_time") -> str:
+    """프로젝트 정렬 파라미터 → 안전한 'ORDER BY' 조각(화이트리스트)."""
+    col = PROJECT_SORT_COLUMNS.get(sort_by or default, PROJECT_SORT_COLUMNS[default])
+    return f"{col} {'ASC' if ascending else 'DESC'}"
+
+
+def project_to_dict(row: Dict) -> Dict:
+    """rag_projects 행 → Phoenix Project (Conversations PDF §6~9)."""
+    rd = row if isinstance(row, dict) else dict(row)
+    return {
+        "strid": rd.get("strid") or rd.get("id"),
+        "name": rd.get("name") or "",
+        "display_status": rd.get("display_status") or "ACTIVE",
+        "creation_time": _iso(rd.get("creation_time")),
+        "last_modified_time": _iso(rd.get("last_modified_time")),
+        "user_strid": rd.get("user_id") or rd.get("user_strid"),
+    }
