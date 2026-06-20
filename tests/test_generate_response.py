@@ -143,13 +143,17 @@ def _run_generate_response(
 # ════════════════════════════════════════════════════════════
 
 class TestSystemPromptFourSections:
-    def test_four_section_headers_in_system_prompt(self):
-        """_build_rag_system_prompt 결과에 4단 구조 헤더가 포함된다."""
-        from rag_engine import _build_rag_system_prompt, _FOUR_SECTION_HEADERS
-        chunks = [_make_chunk("C1")]
-        prompt = _build_rag_system_prompt("두통", chunks)
-        for header in _FOUR_SECTION_HEADERS:
-            assert header in prompt, f"4단 헤더 누락: {header}"
+    def test_dynamic_emoji_header_guidance_in_system_prompt(self):
+        """프롬프트가 고정 4단 대신 상황별 동적 헤더 + 이모지를 지시한다."""
+        from rag_engine import _build_rag_system_prompt
+        prompt = _build_rag_system_prompt("두통", [_make_chunk("C1")])
+        # 고정 4단 강제 문구는 더 이상 없어야 함
+        assert "반드시 4단 헤더" not in prompt
+        # 동적 헤더 + 이모지 지시 존재
+        assert "고정된 4단 구조를 쓰지 말고" in prompt
+        assert "이모지" in prompt
+        # 상황별 헤더 예시 이모지 일부 포함
+        assert ("🩺" in prompt) or ("🚑" in prompt) or ("💊" in prompt)
 
     def test_system_prompt_contains_citation_instruction(self):
         """시스템 프롬프트에 인용 규칙 지침이 포함된다."""
@@ -644,42 +648,44 @@ class TestExtractCitations:
 
 
 # ════════════════════════════════════════════════════════════
-#  TC-10: _ensure_four_section_structure
+#  TC-10: _has_section_structure (동적 헤더 — 2개 이상이면 통과)
 # ════════════════════════════════════════════════════════════
 
-class TestFourSectionStructure:
-    def test_all_headers_present_returns_true(self):
-        """4단 헤더가 모두 있으면 True 반환."""
-        from rag_engine import _ensure_four_section_structure
+class TestSectionStructure:
+    def test_emoji_headers_pass(self):
+        """이모지 마크다운 헤더 2개 이상이면 True."""
+        from rag_engine import _has_section_structure
         text = (
-            "【① 즉시 행동】 응급실 이동\n"
-            "【② 의심 원인 요약】 심장 관련\n"
-            "【③ 상세 설명】 세부 정보\n"
-            "【④ 추가 확인 사항】 후속 점검"
+            "## 🩺 지금 상황\n- 내용 [1]\n"
+            "## 💡 가능한 원인\n- 내용 [2]\n"
+            "## ❓ 더 정확히 알려면\n- 질문"
         )
-        assert _ensure_four_section_structure(text) is True
+        assert _has_section_structure(text) is True
 
-    def test_missing_one_header_returns_false(self):
-        """헤더 하나 누락 시 False 반환."""
-        from rag_engine import _ensure_four_section_structure
-        text = (
-            "【① 즉시 행동】 조치\n"
-            "【② 의심 원인 요약】 원인\n"
-            "【③ 상세 설명】 설명\n"
-            # 【④ 추가 확인 사항】 누락
-        )
-        assert _ensure_four_section_structure(text) is False
+    def test_legacy_bracket_headers_pass(self):
+        """구형 【…】 헤더도 헤더로 인식(하위호환)."""
+        from rag_engine import _has_section_structure
+        text = "【① 즉시 행동】 조치\n【② 의심 원인 요약】 원인"
+        assert _has_section_structure(text) is True
+
+    def test_single_header_returns_false(self):
+        """헤더 1개뿐이면 구조 부족 → False."""
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("## 🩺 지금 상황\n내용만 길게...") is False
+
+    def test_no_header_returns_false(self):
+        """헤더 없는 평문 → False."""
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("그냥 줄글 답변입니다. 헤더가 없습니다.") is False
 
     def test_empty_text_returns_false(self):
-        """빈 텍스트 → False."""
-        from rag_engine import _ensure_four_section_structure
-        assert _ensure_four_section_structure("") is False
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("") is False
 
-    def test_partial_headers_returns_false(self):
-        """일부 헤더만 있으면 False."""
-        from rag_engine import _ensure_four_section_structure
-        text = "【① 즉시 행동】 행동"
-        assert _ensure_four_section_structure(text) is False
+    def test_legacy_alias_exists(self):
+        """기존 호출부 호환 별칭 유지."""
+        from rag_engine import _ensure_four_section_structure, _has_section_structure
+        assert _ensure_four_section_structure is _has_section_structure
 
 
 # ════════════════════════════════════════════════════════════
