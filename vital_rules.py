@@ -313,3 +313,47 @@ def run(
                 findings.append(b)
 
     return findings
+
+
+# ── 추세 finding (정본 14 §6.2 — 시계열 → 중립 추세 노트) ─────────
+# bps→혈압(수축기 추세), spo2/fever/bpm도 단축 추세. stress는 공인 밴드 없어 제외.
+_TREND_FIELDS = {"bps": "blood_pressure", "spo2": "spo2",
+                 "fever": "body_temperature", "bpm": "heart_rate"}
+_TREND_DISPLAY = {"blood_pressure": "혈압", "spo2": "산소포화도",
+                  "body_temperature": "체온", "heart_rate": "심박수"}
+# 안정유지는 미발화(노이즈 억제). 상승/저하/불안정만 데이터 패턴으로 기술(건강판단 없음).
+_TREND_SENTENCE = {
+    TREND_RISING: "최근 여러 차례 측정에서 {d}이(가) 점차 높아지는 흐름입니다",
+    TREND_FALLING: "최근 여러 차례 측정에서 {d}이(가) 점차 낮아지는 흐름입니다",
+    TREND_FLUCTUATING: "최근 {d} 측정값의 변동이 큰 편입니다",
+}
+
+
+def run_trends(records, *, min_n: int = 3) -> list:
+    """시간순 vital 레코드들 → 신호별 중립 추세 finding (원시값 미포함, 결정적).
+
+    각 신호 시계열에 label_trend를 적용해 '지속상승/지속저하/불안정반복'만 finding으로
+    낸다(안정유지·표본부족은 미발화). 데이터 패턴만 기술하고 호의/악화 판단은 하지 않는다.
+    personal_context가 finding의 sentence를 그대로 렌더(밴드 라벨과 동형 표면화).
+    """
+    if not isinstance(records, list) or len(records) < min_n:
+        return []
+    out = []
+    for field, sig in _TREND_FIELDS.items():
+        series = [r.get(field) for r in records
+                  if isinstance(r, dict) and _is_number(r.get(field))]
+        if len(series) < min_n:
+            continue
+        res = label_trend(series, min_n=min_n)
+        if res["match"] != "ok":
+            continue
+        tmpl = _TREND_SENTENCE.get(res["trend"])
+        if not tmpl:  # 안정유지 → 미발화
+            continue
+        out.append({
+            "signal_key": sig, "label_user": None, "clinical_label": None,
+            "match": "ok", "cite_doc_id": None, "source_version": None,
+            "kind": "trend", "trend": res["trend"],
+            "sentence": tmpl.format(d=_TREND_DISPLAY.get(sig, sig)),
+        })
+    return out

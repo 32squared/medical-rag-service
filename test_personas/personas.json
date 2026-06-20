@@ -208,6 +208,20 @@
       "air_quality": "보통", "phr": "{}",
       "expected_label": "체온 경고 + 산소 주의",
       "sample_queries": ["열나고 목 아프고 기침나는데 코로나 검사해야 하나요?", "격리해야 하나요?"]
+    },
+    {
+      "id": "bp_rising_trend", "name": "혈압 상승 추세(다회 측정)", "emoji": "📈",
+      "profile": "54세. 최근 4회 가정 측정에서 혈압이 점차 상승(138→156). 마지막 156/98.",
+      "tags": ["고혈압", "추세", "다회측정"], "locale": "KR", "population": "adult", "context": "clinic",
+      "vitals": [
+        {"bps": 138, "bpd": 86, "bpm": 78, "create_date": "2026-06-18T08:00:00"},
+        {"bps": 144, "bpd": 90, "bpm": 80, "create_date": "2026-06-19T08:00:00"},
+        {"bps": 150, "bpd": 94, "bpm": 82, "create_date": "2026-06-20T08:00:00"},
+        {"bps": 156, "bpd": 98, "bpm": 84, "create_date": "2026-06-21T08:00:00"}
+      ],
+      "air_quality": "보통", "phr": "{}",
+      "expected_label": "혈압 경고(최근값) + 혈압 지속상승 추세",
+      "sample_queries": ["요즘 혈압이 점점 오르는 것 같아요", "혈압이 계속 올라가는데 괜찮을까요?"]
     }
   ]
 }

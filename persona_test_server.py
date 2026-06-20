@@ -75,6 +75,8 @@ def compute_preview(persona: dict, query: str) -> dict:
             population=persona.get("population", "adult"),
             context=persona.get("context", "clinic"),
         )
+        if len(vitals) >= 3:  # 다회 측정 → 중립 추세 노트
+            raw = list(raw) + vr.run_trends(vitals)
     # 환경(공기질) 비해석적 노트 결합 (5층 환경×건강)
     try:
         from env_rules import air_quality_finding

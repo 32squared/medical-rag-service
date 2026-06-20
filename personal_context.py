@@ -60,8 +60,10 @@ def relevance_gate(query: Optional[str], findings: List[Dict]) -> List[Dict]:
     kept = []
     for f in findings:
         sig = f.get("signal_key")
-        if f.get("label_user") not in _LABEL_PHRASE:
-            continue  # 라벨 없는(no_match/denied) finding은 표면화 안 함
+        # 밴드 라벨(안정/주의/경고) 또는 자체 sentence(환경·추세) 보유 finding만 표면화.
+        # 라벨 없고 sentence도 없는(no_match/denied) finding은 표면화 안 함.
+        if f.get("label_user") not in _LABEL_PHRASE and not f.get("sentence"):
+            continue
         keywords = _SCOPE_KEYWORDS.get(sig, [])
         if any(kw in q for kw in keywords):
             kept.append(f)

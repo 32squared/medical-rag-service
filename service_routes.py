@@ -91,10 +91,12 @@ class ServiceRoutesMixin:
         # vital_rules.run은 순수 함수·fail-closed. 실패는 비차단(개인화만 생략).
         _personal_findings = None
         try:
-            from vital_rules import run as _vital_run
+            from vital_rules import run as _vital_run, run_trends as _vital_trends
             _vitals = personal.get('vital_signs') or []
             if _vitals:
                 _personal_findings = _vital_run(_vitals[-1])
+                if len(_vitals) >= 3:  # 다회 측정 → 중립 추세 노트 결합
+                    _personal_findings = (_personal_findings or []) + _vital_trends(_vitals)
         except Exception as _e:
             self._add_log(f"[SERVICE] 개인화 findings 스킵: {_e}")
         # 환경(공기질) 비해석적 노트 결합 (5층 환경×건강, B5). 비차단.
