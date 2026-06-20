@@ -1151,6 +1151,9 @@ def generate_response(
     from llm_router import get_llm_provider
 
     start_ts = time.time()
+    # 비식별 이벤트(analytics_events) 적재용 상태 — STOP 지점마다 1건 emit.
+    _had_personal_block = False
+    emergency_detected = False
 
     # 클라이언트에 즉시 상태 알림 (cold start + GPT-5 reasoning 지연 동안 멈춤 방지)
     yield {"type": "INFO", "data": {"status": "started", "query": query[:50]}}
@@ -1169,6 +1172,12 @@ def generate_response(
             "tokens": {"input": 0, "output": 0},
             "guardrail_action": "emergency_redirect",
         }
+        _emit_analytics(
+            "emergency_redirect", conversation_id, None,
+            guardrail_action="emergency_redirect",
+            latency_ms=int((time.time() - start_ts) * 1000),
+            emergency=True,
+        )
         return
 
     # ── 1.5 PII/PHI 마스킹 + 질문 분류 (스펙 통합, 가드 — 실패해도 본 흐름 유지) ──
@@ -1236,6 +1245,12 @@ def generate_response(
             "tokens": {"input": 0, "output": 0},
             "guardrail_action": "triage_clarify",
         }
+        _emit_analytics(
+            "triage_clarify", conversation_id, _classification,
+            guardrail_action="triage_clarify",
+            latency_ms=int((time.time() - start_ts) * 1000),
+            is_followup=_is_followup,
+        )
         return
 
     # ── 2. Hybrid search ──────────────────────────────────────
@@ -1310,6 +1325,12 @@ def generate_response(
                 "evidence_quality": "insufficient",
                 "gate_decision": "INSUFFICIENT",
             }
+            _emit_analytics(
+                "insufficient_evidence", conversation_id, _classification,
+                guardrail_action="insufficient_evidence", gate_result=gate_result,
+                citations_count=0, latency_ms=int((time.time() - start_ts) * 1000),
+                is_followup=_is_followup, refusal=True,
+            )
             return
         else:
             # shadow 모드: 로그만 남기고 정상 진행
@@ -1449,6 +1470,7 @@ def generate_response(
                     _pblock = _pc.safe_block(personal_findings, query)
                     if _pblock:
                         full_text = full_text.rstrip() + "\n\n" + _pblock
+                        _had_personal_block = True
                 except Exception as _pe:
                     logger.debug("[RAGEngine] 개인화 주입 스킵: %s", _pe)
 
@@ -1624,6 +1646,15 @@ def generate_response(
     logger.info(
         "[RAGEngine] 응답완료 총=%dms gen=%dms 가드레일=%s 인용=%d",
         _total_ms, llm_ms, guardrail_result["action"], len(citations),
+    )
+    _emit_analytics(
+        "answer_shown", conversation_id, _classification,
+        rag_query_id=rag_query_id,
+        guardrail_action=guardrail_result["action"], gate_result=gate_result,
+        citations_count=len(citations), latency_ms=_total_ms,
+        is_followup=_is_followup, had_personal_block=_had_personal_block,
+        gave_referral=bool((_classification or {}).get("requires_clinician_consult")),
+        refusal=False, emergency=emergency_detected,
     )
     yield {
         "type": "STOP",
@@ -2275,6 +2306,54 @@ def _insert_rag_query(
     except Exception as e:
         logger.error("[RAGEngine] rag_queries INSERT 오류: %s", e)
         return None
+
+
+def _emit_analytics(
+    event_name: str,
+    conversation_id: str,
+    classification: Optional[Dict],
+    *,
+    rag_query_id: str = None,
+    guardrail_action: str = None,
+    gate_result: Dict = None,
+    citations_count: int = None,
+    latency_ms: int = None,
+    is_followup: bool = None,
+    had_personal_block: bool = None,
+    gave_referral: bool = None,
+    refusal: bool = None,
+    emergency: bool = None,
+) -> None:
+    """비식별 이벤트 1건을 analytics_events에 적재(개선 루프 E2).
+
+    classification에서 intent·1차 도메인·위험도만 추출한다. 질의 원문·원시 측정값·
+    진단명은 넘기지 않으며, analytics_events.emit이 화이트리스트 밖 값을 다시 폐기한다.
+    비차단 — 실패해도 응답 생성에 영향 없음.
+    """
+    try:
+        import analytics_events as _ae
+        cls = classification or {}
+        _domains = cls.get("medical_domains") or []
+        _ae.emit(
+            event_name,
+            conversation_id=conversation_id,
+            rag_query_id=rag_query_id,
+            intent=cls.get("intent"),
+            primary_domain=(_domains[0] if _domains else None),
+            risk_level=cls.get("risk_level"),
+            guardrail_action=guardrail_action,
+            gate_decision=(gate_result or {}).get("decision"),
+            evidence_quality=(gate_result or {}).get("evidence_quality"),
+            citations_count=citations_count,
+            latency_ms=latency_ms,
+            is_followup=is_followup,
+            had_personal_block=had_personal_block,
+            gave_referral=gave_referral,
+            refusal=refusal,
+            emergency=emergency,
+        )
+    except Exception as _e:
+        logger.debug("[RAGEngine] analytics emit 스킵: %s", _e)
 
 
 def _format_search_result(chunk: dict) -> dict:
