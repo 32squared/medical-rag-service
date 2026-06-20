@@ -206,6 +206,58 @@ def label_trend(values, *, min_n: int = 3, rel_threshold: float = 0.05,
     return {"trend": TREND_FLUCTUATING, "match": "ok", "n": n}     # 변동폭 크나 순변화 작음
 
 
+# ── 교차신호 화이트리스트 (정본 14 §6 C9 / I9) ──────────────────
+# 출처 첨부된 조합만 발화. 여기 없는 조합은 엔진이 생성 자체를 못 함(fail-closed).
+# 비평가 경고(유사과학 교차: HRV+수면="번아웃")를 구조로 차단 — wellness_only는 영구 미발화.
+# cite_doc_id는 동반적재용 forward-ref(KB 시드는 후속 — band finding과 동일 정책).
+_CROSS_WHITELIST = [
+    {
+        "combo_id": "metabolic.bp_bmi",
+        "signals": ["blood_pressure", "bmi"],
+        "min_label": "주의",   # 둘 다 주의 이상일 때만
+        "finding_template": "혈압과 체질량지수를 함께 살펴보면 좋은 시점입니다",
+        "cite_doc_id": "ref.metabolic.kr",   # 비만-고혈압 연관(공인) — KB 시드 후속
+        "wellness_only": False,
+    },
+    {
+        # 웰니스 지표 단독 조합 — I9상 영구 미발화(예시·테스트용 가드).
+        "combo_id": "wellness.hrv_sleep",
+        "signals": ["hrv", "sleep_efficiency"],
+        "min_label": "주의",
+        "finding_template": "(미발화)",
+        "cite_doc_id": None,
+        "wellness_only": True,
+    },
+]
+
+
+def match_cross_signals(findings) -> list:
+    """활성 findings → 화이트리스트 조합 findings (I9, 결정적·fail-closed).
+
+    화이트리스트에 등재된 조합만, 구성 신호가 모두 존재하고 모두 min_label 이상일 때 발화.
+    wellness_only 조합은 영구 미발화(유사과학 교차 차단). 원시값 미포함.
+    """
+    by_sig = {f["signal_key"]: f for f in (findings or [])
+              if f.get("label_user") in _SEVERITY}
+    out = []
+    for combo in _CROSS_WHITELIST:
+        if combo.get("wellness_only"):
+            continue  # I9: 웰니스 단독 교차 금지
+        sigs = combo["signals"]
+        if not all(s in by_sig for s in sigs):
+            continue
+        floor = _SEVERITY.get(combo["min_label"], 0)
+        if all(_SEVERITY.get(by_sig[s]["label_user"], 0) >= floor for s in sigs):
+            out.append({
+                "combo_id": combo["combo_id"],
+                "signals": list(sigs),
+                "text": combo["finding_template"],
+                "cite_doc_id": combo["cite_doc_id"],
+                "type": "cross_signal",
+            })
+    return out
+
+
 # vital_input.py 필드명 → 참조범위 signal_key (단축 신호).
 # bps/bpd → blood_pressure(다축, 별도 처리), stress → 공인 밴드 없음(스킵).
 _VITAL_FIELD_SIGNAL = {

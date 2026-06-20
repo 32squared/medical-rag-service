@@ -19,6 +19,7 @@ from vital_rules import (
     TREND_STABLE,
     label_trend,
     lookup_band,
+    match_cross_signals,
     run,
 )
 
@@ -337,3 +338,51 @@ def test_trend_excludes_health_judgment_labels():
     # 개선/악화 같은 건강 판단 라벨은 엔진이 절대 생성 안 함(I2 정신)
     for series in ([120, 110, 100], [100, 110, 120], [100, 120, 100, 120]):
         assert label_trend(series)["trend"] not in ("점진개선", "점진악화")
+
+
+# ── 교차신호 화이트리스트 (I9, fail-closed) ──────────────────────
+
+def _f(signal, label):
+    return {"signal_key": signal, "label_user": label}
+
+
+def test_cross_signal_whitelisted_combo_fires():
+    findings = [_f("blood_pressure", "경고"), _f("bmi", "주의")]
+    combos = match_cross_signals(findings)
+    assert any(c["combo_id"] == "metabolic.bp_bmi" for c in combos)
+
+
+def test_cross_signal_below_min_label_no_fire():
+    findings = [_f("blood_pressure", "안정"), _f("bmi", "안정")]
+    assert match_cross_signals(findings) == []
+
+
+def test_cross_signal_requires_all_signals_present():
+    # 혈압만 있고 BMI 없음 → 대사 조합 미발화
+    assert match_cross_signals([_f("blood_pressure", "경고")]) == []
+
+
+def test_cross_signal_non_whitelisted_pair_never_fires():
+    # 화이트리스트에 없는 조합(심박+체온)은 생성 자체 안 됨(fail-closed, I9)
+    findings = [_f("heart_rate", "경고"), _f("body_temperature", "경고")]
+    assert match_cross_signals(findings) == []
+
+
+def test_cross_signal_wellness_only_never_fires():
+    # 웰니스 단독 교차(HRV+수면)는 등재돼 있어도 영구 미발화(유사과학 차단)
+    findings = [_f("hrv", "경고"), _f("sleep_efficiency", "경고")]
+    combos = match_cross_signals(findings)
+    assert all(c["combo_id"] != "wellness.hrv_sleep" for c in combos)
+    assert combos == []
+
+
+def test_cross_signal_finding_has_no_raw_value():
+    combos = match_cross_signals([_f("blood_pressure", "경고"), _f("bmi", "경고")])
+    blob = json.dumps(combos, ensure_ascii=False)
+    for raw in ("120", "140", "25", "30"):
+        assert raw not in blob
+
+
+def test_cross_signal_empty_input():
+    assert match_cross_signals([]) == []
+    assert match_cross_signals(None) == []
