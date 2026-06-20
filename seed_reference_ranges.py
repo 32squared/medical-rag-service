@@ -326,6 +326,27 @@ _RANGES: List[Dict] = [
     },
 ]
 
+# ── 교차신호 조합 근거 KB (vital_rules._CROSS_WHITELIST의 cite_doc_id와 매칭) ──
+# 인구집단 수준 일반 연관 사실만 — 개인 귀속·진단 단정 없음(population-level test 통과).
+# metadata.cite_doc_id 불변 별칭으로 finding↔KB 결정적 조인(11 §5).
+_CROSS_DOCS: List[Dict] = [
+    {
+        "cite_doc_id": "ref.metabolic.kr",
+        "title": "혈압과 체중(비만)의 일반적 연관 안내",
+        "topic": "metabolic",
+        "body": [
+            "체중과 혈압은 일반적으로 함께 살펴보면 도움이 되는 것으로 알려져 있습니다.",
+            "비만은 고혈압의 위험요인 중 하나로 보고되며, 체중·허리둘레와 혈압을 함께 관리하는 것이 일반적으로 권장됩니다.",
+            "구체적인 평가와 관리 방법은 개인 상태에 따라 다르므로 의료진과 상담이 필요합니다.",
+        ],
+        "source_name": "대한비만학회 / 대한고혈압학회 일반 정보",
+        "source_url": "https://www.kosso.or.kr",
+        "source_version": "일반 지침 정보",
+        "topic_keywords": ["혈압", "체중", "비만", "대사", "위험요인", "참조범위"],
+    },
+]
+
+
 # signal_key → 한국어 표시명 (KB 문서 제목용)
 _SIGNAL_NAMES = {
     "blood_pressure": "혈압",
@@ -410,10 +431,44 @@ def build_reference_documents(ranges: List[Dict] = None) -> List[Dict]:
                 "source_priority": 2,
                 "chunk_type": "reference_range",
                 "signal_key": signal_key,
+                "cite_doc_id": f"ref.{signal_key}.kr",  # 불변 별칭(11 §5) — band finding 조인용
             },
             "evidence_topic": signal_key,
             "regulatory_korea": any(r.get("locale") == "KR" for r in items),
             "topic_keywords": [name, signal_key, "참조범위", "기준", "정상범위"],
+        })
+    return docs
+
+
+def build_cross_reference_documents(cross_docs: List[Dict] = None) -> List[Dict]:
+    """교차신호 조합 근거 → RAG 인용용 KB 문서 (순수 함수).
+
+    vital_rules._CROSS_WHITELIST의 cite_doc_id가 가리키는 인구집단 수준 일반 연관 문서.
+    개인 귀속·진단 단정 없음. metadata.cite_doc_id로 finding과 결정적 조인(11 §5)."""
+    cross_docs = cross_docs if cross_docs is not None else _CROSS_DOCS
+    docs: List[Dict] = []
+    for d in cross_docs:
+        lines = [f"# {d['title']}", ""]
+        lines.append(f"## 일반 정보 — 출처: {d['source_name']} ({d.get('source_version','')})")
+        lines.append("")
+        for b in d["body"]:
+            lines.append(f"- {b}")
+        lines.append("")
+        lines.append(_DISCLAIMER)
+        docs.append({
+            "title": d["title"],
+            "content_md": "\n".join(lines),
+            "source_id": _SOURCE_ID,
+            "source_url": d.get("source_url", ""),
+            "metadata": {
+                "evidence_level": "A",
+                "source_priority": 2,
+                "chunk_type": "cross_reference",
+                "cite_doc_id": d["cite_doc_id"],
+            },
+            "evidence_topic": d.get("topic", "cross"),
+            "regulatory_korea": True,
+            "topic_keywords": d.get("topic_keywords", []),
         })
     return docs
 
