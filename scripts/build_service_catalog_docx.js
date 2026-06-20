@@ -1,7 +1,8 @@
 // 서비스 카탈로그 → Word(.docx).
 const fs = require("fs");
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  AlignmentType, HeadingLevel, BorderStyle, WidthType, ShadingType, PageBreak, Footer, PageNumber } = require("docx");
+  AlignmentType, HeadingLevel, BorderStyle, WidthType, ShadingType, PageBreak, Footer, PageNumber, ImageRun } = require("docx");
+const ONTO_PNG = fs.readFileSync("docs/ontology/phr-ontology-unified.png");
 const FONT="Malgun Gothic", CW=9360;
 const bd={style:BorderStyle.SINGLE,size:1,color:"CCCCCC"}; const bds={top:bd,bottom:bd,left:bd,right:bd};
 const HEAD="1F4E79", ALT="EDF2F7", COMBO="EAF1E6", STAR="FCE8D5";
@@ -51,6 +52,8 @@ const doc=new Document({
       new Paragraph({spacing:{after:400},alignment:AlignmentType.CENTER,children:[t("통합 데이터 온톨로지 기반 · 22개 서비스",{size:24,color:"2E5496"})]}),
       new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("나만의 주치의 · 2026-06-21",{size:20,color:"555555"})]}),
       p("PHR·디바이스·환경·OCR·대화를 진단 없이 안전하게 활용하는 22개 서비스. 단일 소스(1·2층)는 각 기기/기록 해석, 결합형(3·4·5·6층)은 소스를 엮은 차별 서비스.",{r:{italics:true,color:"555555"}}),
+      new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:60},children:[new ImageRun({type:"png",data:ONTO_PNG,transformation:{width:600,height:380},altText:{title:"통합 데이터 온톨로지",description:"여러 소스가 하나의 안전 코어로",name:"onto"}})]}),
+      p("[그림] 이 22개 서비스가 딛고 선 통합 온톨로지 — 여러 소스가 하나의 안전 코어로.",{r:{size:16,color:"777777"},sp:{after:40}}),
       new Paragraph({children:[new PageBreak()]}),
       h1("전체 서비스 (22)"),
       table([1400,2700,1100,2360,1800],["층","서비스","유형","사용 데이터","사용자 가치"],

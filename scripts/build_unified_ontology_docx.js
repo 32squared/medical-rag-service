@@ -2,7 +2,11 @@
 // 실행: NODE_PATH="$(npm root -g)" node scripts/build_unified_ontology_docx.js
 const fs = require("fs");
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  AlignmentType, HeadingLevel, BorderStyle, WidthType, ShadingType, PageBreak, Footer, PageNumber } = require("docx");
+  AlignmentType, HeadingLevel, BorderStyle, WidthType, ShadingType, PageBreak, Footer, PageNumber, ImageRun } = require("docx");
+const ONTO_PNG = fs.readFileSync("docs/ontology/phr-ontology-unified.png");
+const ontoImg = () => new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 120 },
+  children: [new ImageRun({ type: "png", data: ONTO_PNG, transformation: { width: 600, height: 380 },
+    altText: { title: "통합 데이터 온톨로지", description: "여러 소스가 하나의 안전 코어로", name: "ontology" } })] });
 const FONT = "Malgun Gothic", MONO = "Consolas", CW = 9360;
 const bd = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" }; const bds = { top: bd, bottom: bd, left: bd, right: bd };
 const HEAD = "1F4E79", ALT = "EDF2F7";
@@ -29,6 +33,8 @@ const doc = new Document({
       new Paragraph({ spacing: { after: 400 }, alignment: AlignmentType.CENTER, children: [t("PHR · 장치 · 환경 · OCR · LLM 대화", { size: 24, color: "2E5496" })] }),
       new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("나만의 주치의 · 2026-06-21", { size: 20, color: "555555" })] }),
       p("정본: docs/ontology/*.ttl (phr·device·context) — 통합 741 트리플·120 노드. 핵심: 모든 소스가 signalKey로 같은 참조범위를 조인 → 해석·안전 코어는 하나.", { r: { italics: true, color: "555555" } }),
+      ontoImg(),
+      p("[그림] 여러 입력 소스(PHR·디바이스·환경·OCR·대화) → 정규화 → 하나의 해석·안전 코어.", { r: { size: 16, color: "777777" }, p: { alignment: AlignmentType.CENTER } }),
       new Paragraph({ children: [new PageBreak()] }),
 
       h1("1. 클래스 계층 (입력 소스 통합)"),
