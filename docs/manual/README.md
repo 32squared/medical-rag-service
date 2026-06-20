@@ -31,9 +31,9 @@ rag_engine.generate_response  ── 검색→LLM 생성→가드레일→ (개�
 | 01 | [개인화 해석 엔진](01-개인화-해석엔진.md) | `vital_rules`(밴드·추세·교차신호)·`env_rules`(환경)·안전 불변식 |
 | 02 | [개인화 주입과 안전 경계](02-개인화-주입과-안전경계.md) | `personal_context`·`personalization_safety`·관련성 게이트·응급 억제 |
 | 03 | [페르소나 테스트 서버](03-페르소나-테스트-서버.md) | `persona_test_server`·`test_personas/personas.json`(24종) |
-| 04 | (예정) RAG 생성 파이프라인 | `rag_engine.generate_response`·4종 종료 경로 |
-| 05 | (예정) 이벤트 스토어 / 개선 루프 | `analytics_events`·비식별 이벤트·골든셋 게이트 |
-| 06 | (예정) 명시 피드백 | `response_feedback`·`POST /api/rag/feedback` |
+| 04 | [RAG 생성 파이프라인](04-RAG-생성-파이프라인.md) | `rag_engine.generate_response`·4종 종료 경로·게이트·가드레일 |
+| 05 | [이벤트 스토어 / 개선 루프](05-이벤트-스토어와-개선루프.md) | `analytics_events`·비식별 이벤트·E1~E7·골든셋 게이트 |
+| 06 | [명시 피드백](06-명시-피드백.md) | `response_feedback`·`POST /api/rag/feedback` |
 | 07 | (예정) wraith 호환 / 대화관리 API | `service_routes`·`rag_history_routes` |
 
 ## 안전 불변식 요약 (전 기능 공통)
