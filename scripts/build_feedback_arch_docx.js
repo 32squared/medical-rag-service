@@ -24,17 +24,17 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
    h1("1. 개선 루프 = 3개의 다른 일 (도구 분담)"),
    p("한 도구로 안 됩니다. 행동·피드백·품질은 서로 다른 데이터·방법입니다.",{}),
    table([1700,3260,2600,1800],["일","무엇","도구","비고"],[
-     ["A. 행동 분석","이벤트·퍼널·리텐션·코호트·A/B·기능플래그·세션리플레이","이벤트 테이블(우리 DB) + BI(Metabase/Grafana)","기본"],
-     ["B. 피드백 추출","대화에서 만족·거절수요·정정·재질문·👍/👎 추출","우리 LLM 파이프라인 + Feedback 온톨로지","우리가 직접"],
-     ["C. LLM 품질·관측","골든셋·judge·인용 정확도·지연·안전판정·프롬프트 버전","ANANTA (내부·국내)","Arize 대체"],
+     ["A. 행동 분석","이벤트·퍼널·리텐션·코호트·A/B·기능플래그·세션리플레이","이벤트 스토어(Postgres) + BI(Metabase/Grafana)","기본"],
+     ["B. 피드백 추출","대화에서 만족·거절수요·정정·재질문·👍/👎 추출","내부 LLM 파이프라인 + Feedback 온톨로지","자체 구축"],
+     ["C. 품질·평가","골든셋·judge·인용 정확도·지연·안전판정·프롬프트 버전","내부 품질·평가(골든셋·judge)","자체 구축"],
    ]),
-   p("PostHog 하나로 B·C를 대신할 수 없음. PostHog는 행동(A)용.",{r:{bold:true},sp:{before:80}}),
+   p("한 도구로 B·C를 대신할 수 없음 — 행동·피드백·품질은 데이터·방법이 다름.",{r:{bold:true},sp:{before:80}}),
 
-   h1("2. 도구는 선택 — 데이터는 우리 DB에"),
-   p("• 데이터는 우리 DB(rag_queries 감사 확장)에 둔다 — 외부 시스템 0·국외이전 0. 대시보드는 Metabase/Grafana로 우리 DB 위에서.",{}),
-   p("• A/B는 프롬프트 버전 플래그 + 골든셋·ANANTA로 측정. PostHog(self-hosted·비식별)는 성장팀·세션리플레이·대량 실험이 필요할 때 선택적 추가(지금 불필요).",{}),
+   h1("2. 도구는 선택 — 데이터는 이벤트 스토어에"),
+   p("• 데이터는 이벤트 스토어(rag_queries 감사 확장)에 둔다 — 외부 시스템 0·국외이전 0. 대시보드는 Metabase/Grafana로 이벤트 스토어 위에서.",{}),
+   p("• A/B는 프롬프트 버전 플래그 + 골든셋·품질평가로 측정. PostHog(self-hosted·비식별)는 성장팀·세션리플레이·대량 실험이 필요할 때 선택적 추가(지금 불필요).",{}),
 
-   h1("3. 비식별 이벤트 스키마 (우리 DB 이벤트 테이블에 기록)"),
+   h1("3. 비식별 이벤트 스키마 (이벤트 스토어에 기록)"),
    table([3200,6160],["이벤트(eventName)","의미"],[
      ["query_received","질의 수신(분류 결과 포함)"],
      ["answer_shown","답변 노출(경로·인용 수)"],
@@ -64,7 +64,7 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
    h1("5. 안전 공리 (개선 루프 E1~E7)"),
    table([700,8660],["#","규칙"],[
      ["E1","피드백은 민감(건강 텍스트) → 동의·마스킹·국내저장"],
-     ["E2","이벤트는 우리 DB(국내)에 비식별만 · 질의텍스트·원시수치·진단명·PII 금지 · 외부 BI/도구는 선택"],
+     ["E2","이벤트는 이벤트 스토어(국내)에 비식별만 · 질의텍스트·원시수치·진단명·PII 금지 · 외부 BI/도구는 선택"],
      ["E3","개선 항목은 골든셋 게이트 통과 시에만 배포(안전 회귀 0)"],
      ["E4","거절수요 = ‘원했으나 합법적으로 못 준’ = KB확장·표현개선 1급 입력"],
      ["E5","자동 추출 피드백은 사람 검수 경유 — 자동 프롬프트/규칙 변경 금지"],
@@ -74,6 +74,6 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
    p("핵심: 성능은 ‘대화에서 배워’ 좋아지되, 안전은 ‘골든셋 게이트’가 지킨다 — 개선이 안전을 무너뜨릴 수 없는 구조.",{r:{bold:true},sp:{before:120}}),
 
    h1("부록. 이미 있는 것 / 신규"),
-   p("• 이미: rag_gap_analysis(거절수요)·review_queue·감사 필드·골든셋. • 신규: feedback-ontology.ttl·이벤트 테이블 확장·BI(Metabase/Grafana)·ANANTA(PostHog는 선택).",{r:{size:18}}),
+   p("• 이미: rag_gap_analysis(거절수요)·review_queue·감사 필드·골든셋. • 신규: feedback-ontology.ttl·이벤트 스토어 확장·BI(Metabase/Grafana)·품질평가(골든셋·judge). PostHog는 선택.",{r:{size:18}}),
   ]}]});
 Packer.toBuffer(doc).then(b=>{fs.writeFileSync("docs/개선루프_아키텍처_2026-06-21.docx",b);console.log("written:",b.length);});
