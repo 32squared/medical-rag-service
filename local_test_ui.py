@@ -69,9 +69,12 @@ PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <style>
  body{font-family:system-ui,'Malgun Gothic',sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1c1c1c}
  h1{font-size:18px} .sub{color:#888;font-size:12px;margin-bottom:16px}
- #log{border:1px solid #ddd;border-radius:8px;padding:12px;min-height:280px;white-space:pre-wrap;line-height:1.5}
- .u{color:#0a58ca;font-weight:600;margin-top:10px}
+ #log{border:1px solid #ddd;border-radius:8px;padding:12px;min-height:280px;line-height:1.5}
+ .u{color:#0a58ca;font-weight:600;margin-top:10px;white-space:pre-wrap}
  .a{color:#111;margin:4px 0 10px}
+ .a h2{font-size:15px;margin:14px 0 6px;padding-bottom:2px;border-bottom:1px solid #eee}
+ .a p{margin:4px 0} .a ul{margin:4px 0 8px;padding-left:20px} .a li{margin:2px 0}
+ .a strong{font-weight:700}
  .meta{color:#888;font-size:12px}
  .row{display:flex;gap:8px;margin-top:12px}
  textarea{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical}
@@ -89,6 +92,21 @@ PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8">
 const conv = crypto.randomUUID();
 const log = document.getElementById('log');
 function add(html){ const d=document.createElement('div'); d.innerHTML=html; log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function inline(s){ return s.replace(/\\*\\*(.+?)\\*\\*/g,'<strong>$1</strong>'); }
+function md(src){
+  const lines=esc(src).split('\\n'); let out=[], inList=false;
+  for(const ln of lines){
+    const h=ln.match(/^\\s*#{2,4}\\s+(.*)$/);
+    if(h){ if(inList){out.push('</ul>');inList=false;} out.push('<h2>'+inline(h[1])+'</h2>'); continue; }
+    const li=ln.match(/^\\s*[-*]\\s+(.*)$/);
+    if(li){ if(!inList){out.push('<ul>');inList=true;} out.push('<li>'+inline(li[1])+'</li>'); continue; }
+    if(inList){out.push('</ul>');inList=false;}
+    if(ln.trim()==='') continue; else out.push('<p>'+inline(ln)+'</p>');
+  }
+  if(inList) out.push('</ul>');
+  return out.join('');
+}
 async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q) return;
   const btn=document.getElementById('send'); btn.disabled=true;
@@ -103,11 +121,11 @@ async function ask(){
       buf+=dec.decode(value,{stream:true}); let i;
       while((i=buf.indexOf('\\n\\n'))>=0){ const line=buf.slice(0,i); buf=buf.slice(i+2);
         const m=line.match(/^data: (.*)$/s); if(!m) continue; let ev; try{ev=JSON.parse(m[1]);}catch(e){continue;}
-        if(ev.type==='GENERATION'){ text+=(ev.text||''); ans.innerHTML='<div class="a">'+text.replace(/</g,'&lt;')+'</div>'; }
+        if(ev.type==='GENERATION'){ text+=(ev.text||''); ans.innerHTML='<div class="a">'+md(text)+'</div>'; }
         else if(ev.type==='EVIDENCE_CHECK'){ meta='근거: '+(ev.data&&ev.data.quality)+' / '+(ev.data&&ev.data.decision); }
         else if(ev.type==='INFO'&&ev.data&&ev.data.search_results){ meta='검색결과 '+ev.data.search_results.length+'건 · '+meta; }
         else if(ev.type==='STOP'){ const c=(ev.citations||[]).length; if(c) meta+=' · 인용 '+c+'개'; }
-        else if(ev.type==='ERROR'){ text+='\\n[오류] '+(ev.message||''); ans.innerHTML='<div class="a">'+text+'</div>'; }
+        else if(ev.type==='ERROR'){ text+='\\n[오류] '+(ev.message||''); ans.innerHTML='<div class="a">'+md(text)+'</div>'; }
         log.scrollTop=log.scrollHeight;
       }
     }
