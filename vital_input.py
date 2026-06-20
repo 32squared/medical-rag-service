@@ -30,6 +30,7 @@ _VITAL_FIELDS = {
     "bpd":    {"type": float, "min": 20,   "max": 220},   # 이완기 혈압
     "fever":  {"type": float, "min": 25,   "max": 45},    # 체온 ℃
     "stress": {"type": float, "min": 0,    "max": 100},   # 스트레스 지수(스케일 미확정)
+    "bmi":    {"type": float, "min": 8,    "max": 80},    # 체질량지수(체중계/PHR 유래)
 }
 
 

@@ -87,9 +87,9 @@
       "id": "metabolic_multi", "name": "대사 위험요인 복합", "emoji": "🍔",
       "profile": "55세. 혈압 150/95, 비만 경향(검진). 여러 항목 함께 관리.",
       "tags": ["대사", "혈압경고", "결합"], "locale": "KR", "population": "adult", "context": "clinic",
-      "vitals": [{"bps": 150, "bpd": 95, "bpm": 84, "spo2": 97, "create_date": "2026-06-21T09:30:00"}],
+      "vitals": [{"bps": 150, "bpd": 95, "bpm": 84, "spo2": 97, "bmi": 27.4, "create_date": "2026-06-21T09:30:00"}],
       "air_quality": "보통", "phr": "{\"bmi_band\":\"obese1\",\"checkup\":\"glucose_borderline\"}",
-      "expected_label": "혈압 경고(고혈압 1기)",
+      "expected_label": "혈압 경고 + 체질량지수 주의 → 교차신호(대사 묶음)",
       "sample_queries": ["건강검진에서 이것저것 걸렸는데 뭘 같이 봐야 해요?", "혈압이랑 체중 둘 다 관리하려면?"]
     },
     {
@@ -150,9 +150,9 @@
       "id": "diabetes_followup", "name": "당뇨 추적 관리", "emoji": "🩸",
       "profile": "52세. 당뇨 추적. 혈압 134/85, 공복혈당 관리 중.",
       "tags": ["당뇨", "혈압주의", "복약"], "locale": "KR", "population": "adult", "context": "clinic",
-      "vitals": [{"bps": 134, "bpd": 85, "bpm": 82, "spo2": 97, "create_date": "2026-06-21T08:20:00"}],
+      "vitals": [{"bps": 134, "bpd": 85, "bpm": 82, "spo2": 97, "bmi": 26.1, "create_date": "2026-06-21T08:20:00"}],
       "air_quality": "보통", "phr": "{\"dx\":[\"type2_diabetes\"],\"meds\":[\"metformin\"],\"hba1c\":\"7.2\"}",
-      "expected_label": "혈압 주의 (당뇨 이력은 톤 신호·비표면화)",
+      "expected_label": "혈압 주의 + 체질량지수 주의 (당뇨 이력은 톤 신호·비표면화)",
       "sample_queries": ["혈당 관리하려면 뭘 먹어야 하나요?", "당뇨인데 혈압도 같이 봐야 하나요?"]
     },
     {

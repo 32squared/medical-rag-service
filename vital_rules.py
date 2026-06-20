@@ -264,6 +264,7 @@ _VITAL_FIELD_SIGNAL = {
     "bpm": "heart_rate",
     "spo2": "spo2",
     "fever": "body_temperature",
+    "bmi": "bmi",   # 체중계/PHR 유래 — 혈압과 교차신호(대사 묶음, I9)
 }
 
 
