@@ -1,0 +1,106 @@
+"""
+personal_context.py — findings → 사용자 답변용 "내 기록 참고" 블록 (개인화 P1a, 경계선 ③ 렌더).
+
+정본: docs/plan/14-personalization-consolidated.md §6 C19, 09 §7(주입 레이어), 13 §1.
+
+규율:
+- [관련성 게이트] 질의 scope와 매칭되는 finding만 표면화(09 §7-1). 매칭 0 → 빈 블록(개인화 생략·과노출 차단).
+- [I1] 원시 측정값 미노출 — findings는 이미 라벨만 보유(vital_rules).
+- [I12] 사용자 라벨 중립 3단만. 임상/질환 라벨(clinical_label) 미사용 → 개인귀속 진단 0.
+- [측정시점] '최근 측정' 프레이밍 + 의료진 상담 위임(진단 단정 0).
+- 실제 [R#] 인용 마커는 wiring(chunks 동반적재 후 위치 부여)에서 삽입 — 본 렌더는 cite_doc_ids를 반환만.
+
+build()는 순수 함수 — DB/LLM 불필요. 단위테스트 가능.
+"""
+
+from __future__ import annotations
+
+from typing import Dict, List, Optional
+
+# 질의 scope 키워드 → signal_key (관련성 게이트). 질의에 키워드가 있어야 해당 finding 표면화.
+_SCOPE_KEYWORDS: Dict[str, List[str]] = {
+    "blood_pressure": ["혈압", "고혈압", "저혈압", "수축기", "이완기", "어지럼", "현기증", "두통"],
+    "heart_rate": ["맥박", "심박", "심장", "두근", "빈맥", "서맥", "부정맥"],
+    "spo2": ["산소", "산소포화도", "호흡", "숨", "숨참", "기침", "가래"],
+    "body_temperature": ["열", "발열", "체온", "미열", "오한", "고열"],
+    "bmi": ["체중", "비만", "몸무게", "체질량", "살", "비만도"],
+    "fasting_glucose": ["혈당", "당뇨", "공복혈당", "당화"],
+    "hba1c": ["당화혈색소", "당뇨", "혈당", "당화"],
+}
+
+# signal_key → 사용자 표시명
+_SIGNAL_DISPLAY = {
+    "blood_pressure": "혈압",
+    "heart_rate": "심박수",
+    "spo2": "산소포화도",
+    "body_temperature": "체온",
+    "bmi": "체질량지수",
+    "fasting_glucose": "공복혈당",
+    "hba1c": "당화혈색소",
+}
+
+# 중립 라벨(I12) → 사용자 문구. 질환명·원시값 없음.
+_LABEL_PHRASE = {
+    "안정": "현재 측정 기준으로는 특이소견이 보이지 않습니다",
+    "주의": "관리가 권장되는 구간으로 확인됩니다",
+    "경고": "기준을 벗어난 구간으로, 의료진 확인이 권장됩니다",
+}
+
+_BLOCK_HEADER = "## 📋 내 기록 참고"
+_BLOCK_CLOSING = "측정값의 해석과 진단은 의료진과 상담하세요."
+
+
+def relevance_gate(query: Optional[str], findings: List[Dict]) -> List[Dict]:
+    """질의 scope와 매칭되는 finding만 통과(09 §7-1). 매칭 0이면 빈 리스트(과노출 차단)."""
+    q = query or ""
+    kept = []
+    for f in findings:
+        sig = f.get("signal_key")
+        if f.get("label_user") not in _LABEL_PHRASE:
+            continue  # 라벨 없는(no_match/denied) finding은 표면화 안 함
+        keywords = _SCOPE_KEYWORDS.get(sig, [])
+        if any(kw in q for kw in keywords):
+            kept.append(f)
+    return kept
+
+
+def build(findings: List[Dict], query: Optional[str]) -> Dict:
+    """findings → 관련성 게이트 통과분의 "내 기록 참고" 블록.
+
+    Returns:
+        {
+          "surfaced":     [{signal_key, label_user, cite_doc_id, sentence}, ...],
+          "cite_doc_ids": [unique cite_doc_id ...],   # wiring이 chunks에 동반적재(11 §5)
+          "block_md":     str,                         # 프리뷰(실제 [R#] 마커는 wiring에서 삽입)
+        }
+    빈 블록(매칭 0)이면 block_md="" — 개인화 생략.
+    """
+    surfaced_in = relevance_gate(query, findings or [])
+    if not surfaced_in:
+        return {"surfaced": [], "cite_doc_ids": [], "block_md": ""}
+
+    surfaced: List[Dict] = []
+    cite_ids: List[str] = []
+    lines = [_BLOCK_HEADER]
+    for f in surfaced_in:
+        display = _SIGNAL_DISPLAY.get(f["signal_key"], f["signal_key"])
+        phrase = _LABEL_PHRASE[f["label_user"]]
+        sentence = f"최근 측정된 {display}은(는) {phrase}"
+        lines.append(f"- {sentence}.")
+        surfaced.append({
+            "signal_key": f["signal_key"],
+            "label_user": f["label_user"],
+            "cite_doc_id": f.get("cite_doc_id"),
+            "sentence": sentence,
+        })
+        cid = f.get("cite_doc_id")
+        if cid and cid not in cite_ids:
+            cite_ids.append(cid)
+    lines.append("")
+    lines.append(_BLOCK_CLOSING)
+
+    return {
+        "surfaced": surfaced,
+        "cite_doc_ids": cite_ids,
+        "block_md": "\n".join(lines),
+    }
