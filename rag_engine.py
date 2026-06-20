@@ -1222,6 +1222,12 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] 멀티턴 해석 스킵: %s", _e)
 
+    # 진입 이벤트(비식별) — 분류 직후 1건. 퍼널 분모/intent 분포(응급 재진입 제외).
+    _emit_analytics(
+        "query_received", conversation_id, _classification,
+        is_followup=_is_followup,
+    )
+
     # ── 1.7 트리아지: 비의료/대화성 입력은 4단 의료답변 대신 되묻기 ──
     # "배고파", "안녕" 등 의료 신호 없는 모호 입력에 응급징후·문진을 들이대는
     # 과의료화 방지. 검색·LLM 호출을 건너뛰어 비용도 절약(0원).

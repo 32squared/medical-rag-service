@@ -34,11 +34,13 @@ ALLOWED_PROPS = frozenset(_LABEL_FIELDS + _COUNT_FIELDS + _BOOL_FIELDS)
 
 # 등록된 이벤트만 적재 (오타·임의 이벤트 차단)
 EVENT_NAMES = frozenset({
+    "query_received",        # 진입 — 분류 직후(퍼널 분모·intent 분포)
     "answer_shown",          # 정상 답변 노출
     "insufficient_evidence", # 근거부족 → 길안내 전환(거절수요 신호)
     "emergency_redirect",    # 응급 안내
     "triage_clarify",        # 비의료/모호 입력 되묻기
-    "query_received",        # (예약) 진입 이벤트 — 현재 미사용
+    "thumbs_up",             # 명시 피드백 👍
+    "thumbs_down",           # 명시 피드백 👎
 })
 
 _MAX_LABEL_LEN = 64

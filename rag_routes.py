@@ -83,6 +83,9 @@ class RagRoutesMixin:
             if path == '/api/rag/chat':
                 return self._rag_chat(body)
 
+            if path == '/api/rag/feedback':
+                return self._rag_feedback(body)
+
             return self._send_error(404, 'Not Found')
 
         # ── PUT ───────────────────────────────────────────────
@@ -138,6 +141,58 @@ class RagRoutesMixin:
             return self._send_error(404, 'Not Found')
 
         return self._send_error(405, 'Method Not Allowed')
+
+    # ────────────────────────────────────────────────────────────
+    # 답변 명시 피드백 (👍/👎) — 개선 루프 B/E
+    # ────────────────────────────────────────────────────────────
+
+    def _rag_feedback(self, body):
+        """POST /api/rag/feedback — 답변 명시 피드백.
+
+        body: {"rag_query_id": str, "rating": "up"|"down",
+               "reason_code"?: str, "conversation_id"?: str}
+        코멘트 원문은 저장하지 않는다(비식별). rating·reason_code(코드)만 영속 +
+        비식별 thumbs 이벤트 emit.
+        """
+        if not RAG_ENABLED:
+            return self._send_json(503, {"error": "RAG 비활성", "code": "RAG_DISABLED"})
+        try:
+            payload = json.loads(body.decode('utf-8')) if body else {}
+        except Exception as e:
+            return self._send_json(400, {"error": f"Invalid JSON: {e}"})
+
+        rag_query_id = (payload.get('rag_query_id') or '').strip()
+        rating = (payload.get('rating') or '').strip().lower()
+        if not rag_query_id:
+            return self._send_json(400, {"error": "rag_query_id is required"})
+        if rating not in ('up', 'down'):
+            return self._send_json(400, {"error": "rating must be 'up' or 'down'"})
+
+        reason_code = (payload.get('reason_code') or '').strip() or None
+        conversation_id = (payload.get('conversation_id') or '').strip() or None
+
+        user_id = None
+        try:
+            from auth_resolver import resolve_user
+            u = resolve_user(self.headers) or self._get_tester_info()
+            user_id = (u or {}).get('id')
+        except Exception:
+            try:
+                user_id = (self._get_tester_info() or {}).get('id')
+            except Exception:
+                user_id = None
+
+        try:
+            import rag_db
+            fid = rag_db.record_response_feedback(
+                rag_query_id, rating, conversation_id=conversation_id,
+                user_id=user_id, reason_code=reason_code)
+        except Exception as e:
+            self._add_log(f"[RAG] 피드백 저장 오류: {e}")
+            fid = None
+        if not fid:
+            return self._send_json(500, {"error": "피드백 저장 실패"})
+        return self._send_json(200, {"status": "success", "feedback_id": fid})
 
     # ────────────────────────────────────────────────────────────
     # RAG 채팅 SSE API

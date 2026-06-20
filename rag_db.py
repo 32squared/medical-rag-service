@@ -236,6 +236,45 @@ def update_rag_query_audit(rag_query_id: str, **fields):
         return False
 
 
+def record_response_feedback(rag_query_id: str, rating: str, *,
+                             conversation_id: str = None, user_id: str = None,
+                             reason_code: str = None):
+    """답변 명시 피드백(👍/👎) 1건을 response_feedback에 적재하고,
+    비식별 thumbs 이벤트를 analytics_events로 emit한다.
+
+    코멘트 원문은 받지 않으며 rating·reason_code(코드)만 저장(비식별).
+    성공 시 feedback id, 실패/유효성 위반 시 None.
+    """
+    if not rag_query_id or rating not in ("up", "down"):
+        return None
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    fid = _uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"INSERT INTO response_feedback "
+                f"(id, rag_query_id, conversation_id, user_id, rating, reason_code, created_at) "
+                f"VALUES ({_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()})",
+                (fid, rag_query_id, conversation_id, user_id, rating,
+                 (reason_code or None), now),
+            )
+            conn.commit()
+    except Exception:
+        return None
+    # 비식별 집계 이벤트 (비차단)
+    try:
+        import analytics_events as _ae
+        _ae.emit(
+            "thumbs_up" if rating == "up" else "thumbs_down",
+            conversation_id=conversation_id, rag_query_id=rag_query_id,
+        )
+    except Exception:
+        pass
+    return fid
+
+
 def list_review_queue(status: str = "pending", limit: int = 50) -> list:
     """검수 큐 조회 (스펙 §8.4 review console용). 오류 시 빈 리스트."""
     try:
