@@ -24,7 +24,30 @@ from seed_reference_ranges import _RANGES
 # 사용자 노출 중립 라벨의 심각도 순서 (보수적 최댓값 채택용)
 _SEVERITY = {"안정": 0, "주의": 1, "경고": 2}
 
+# [I8] 임상 판독 자체가 금지된 신호 (워치 ECG 등) — 밴드 조회 자체를 안 함.
+DENY_SIGNALS = {"ecg", "ecg_waveform", "afib_alert"}
+
 Number = Union[int, float]
+
+
+def _select_entry(signal_key: str, locale: str, population: str) -> Optional[Dict]:
+    """signal/locale/population 최적 참조범위 엔트리 선택.
+    로케일은 정확>GLOBAL, 인구는 정확>all 폴백. 둘 다 미충족이면 None(fail-closed)."""
+    cands = [r for r in _RANGES if r.get("signal_key") == signal_key]
+    if not cands:
+        return None
+
+    def score(r: Dict):
+        loc, pop = r.get("locale"), r.get("population")
+        loc_s = 2 if loc == locale else (1 if loc == "GLOBAL" else 0)
+        pop_s = 2 if pop == population else (1 if pop == "all" else 0)
+        return (loc_s, pop_s)
+
+    best = max(cands, key=score)
+    loc_s, pop_s = score(best)
+    if loc_s == 0 or pop_s == 0:
+        return None  # 요청 로케일/인구에 적용 가능한 기준 없음
+    return best
 
 
 def _band_contains(band: Dict, v: Number) -> bool:
@@ -84,18 +107,20 @@ def lookup_band(
     context: str = "clinic",
     locale: str = "KR",
     population: str = "adult",
+    device_grade: str = "clinical_near",
 ) -> Dict:
     """측정값 → 밴드 결과(원시값 미반환).
 
     Args:
         signal_key: 'blood_pressure' 등 seed signal_key.
         value:      다축은 {'systolic':.., 'diastolic':..}, 단축은 스칼라.
-        context:    'clinic'(기본) 등. 미구조화 context는 no_match(fail-closed).
-        locale, population: 참조범위 엔트리 선택.
+        context:    'clinic'(기본)/'home' 등. 미구조화 context는 no_match(fail-closed).
+        locale, population: 참조범위 엔트리 선택(GLOBAL/all 폴백).
+        device_grade: 'clinical_near'(기본)/'consumer'/'wellness'. 'wellness'는 임상밴드 비활성(I8).
 
     Returns (원시 value·min·max 미포함):
         {signal_key, label_user('안정'|'주의'|'경고'|None), clinical_label(내부),
-         match('ok'|'no_match'), context, locale, cite_doc_id, source_version}
+         match('ok'|'no_match'|'denied'), context, locale, cite_doc_id, source_version}
     """
     base = {
         "signal_key": signal_key,
@@ -108,16 +133,13 @@ def lookup_band(
         "source_version": None,
     }
 
-    # 참조범위 엔트리 선택 (signal/locale/population 일치)
-    entry = next(
-        (
-            r for r in _RANGES
-            if r.get("signal_key") == signal_key
-            and r.get("locale") == locale
-            and r.get("population") == population
-        ),
-        None,
-    )
+    # [I8] deny 게이트 — 임상 판독 금지 신호 또는 웰니스 등급은 임상밴드 조회 자체를 안 함.
+    if signal_key in DENY_SIGNALS or device_grade == "wellness":
+        base["match"] = "denied"
+        return base
+
+    # 참조범위 엔트리 선택 (signal/locale/population, GLOBAL·all 폴백)
+    entry = _select_entry(signal_key, locale, population)
     if entry is None:
         return base  # 미지원 신호/로케일 → fail-closed
 

@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from seed_reference_ranges import _RANGES, build_reference_documents, build_reference_rows
-from vital_rules import lookup_band
+from vital_rules import DENY_SIGNALS, lookup_band
 
 
 def _bp(sys_v, dia_v):
@@ -76,9 +76,15 @@ def test_unknown_signal_fail_closed():
     assert r["label_user"] is None
 
 
-def test_home_context_not_structured_fail_closed():
-    # 가정혈압(home)은 아직 bands 미구조화 → no_match (라벨 강제 생성 안 함)
-    r = lookup_band("blood_pressure", _bp(140, 90), context="home", locale="KR")
+def test_bp_home_context_above_threshold_warning():
+    # 가정혈압 135/85 이상 → 경고 (진료실 기준과 다름)
+    assert lookup_band("blood_pressure", _bp(140, 90), context="home", locale="KR")["label_user"] == "경고"
+    assert lookup_band("blood_pressure", _bp(136, 80), context="home", locale="KR")["label_user"] == "경고"
+
+
+def test_bp_home_context_below_threshold_fail_closed():
+    # 시드는 home 정상 tier를 정의하지 않음 → 거짓안심 비대칭상 no_match(안심 라벨 강제 안 함)
+    r = lookup_band("blood_pressure", _bp(110, 70), context="home", locale="KR")
     assert r["match"] == "no_match"
     assert r["label_user"] is None
 
@@ -138,3 +144,84 @@ def test_every_band_has_valid_axis_and_bounds():
             for band in rng.get("bands", []):
                 assert band.get("axis") in ("systolic", "diastolic", "value")
                 assert ("min" in band) or ("max" in band)
+
+
+# ── 단축 신호 (혈당·당화혈색소·SpO2·체온·BMI·심박) ──────────────
+
+def test_fasting_glucose_tiers():
+    assert lookup_band("fasting_glucose", 90, locale="KR")["label_user"] == "안정"
+    assert lookup_band("fasting_glucose", 110, locale="KR")["label_user"] == "주의"
+    assert lookup_band("fasting_glucose", 140, locale="KR")["label_user"] == "경고"
+
+
+def test_hba1c_tiers():
+    assert lookup_band("hba1c", 5.4, locale="KR")["label_user"] == "안정"
+    assert lookup_band("hba1c", 6.0, locale="KR")["label_user"] == "주의"
+    assert lookup_band("hba1c", 7.0, locale="KR")["label_user"] == "경고"
+
+
+def test_spo2_tiers_global_all_fallback():
+    # spo2는 locale=GLOBAL·population=all — KR/adult 요청도 폴백 선택돼야 함
+    assert lookup_band("spo2", 98)["label_user"] == "안정"
+    assert lookup_band("spo2", 92)["label_user"] == "주의"
+    assert lookup_band("spo2", 88)["label_user"] == "경고"
+
+
+def test_bmi_tiers():
+    assert lookup_band("bmi", 17, locale="KR")["label_user"] == "주의"   # 저체중
+    assert lookup_band("bmi", 21, locale="KR")["label_user"] == "안정"
+    assert lookup_band("bmi", 27, locale="KR")["label_user"] == "주의"   # 1단계
+    assert lookup_band("bmi", 32, locale="KR")["label_user"] == "경고"   # 2단계
+
+
+def test_body_temperature_adult_tiers():
+    assert lookup_band("body_temperature", 36.6, population="adult")["label_user"] == "안정"
+    assert lookup_band("body_temperature", 37.5, population="adult")["label_user"] == "주의"
+    assert lookup_band("body_temperature", 38.5, population="adult")["label_user"] == "경고"
+
+
+def test_heart_rate_single_normal_band():
+    assert lookup_band("heart_rate", 72)["label_user"] == "안정"
+    # 범위 밖은 tier 미시드 → no_match(fail-closed)
+    assert lookup_band("heart_rate", 150)["match"] == "no_match"
+
+
+def test_pediatric_temp_not_structured_fail_closed():
+    # 소아 발열은 고위험·미구조화 → no_match(라벨 강제 생성 금지)
+    assert lookup_band("body_temperature", 38.5, population="child")["match"] == "no_match"
+
+
+# ── I8 device_grade deny ────────────────────────────────────────
+
+def test_wellness_grade_denied():
+    # 워치(웰니스 등급) SpO2는 임상밴드 비활성 → denied
+    r = lookup_band("spo2", 92, device_grade="wellness")
+    assert r["match"] == "denied"
+    assert r["label_user"] is None
+
+
+def test_deny_signal_list():
+    for sig in DENY_SIGNALS:
+        r = lookup_band(sig, 1)
+        assert r["match"] == "denied"
+        assert r["label_user"] is None
+
+
+# ── I12 핵심: 질환명 임상 라벨이 사용자 라벨로 새지 않음 ──────────
+
+def test_disease_clinical_labels_never_become_user_label():
+    """시드의 질환명 라벨(당뇨병 기준/N단계 비만 등)은 clinical_label 내부에만,
+    사용자 label_user는 항상 중립 3단 — 개인귀속 진단 0(I12/I2)."""
+    cases = [
+        ("fasting_glucose", 140, "당뇨병 기준"),
+        ("hba1c", 7.0, "당뇨병 기준"),
+        ("bmi", 32, "2단계 비만"),
+        ("blood_pressure", _bp(165, 105), "고혈압 2기"),
+    ]
+    disease_words = ("당뇨", "비만", "고혈압", "저산소", "병")
+    for signal, value, expected_clinical in cases:
+        r = lookup_band(signal, value, locale="KR")
+        assert r["clinical_label"] == expected_clinical          # 내부엔 임상 라벨
+        assert r["label_user"] in ("안정", "주의", "경고")        # 사용자엔 중립만
+        for w in disease_words:
+            assert w not in (r["label_user"] or "")              # 질환명 누출 0
