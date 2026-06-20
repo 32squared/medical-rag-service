@@ -4,7 +4,9 @@ import sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 from rdflib import Graph, RDFS, OWL
 PHR = "https://namuh.health/phr#"
-g = Graph(); g.parse("docs/ontology/phr-ontology.ttl", format="turtle")
+import glob
+g = Graph()
+for _f in sorted(glob.glob("docs/ontology/*.ttl")): g.parse(_f, format="turtle")
 ln  = lambda u: str(u).split("#")[-1]
 lbl = lambda u: str(g.value(u, RDFS.label) or ln(u))
 isphr = lambda u: str(u).startswith(PHR)

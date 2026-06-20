@@ -1,0 +1,89 @@
+# 입력양식·대화·환경운영 온톨로지 (PHR/장치 온톨로지 확장) — Turtle/OWL
+# OCR(종이기록 추출) · LLM 대화 데이터(챗 맥락) · 공기청정기 운영.
+# phr-ontology.ttl + device-ontology.ttl과 함께 로드 → 통합 온톨로지.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix phr:  <https://namuh.health/phr#> .
+
+#################################################################
+#  OCR — 입력 양식(신호 아님). 추출→확인→PHR 레코드로 승격.
+#################################################################
+phr:OCRDocument a owl:Class ; rdfs:label "OCR 문서(입력 양식)"@ko ;
+    rdfs:comment "종이 기록 사진. 신호가 아니라 입력 경로 — 추출 후 확인 게이트를 거쳐 PHR로 합류."@ko .
+phr:PrescriptionImage  rdfs:subClassOf phr:OCRDocument ; rdfs:label "처방전"@ko ;   phr:feedsInto phr:Prescription .
+phr:LabReportImage     rdfs:subClassOf phr:OCRDocument ; rdfs:label "검사결과지"@ko ; phr:feedsInto phr:HealthCheckup .
+phr:DiagnosisCertImage rdfs:subClassOf phr:OCRDocument ; rdfs:label "진단서"@ko ;     phr:feedsInto phr:DiseaseHistory .
+phr:MedBagImage        rdfs:subClassOf phr:OCRDocument ; rdfs:label "약봉투"@ko ;     phr:feedsInto phr:Prescription .
+
+phr:ExtractedField a owl:Class ; rdfs:label "추출 필드"@ko ;
+    rdfs:comment "필드별 신뢰도 보유(M3). 저신뢰·민감·단위 미상은 활용 차단."@ko .
+
+phr:ConfirmState a owl:Class ; rdfs:label "확인 상태"@ko ;
+    owl:oneOf ( phr:ocr_extracted phr:needs_review phr:blocked phr:user_confirmed ) .
+phr:ocr_extracted a phr:ConfirmState . phr:needs_review a phr:ConfirmState . phr:blocked a phr:ConfirmState . phr:user_confirmed a phr:ConfirmState .
+
+phr:extractedFrom a owl:ObjectProperty ; rdfs:domain phr:ExtractedField ; rdfs:range phr:OCRDocument .
+phr:feedsInto     a owl:AnnotationProperty ; rdfs:label "합류 대상(PHR 레코드)"@ko .
+phr:confirmState  a owl:ObjectProperty ; rdfs:domain phr:OCRDocument ; rdfs:range phr:ConfirmState .
+phr:fieldConfidence a owl:DatatypeProperty ; rdfs:domain phr:ExtractedField ; rdfs:range xsd:decimal .
+phr:userConfirmed   a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+
+#################################################################
+#  LLM 대화 데이터 — 챗 세션·맥락(증상/환자정보). 측정값 아님.
+#################################################################
+phr:Conversation a owl:Class ; rdfs:label "대화(LLM 세션)"@ko .
+phr:Turn a owl:Class ; rdfs:label "대화 턴"@ko .
+phr:UserUtterance     rdfs:subClassOf phr:Turn ; rdfs:label "사용자 발화"@ko .
+phr:AssistantResponse rdfs:subClassOf phr:Turn ; rdfs:label "어시스턴트 응답"@ko .
+
+phr:Intent a owl:Class ; rdfs:label "질의 의도"@ko ;
+    owl:oneOf ( phr:emergency phr:symptom phr:info phr:vital phr:noncore ) .
+phr:emergency a phr:Intent . phr:symptom a phr:Intent . phr:info a phr:Intent . phr:vital a phr:Intent . phr:noncore a phr:Intent .
+
+# 대화에서 수집되는 맥락 축(증상/환자) — 답변 shaping 입력(진단 아님)
+phr:DerivedContext a owl:Class ; rdfs:label "수집 맥락(축)"@ko .
+phr:SymptomProfile  rdfs:subClassOf phr:DerivedContext ; rdfs:label "증상 프로파일"@ko ; rdfs:comment "부위·양상·시기·강도·동반증상(A1~A5)"@ko .
+phr:DangerScreen    rdfs:subClassOf phr:DerivedContext ; rdfs:label "위험 신호"@ko ; rdfs:comment "응급징후·악화요인·경고징후(B1~B3)"@ko .
+phr:PatientContext  rdfs:subClassOf phr:DerivedContext ; rdfs:label "환자 맥락"@ko ; rdfs:comment "나이·성별·기저질환·복약·생활(C1~C4)"@ko ; phr:sensitivity phr:General .
+
+# 사용자가 말로 댄 수치 — 측정값 아님(개인화 밴드 미활성)
+phr:UserStatedValue a owl:Class ; rdfs:label "사용자 진술 수치"@ko ;
+    rdfs:comment "예: '내 혈압 150'. 디바이스 데이터 아님 → 밴드 미활성(I4). 증상 맥락으로만 사용(D1)."@ko .
+
+phr:hasTurn       a owl:ObjectProperty ; rdfs:domain phr:Conversation ; rdfs:range phr:Turn .
+phr:hasIntent     a owl:ObjectProperty ; rdfs:domain phr:UserUtterance ; rdfs:range phr:Intent .
+phr:collectedAxis a owl:ObjectProperty ; rdfs:domain phr:Conversation ; rdfs:range phr:DerivedContext .
+
+#################################################################
+#  공기청정기 운영 데이터 (환경 측정값은 device-ontology의 EnvironmentReading)
+#################################################################
+phr:AirPurifierStatus a owl:Class ; rdfs:label "공기청정기 운영"@ko ; phr:deviceGrade phr:Environmental ;
+    rdfs:comment "환기 권유 안내의 보조. 필터수명·운전모드·측정시각. 진단 아님(B5)."@ko .
+phr:FilterLife  rdfs:subClassOf phr:AirPurifierStatus ; rdfs:label "필터 수명"@ko ; phr:signalKey "filter_life" ; phr:unit "%" .
+phr:FanMode     rdfs:subClassOf phr:AirPurifierStatus ; rdfs:label "운전 모드"@ko ; phr:signalKey "fan_mode" .
+phr:MeasuredTime rdfs:subClassOf phr:AirPurifierStatus ; rdfs:label "측정 시각"@ko ; phr:signalKey "time_stamp" .
+
+#################################################################
+#  도메인 공리 (OCR=C, 대화=D)
+#################################################################
+phr: skos:note """
+[OCR]
+C1  user_confirmed 전 OCR 추출값 활용 차단 (확인 게이트)
+C2  진단서 → 질병이력 자동생성 금지 (사람이 항목별 확인한 것만)
+C3  민감 질환·수치·단위·약물용량 ⇒ confidence 무관 강제 재확인
+C4  단위 추출 실패/불일치 ⇒ 라벨 금지(blocked) (mg/dL↔mmol/L 사고 방지)
+C5  OCR은 user_confirmed 후에만 디바이스급으로 승격(신뢰위계)
+
+[LLM 대화]
+D1  사용자 진술 수치(UserStatedValue) ⇒ 개인화 밴드 미활성(I4). 증상 맥락으로만 사용
+D2  매 턴 응급 재평가 불변(무상태) — 개인화/대화가 응급을 가리지 않음(I7)
+D3  수집 맥락(증상·나이 등)은 답변 shaping 입력 — 진단 단정 아님(인구집단 수준)
+D4  멀티턴: 이미 말한 축 재질문 금지 ; 후속처럼 들리는 새 응급은 재평가
+D5  대화 자유텍스트는 건강정보(민감) ⇒ 저장·국외전송 시 동의·마스킹, 원문 우회 금지(V1)
+
+[공유] signalKey로 PHR·장치·OCR이 같은 ReferenceRange를 조인. 환경/대화/OCR은 모두 진단 아님.
+""" .
