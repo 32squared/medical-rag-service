@@ -1129,6 +1129,7 @@ def generate_response(
     provider_id: str = None,
     top_k: int = 5,
     enable_guardrails: bool = True,
+    personal_findings=None,
 ) -> Iterator[Dict]:
     """
     Hybrid search → 프롬프트 빌드 → LLM 스트리밍 → 가드레일 → DB 기록.
@@ -1436,6 +1437,20 @@ def generate_response(
             # 일반 대화가 영구 응급-리다이렉트로 고착된다(과대 트리아지, 레드팀 #4).
             # 분류기는 구어체·부사삽입 내성을 갖춰 실제 응급 질의를 잡는다.
             emergency_detected = (_classification or {}).get("intent") == "emergency"
+
+            # ── 개인화 주입 (P1a, 정본 14 §6 — C19 렌더 + C20 백스톱) ──
+            # 결정적 로컬 findings → 안전 블록을 답변에 후append. 개인 데이터는 LLM
+            # 프롬프트에 미투입(stream_chat 직전 원시값 스캔 0이 구조적으로 보장).
+            # EMERGENCY/triage는 개인화 생략(I7). safe_block이 관련성 게이트+C20을
+            # 내포하며 위반/무관 시 ""(fail-closed) → 답변 무변경.
+            if personal_findings and not emergency_detected:
+                try:
+                    import personal_context as _pc
+                    _pblock = _pc.safe_block(personal_findings, query)
+                    if _pblock:
+                        full_text = full_text.rstrip() + "\n\n" + _pblock
+                except Exception as _pe:
+                    logger.debug("[RAGEngine] 개인화 주입 스킵: %s", _pe)
 
             # 면책조항 자동 부착 (하단)
             full_text = _ensure_disclaimer(full_text)

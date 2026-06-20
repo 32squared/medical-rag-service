@@ -87,6 +87,17 @@ class ServiceRoutesMixin:
             f"sources={source_types} agent={agent_strid} {summarize_for_audit(personal)}"
         )
 
+        # 개인화 findings (P1a): 최신 vital 레코드 → 결정적 밴드 해석(원시값은 LLM 미투입).
+        # vital_rules.run은 순수 함수·fail-closed. 실패는 비차단(개인화만 생략).
+        _personal_findings = None
+        try:
+            from vital_rules import run as _vital_run
+            _vitals = personal.get('vital_signs') or []
+            if _vitals:
+                _personal_findings = _vital_run(_vitals[-1])
+        except Exception as _e:
+            self._add_log(f"[SERVICE] 개인화 findings 스킵: {_e}")
+
         # 3) PostgreSQL 모드 확인
         if not db._use_postgres:
             return self._send_json(503, {
@@ -147,6 +158,7 @@ class ServiceRoutesMixin:
                 provider_id=None,
                 top_k=5,
                 enable_guardrails=True,
+                personal_findings=_personal_findings,
             ):
                 phoenix_events = adapt_event(event)
                 for pev in phoenix_events:

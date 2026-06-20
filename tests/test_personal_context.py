@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from personal_context import build, relevance_gate
+from personal_context import build, relevance_gate, safe_block
 from vital_rules import run
 
 
@@ -98,3 +98,29 @@ def test_run_to_build_end_to_end_neutral_and_scoped():
     assert out["surfaced"][0]["label_user"] == "경고"
     for raw in ("165", "105"):
         assert raw not in out["block_md"]
+
+
+# ── safe_block: 배선(generate_response)이 후append할 안전 블록 ────
+
+def test_safe_block_returns_text_for_relevant_query():
+    block = safe_block(run({"bps": 165, "bpd": 105}), "혈압이 높아요")
+    assert block.startswith("## 📋 내 기록 참고")
+    assert "의료진" in block
+    for raw in ("165", "105"):
+        assert raw not in block
+
+
+def test_safe_block_empty_when_unrelated():
+    assert safe_block(run({"bps": 165, "bpd": 105}), "오늘 날씨 어때") == ""
+
+
+def test_safe_block_empty_when_no_findings():
+    assert safe_block([], "혈압") == ""
+    assert safe_block(None, "혈압") == ""
+
+
+def test_safe_block_fail_closed_on_unsafe_content():
+    # findings에 임상 라벨이 라벨로 잘못 들어와도(가상 손상) C20 백스톱이 드롭
+    bad = [{"signal_key": "blood_pressure", "label_user": "고혈압 2기", "cite_doc_id": "x"}]
+    # build의 _LABEL_PHRASE에 없는 라벨 → relevance_gate에서 제외되어 "" (이중 안전)
+    assert safe_block(bad, "혈압") == ""

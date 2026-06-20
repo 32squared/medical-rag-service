@@ -104,3 +104,22 @@ def build(findings: List[Dict], query: Optional[str]) -> Dict:
         "cite_doc_ids": cite_ids,
         "block_md": "\n".join(lines),
     }
+
+
+def safe_block(findings: List[Dict], query: Optional[str]) -> str:
+    """build() + C20 백스톱을 묶어 **주입 가능한 안전 블록 문자열**만 반환.
+
+    배선(generate_response)이 그대로 답변에 후append할 수 있는 형태.
+    빈 블록(관련성 게이트 0) 또는 C20 안전 위반 → "" (fail-closed, 주입 안 함).
+    개인 데이터는 LLM 프롬프트에 미투입 — 이 블록은 생성 후 답변에 결정적으로 덧붙는다.
+    """
+    out = build(findings or [], query)
+    block_md = out.get("block_md") or ""
+    if not block_md:
+        return ""
+    try:
+        from personalization_safety import assert_personal_block_safe
+        assert_personal_block_safe(block_md)
+    except Exception:
+        return ""  # 안전 위반 → 주입하지 않음(fail-closed)
+    return block_md
