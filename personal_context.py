@@ -64,24 +64,43 @@ def relevance_gate(query: Optional[str], findings: List[Dict]) -> List[Dict]:
     return kept
 
 
+def _relevant_combos(query: Optional[str], findings: List[Dict]) -> List[Dict]:
+    """교차신호 화이트리스트 조합(I9) 중, 질의 scope가 조합 신호 하나라도 건드리는 것만."""
+    try:
+        from vital_rules import match_cross_signals
+    except Exception:
+        return []
+    combos = match_cross_signals(findings)
+    q = query or ""
+    out = []
+    for c in combos:
+        if any(any(kw in q for kw in _SCOPE_KEYWORDS.get(s, [])) for s in c.get("signals", [])):
+            out.append(c)
+    return out
+
+
 def build(findings: List[Dict], query: Optional[str]) -> Dict:
-    """findings → 관련성 게이트 통과분의 "내 기록 참고" 블록.
+    """findings → 관련성 게이트 통과분의 "내 기록 참고" 블록(밴드 + 교차신호 조합).
 
     Returns:
         {
-          "surfaced":     [{signal_key, label_user, cite_doc_id, sentence}, ...],
+          "surfaced":     [{signal_key|combo_id, label_user?, cite_doc_id, sentence}, ...],
           "cite_doc_ids": [unique cite_doc_id ...],   # wiring이 chunks에 동반적재(11 §5)
           "block_md":     str,                         # 프리뷰(실제 [R#] 마커는 wiring에서 삽입)
         }
     빈 블록(매칭 0)이면 block_md="" — 개인화 생략.
     """
-    surfaced_in = relevance_gate(query, findings or [])
-    if not surfaced_in:
+    findings = findings or []
+    surfaced_in = relevance_gate(query, findings)
+    combos = _relevant_combos(query, findings)
+    if not surfaced_in and not combos:
         return {"surfaced": [], "cite_doc_ids": [], "block_md": ""}
 
     surfaced: List[Dict] = []
     cite_ids: List[str] = []
     lines = [_BLOCK_HEADER]
+
+    # 밴드 finding
     for f in surfaced_in:
         display = _SIGNAL_DISPLAY.get(f["signal_key"], f["signal_key"])
         phrase = _LABEL_PHRASE[f["label_user"]]
@@ -96,6 +115,21 @@ def build(findings: List[Dict], query: Optional[str]) -> Dict:
         cid = f.get("cite_doc_id")
         if cid and cid not in cite_ids:
             cite_ids.append(cid)
+
+    # 교차신호 조합 (화이트리스트·관련성 통과분)
+    for c in combos:
+        sentence = c.get("text", "")
+        lines.append(f"- {sentence}.")
+        surfaced.append({
+            "combo_id": c.get("combo_id"),
+            "signals": c.get("signals"),
+            "cite_doc_id": c.get("cite_doc_id"),
+            "sentence": sentence,
+        })
+        cid = c.get("cite_doc_id")
+        if cid and cid not in cite_ids:
+            cite_ids.append(cid)
+
     lines.append("")
     lines.append(_BLOCK_CLOSING)
 

@@ -124,3 +124,40 @@ def test_safe_block_fail_closed_on_unsafe_content():
     bad = [{"signal_key": "blood_pressure", "label_user": "고혈압 2기", "cite_doc_id": "x"}]
     # build의 _LABEL_PHRASE에 없는 라벨 → relevance_gate에서 제외되어 "" (이중 안전)
     assert safe_block(bad, "혈압") == ""
+
+
+# ── 교차신호 조합 렌더 (엔진→렌더 종단) ─────────────────────────
+
+def _band(signal, label, cite="ref.x"):
+    return {"signal_key": signal, "label_user": label, "cite_doc_id": cite}
+
+
+def test_cross_signal_combo_renders_when_relevant():
+    findings = [_band("blood_pressure", "경고"), _band("bmi", "주의")]
+    out = build(findings, "혈압이랑 체중 둘 다 걱정이에요")
+    # 밴드 2개 + 교차조합 1개 표면화
+    ids = [s.get("combo_id") for s in out["surfaced"] if s.get("combo_id")]
+    assert "metabolic.bp_bmi" in ids
+    assert "함께 살펴보면" in out["block_md"]
+
+
+def test_cross_signal_combo_carries_evidence_cite():
+    findings = [_band("blood_pressure", "경고"), _band("bmi", "경고")]
+    out = build(findings, "혈압")
+    assert "ref.metabolic.kr" in out["cite_doc_ids"]
+
+
+def test_cross_signal_combo_render_passes_c20():
+    # 조합 문구도 원시값·질환명 0 (C20 통과)
+    findings = [_band("blood_pressure", "경고"), _band("bmi", "경고")]
+    block = safe_block(findings, "혈압 체중")
+    assert "함께 살펴보면" in block
+    for bad in ("고혈압", "비만", "120", "140"):
+        assert bad not in block
+
+
+def test_cross_signal_combo_absent_below_threshold():
+    # 둘 다 안정 → 조합 미발화, 밴드도 안정이라 표면화는 되지만 combo 없음
+    findings = [_band("blood_pressure", "안정"), _band("bmi", "안정")]
+    out = build(findings, "혈압 체중")
+    assert not any(s.get("combo_id") for s in out["surfaced"])
