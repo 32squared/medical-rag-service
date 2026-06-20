@@ -11,7 +11,16 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from seed_reference_ranges import _RANGES, build_reference_documents, build_reference_rows
-from vital_rules import DENY_SIGNALS, lookup_band, run
+from vital_rules import (
+    DENY_SIGNALS,
+    TREND_FALLING,
+    TREND_FLUCTUATING,
+    TREND_RISING,
+    TREND_STABLE,
+    label_trend,
+    lookup_band,
+    run,
+)
 
 
 def _bp(sys_v, dia_v):
@@ -282,3 +291,49 @@ def test_run_findings_have_citation_alias():
 def test_run_empty_or_invalid_record():
     assert run({}) == []
     assert run(None) == []
+
+
+# ── 추세 라벨 (C6 logic, 중립 데이터 패턴) ──────────────────────
+
+def test_trend_rising():
+    assert label_trend([120, 125, 130, 135])["trend"] == TREND_RISING
+
+
+def test_trend_falling():
+    assert label_trend([135, 130, 125, 120])["trend"] == TREND_FALLING
+
+
+def test_trend_stable_within_noise():
+    # 작은 흔들림(±1~2)은 안정유지 — 노이즈를 추세로 오인 안 함
+    assert label_trend([120, 121, 119, 120])["trend"] == TREND_STABLE
+
+
+def test_trend_fluctuating_big_swings_no_net():
+    # 큰 변동폭이나 순변화 거의 0 → 불안정반복
+    assert label_trend([120, 140, 118, 142, 119])["trend"] == TREND_FLUCTUATING
+
+
+def test_trend_insufficient_below_min_n():
+    r = label_trend([120, 121])
+    assert r["match"] == "insufficient"
+    assert r["trend"] is None
+
+
+def test_trend_empty_or_invalid():
+    assert label_trend([])["match"] == "insufficient"
+    assert label_trend(None)["match"] == "insufficient"
+    # 비수치 혼입 무시
+    assert label_trend([120, "x", 130, None, 140])["trend"] == TREND_RISING
+
+
+def test_trend_no_raw_value_in_result():
+    r = label_trend([120, 130, 140, 150])
+    blob = json.dumps(r, ensure_ascii=False)
+    for raw in ("120", "150", "140"):
+        assert raw not in blob   # n(개수)만 노출, 측정값은 미반환
+
+
+def test_trend_excludes_health_judgment_labels():
+    # 개선/악화 같은 건강 판단 라벨은 엔진이 절대 생성 안 함(I2 정신)
+    for series in ([120, 110, 100], [100, 110, 120], [100, 120, 100, 120]):
+        assert label_trend(series)["trend"] not in ("점진개선", "점진악화")

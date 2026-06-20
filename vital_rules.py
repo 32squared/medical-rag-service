@@ -166,6 +166,46 @@ def lookup_band(
     return base
 
 
+# ── 추세 라벨 (정본 14 §6.2 — 중립 데이터 패턴만) ────────────────
+# "점진개선/점진악화"는 건강 판단을 함의 → 의도적 제외(I2 정신, deny-list 동형).
+# 추세 엔진은 데이터 형태만 기술하고, 호의(좋은 방향) 판단은 하지 않는다.
+TREND_STABLE = "안정유지"
+TREND_RISING = "지속상승"
+TREND_FALLING = "지속저하"
+TREND_FLUCTUATING = "불안정반복"
+
+
+def label_trend(values, *, min_n: int = 3, rel_threshold: float = 0.05,
+                noise_threshold: float = 0.03) -> Dict:
+    """시간순 스칼라 시계열 → 중립 추세 라벨 (원시값 미반환, 결정적).
+
+    Args:
+        values: 시간 오름차순 측정값 리스트(스칼라). 비수치는 무시.
+        min_n:  추세 판단 최소 표본(미만 → insufficient — 단일·소수 측정 추세 금지, 09 §6.2).
+        rel_threshold:   순변화/평균 비율이 이 이상이면 상승/저하 추세.
+        noise_threshold: 전체 변동폭/평균이 이 미만이면 안정유지(노이즈).
+
+    Returns (원시값 미포함): {trend(라벨|None), match('ok'|'insufficient'), n}
+    """
+    nums = [v for v in (values or []) if _is_number(v)]
+    n = len(nums)
+    if n < min_n:
+        return {"trend": None, "match": "insufficient", "n": n}
+
+    mean = sum(nums) / n
+    scale = max(abs(mean), 1e-9)
+    rel_range = (max(nums) - min(nums)) / scale
+    rel_net = (nums[-1] - nums[0]) / scale
+
+    if rel_range < noise_threshold:
+        return {"trend": TREND_STABLE, "match": "ok", "n": n}      # 전체가 노이즈 범위
+    if rel_net >= rel_threshold:
+        return {"trend": TREND_RISING, "match": "ok", "n": n}
+    if rel_net <= -rel_threshold:
+        return {"trend": TREND_FALLING, "match": "ok", "n": n}
+    return {"trend": TREND_FLUCTUATING, "match": "ok", "n": n}     # 변동폭 크나 순변화 작음
+
+
 # vital_input.py 필드명 → 참조범위 signal_key (단축 신호).
 # bps/bpd → blood_pressure(다축, 별도 처리), stress → 공인 밴드 없음(스킵).
 _VITAL_FIELD_SIGNAL = {
