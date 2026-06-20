@@ -3,6 +3,7 @@
 > 작성: 2026-06-20 · 비평가·기획자·아키텍트·데이터분석가 4관점 병렬 분석의 종합.
 > 입력: [09-personalization-plan.md](09-personalization-plan.md). 상위: [07](07-revised-plan.md) SSOT.
 > 트리거: "기획을 데이터 연동이 하나하나가 다 활용되도록." 목표 = **고아 신호(수집했으나 활용 미정의) 0**.
+> ⚠️ **개인화 정본은 [14-personalization-consolidated.md](14-personalization-consolidated.md).** 본 문서(10)의 §2.1 SpO2(✅밴드)·§3-1 "검진 11종 시드"는 12/11이 정정(→ SpO2 deny, 7종+4종 deny). **충돌 시 14 우선.** air_quality 고아는 14 §2 M4에서 해소.
 
 ---
 

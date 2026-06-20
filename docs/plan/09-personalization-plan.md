@@ -4,6 +4,7 @@
 > 입력: 데이터 소스 = Vital Sign, PHR, OCR, 워치(스마트워치), 혈압기, 체중계 등.
 > 규율 상속: [08-competitor-prompt-extraction.md](08-competitor-prompt-extraction.md) §5 (vital/phr mode 방법론).
 > 충돌 시 우선순위: 00 SSOT > 07 재정렬 > 본 문서(Phase 1 실행 상세).
+> ⚠️ **개인화 정본은 [14-personalization-consolidated.md](14-personalization-consolidated.md)** — 본 문서(09)의 일부 서술은 11/12/13이 정정했고 14가 수렴했다. **충돌 시 14 우선.** 특히 워치 SpO2(deny), I2(개인귀속 진단 0), 워치 교차(W1–W4 화이트리스트), 민감 PHR(표면화 0), 마이그레이션(012/015/016)은 14 §2·§3 참조.
 > **4관점(비평·기획·아키텍처·데이터) 종합** — 신호 사망점·고아신호 박멸·새 불변식(I8~I11)·시퀀싱 수정·보수 디폴트 잠금은 [10-data-utilization-matrix.md](10-data-utilization-matrix.md). 본 문서 §9 체크리스트로 순차 반영.
 
 ---
