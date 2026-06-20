@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from seed_reference_ranges import _RANGES, build_reference_documents, build_reference_rows
-from vital_rules import DENY_SIGNALS, lookup_band
+from vital_rules import DENY_SIGNALS, lookup_band, run
 
 
 def _bp(sys_v, dia_v):
@@ -225,3 +225,60 @@ def test_disease_clinical_labels_never_become_user_label():
         assert r["label_user"] in ("안정", "주의", "경고")        # 사용자엔 중립만
         for w in disease_words:
             assert w not in (r["label_user"] or "")              # 질환명 누출 0
+
+
+# ── C15 run(): vital_input 레코드 → findings 브리지 ──────────────
+
+def _vital_record(**kw):
+    """vital_input.parse_vital_signs 출력 형태 모사."""
+    return kw
+
+
+def test_run_full_record_produces_findings():
+    rec = _vital_record(bps=165, bpd=105, bpm=72, spo2=98, fever=36.6, stress=50)
+    findings = run(rec)
+    signals = {f["signal_key"]: f["label_user"] for f in findings}
+    assert signals["blood_pressure"] == "경고"
+    assert signals["heart_rate"] == "안정"
+    assert signals["spo2"] == "안정"
+    assert signals["body_temperature"] == "안정"
+    # stress는 공인 밴드 없음 → finding 없음
+    assert "stress" not in signals
+
+
+def test_run_blood_pressure_requires_both_axes():
+    # 이완기 결손 → 혈압 finding 미생성
+    findings = run(_vital_record(bps=140, bpm=80))
+    assert not any(f["signal_key"] == "blood_pressure" for f in findings)
+    assert any(f["signal_key"] == "heart_rate" for f in findings)
+
+
+def test_run_wellness_grade_yields_no_findings():
+    # 워치(웰니스)면 임상밴드 전부 denied → findings 0 (워치는 wellness_rules 별도 경로)
+    rec = _vital_record(bps=165, bpd=105, spo2=92)
+    assert run(rec, device_grade="wellness") == []
+
+
+def test_run_skips_no_match_signals():
+    # 범위 밖 심박(서맥/빈맥 미시드) → no_match → finding 없음(fail-closed)
+    findings = run(_vital_record(bpm=150))
+    assert not any(f["signal_key"] == "heart_rate" for f in findings)
+
+
+def test_run_findings_carry_no_raw_value():
+    findings = run(_vital_record(bps=165, bpd=105, fever=38.5))
+    blob = json.dumps(findings, ensure_ascii=False)
+    for raw in ("165", "105", "38.5", "min", "max"):
+        assert raw not in blob, f"finding에 원시값/역치 '{raw}' 누출"
+
+
+def test_run_findings_have_citation_alias():
+    # 각 finding은 인용 동반적재용 cite_doc_id를 갖는다(C19/11 §5 배선 전제)
+    for f in run(_vital_record(bps=145, bpd=92)):
+        assert f["cite_doc_id"]
+        assert f["label_user"] in ("안정", "주의", "경고")
+
+
+def test_run_empty_or_invalid_record():
+    assert run({}) == []
+    assert run(None) == []

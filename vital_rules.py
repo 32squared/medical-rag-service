@@ -164,3 +164,60 @@ def lookup_band(
     base["clinical_label"] = worst.get("label")
     base["match"] = "ok"
     return base
+
+
+# vital_input.py 필드명 → 참조범위 signal_key (단축 신호).
+# bps/bpd → blood_pressure(다축, 별도 처리), stress → 공인 밴드 없음(스킵).
+_VITAL_FIELD_SIGNAL = {
+    "bpm": "heart_rate",
+    "spo2": "spo2",
+    "fever": "body_temperature",
+}
+
+
+def _is_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def run(
+    record: Dict,
+    *,
+    locale: str = "KR",
+    population: str = "adult",
+    context: str = "clinic",
+    device_grade: str = "clinical_near",
+) -> list:
+    """vital_input 레코드(단일) → findings 리스트 (정본 14 §6 C15, 경계선 ②→③ 브리지).
+
+    `vital_input.parse_vital_signs`가 검증한 레코드({bpm,spo2,bps,bpd,fever,stress,...})를
+    lookup_band로 해석해 findings(밴드 라벨·인용, **원시값 미포함**)로 변환한다.
+    match=='ok'인 finding만 반환 — no_match/denied는 표면화하지 않음(fail-closed).
+    findings는 personal_context(C19)가 렌더해 generate_response에 주입할 재료다.
+
+    device_grade='wellness'(워치)면 lookup이 전부 denied → findings 0(임상밴드 비활성, I8).
+    혈압은 bps·bpd 둘 다 있을 때만. stress는 공인 밴드 없어 스킵.
+    """
+    if not isinstance(record, dict):
+        return []
+    findings = []
+
+    bps, bpd = record.get("bps"), record.get("bpd")
+    if _is_number(bps) and _is_number(bpd):
+        b = lookup_band(
+            "blood_pressure", {"systolic": bps, "diastolic": bpd},
+            locale=locale, population=population, context=context, device_grade=device_grade,
+        )
+        if b["match"] == "ok":
+            findings.append(b)
+
+    for field, signal in _VITAL_FIELD_SIGNAL.items():
+        v = record.get(field)
+        if _is_number(v):
+            b = lookup_band(
+                signal, v,
+                locale=locale, population=population, context=context, device_grade=device_grade,
+            )
+            if b["match"] == "ok":
+                findings.append(b)
+
+    return findings
