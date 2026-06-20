@@ -34,7 +34,7 @@ rag_engine.generate_response  ── 검색→LLM 생성→가드레일→ (개�
 | 04 | [RAG 생성 파이프라인](04-RAG-생성-파이프라인.md) | `rag_engine.generate_response`·4종 종료 경로·게이트·가드레일 |
 | 05 | [이벤트 스토어 / 개선 루프](05-이벤트-스토어와-개선루프.md) | `analytics_events`·비식별 이벤트·E1~E7·골든셋 게이트 |
 | 06 | [명시 피드백](06-명시-피드백.md) | `response_feedback`·`POST /api/rag/feedback` |
-| 07 | (예정) wraith 호환 / 대화관리 API | `service_routes`·`rag_history_routes` |
+| 07 | [wraith 호환 / 대화관리 API](07-wraith호환-대화관리-API.md) | `service_routes`·`wraith_sse_adapter`·`rag_history_routes` |
 
 ## 안전 불변식 요약 (전 기능 공통)
 
@@ -57,3 +57,32 @@ python persona_test_server.py
 # 전체 테스트
 python -m pytest tests/ -q
 ```
+
+## 부록 A — 마이그레이션 (PG / `_sqlite`)
+
+| # | 테이블·변경 | 매뉴얼 |
+|---|---|---|
+| 001 | kb_sources·kb_documents·kb_chunks·llm_providers·**rag_queries** | 04 |
+| 005 | evidence_grounding(근거 게이트 컬럼) | 04 |
+| 010 | vital_reference_ranges | 01 |
+| 011 | conversations 호환 컬럼 | 07 |
+| 013 | rag_queries 멀티턴 감사 컬럼 | 04 |
+| 014 | rag_projects | 07 |
+| 015 | **analytics_events**(비식별 이벤트 스토어) | 05 |
+| 016 | **response_feedback**(명시 피드백) | 06 |
+
+> SQLite 마이그레이션은 러너가 세미콜론 단위로 split — **주석에 세미콜론 금지**.
+> 영속 개인화(personal_record 등)는 017+로 예약(현재 in-memory 시드).
+
+## 부록 B — 핵심 모듈 맵
+
+| 모듈 | 역할 | 매뉴얼 |
+|---|---|---|
+| `vital_rules` / `env_rules` | 개인화 해석(밴드·추세·교차·환경) | 01 |
+| `personal_context` / `personalization_safety` | 주입 블록 + 안전 백스톱 | 02 |
+| `vital_input` | agent_input 파싱 | 01·07 |
+| `rag_engine` | 생성 파이프라인 | 04 |
+| `analytics_events` | 비식별 이벤트 | 05 |
+| `rag_db` / `rag_routes` | 피드백·라우트 | 06 |
+| `service_routes` / `wraith_sse_adapter` / `rag_history_routes` | wraith 호환 | 07 |
+| `persona_test_server` | 페르소나 테스트 | 03 |
