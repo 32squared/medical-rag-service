@@ -20,6 +20,18 @@ python rag_try.py --json "두통"            # 결과 전체 JSON
 - "배가 아파요" → 근거부족이어도 진료과 길안내(거절 최소화)
 - REPL에서 "머리가 아파요" 후 "약은 먹어도 되나요?" → 직전 주제(두통)로 재작성
 
+## ①-b 로컬 웹 UI로 클라우드 RAG 눌러보기 (브라우저)
+
+배포된 dev 서비스를 브라우저 채팅 화면에서 시험한다. 로컬 프록시가 gcloud
+IAM 토큰을 자동 부착해 Cloud Run으로 중계(SSE 스트리밍)한다.
+
+```bash
+python local_test_ui.py          # → http://localhost:8765 접속
+```
+- 전제: `gcloud` 로그인(현재 계정). 토큰 자동 발급·캐시.
+- 대상 변경: `python local_test_ui.py --rag-url https://...run.app`
+- 질문 입력 → 실시간 생성 답변 + 근거/인용 표시. 대화는 멀티턴 유지.
+
 ## ② 전체 자동화 테스트 (CI)
 
 ```bash
