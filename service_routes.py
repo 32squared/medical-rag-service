@@ -97,6 +97,14 @@ class ServiceRoutesMixin:
                 _personal_findings = _vital_run(_vitals[-1])
         except Exception as _e:
             self._add_log(f"[SERVICE] 개인화 findings 스킵: {_e}")
+        # 환경(공기질) 비해석적 노트 결합 (5층 환경×건강, B5). 비차단.
+        try:
+            from env_rules import air_quality_finding as _aqf
+            _aq = _aqf(personal.get('air_quality'))
+            if _aq:
+                _personal_findings = (_personal_findings or []) + [_aq]
+        except Exception as _e:
+            self._add_log(f"[SERVICE] 환경 finding 스킵: {_e}")
 
         # 3) PostgreSQL 모드 확인
         if not db._use_postgres:

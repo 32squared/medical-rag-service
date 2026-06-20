@@ -26,6 +26,9 @@ _SCOPE_KEYWORDS: Dict[str, List[str]] = {
     "bmi": ["체중", "비만", "몸무게", "체질량", "살", "비만도"],
     "fasting_glucose": ["혈당", "당뇨", "공복혈당", "당화"],
     "hba1c": ["당화혈색소", "당뇨", "혈당", "당화"],
+    # 환경(5층) — 호흡기·알레르기·공기 관련 질의에서만 환기 노트 표면화
+    "air_quality": ["기침", "가래", "숨", "호흡", "답답", "콧물", "재채기", "코막힘",
+                    "알레르기", "천식", "공기", "환기", "미세먼지", "먼지", "목"],
 }
 
 # signal_key → 사용자 표시명
@@ -37,6 +40,7 @@ _SIGNAL_DISPLAY = {
     "bmi": "체질량지수",
     "fasting_glucose": "공복혈당",
     "hba1c": "당화혈색소",
+    "air_quality": "실내 공기질",
 }
 
 # 중립 라벨(I12) → 사용자 문구. 질환명·원시값 없음.
@@ -100,11 +104,13 @@ def build(findings: List[Dict], query: Optional[str]) -> Dict:
     cite_ids: List[str] = []
     lines = [_BLOCK_HEADER]
 
-    # 밴드 finding
+    # 밴드 finding (환경 등 자체 sentence 보유 finding은 그대로 사용)
     for f in surfaced_in:
-        display = _SIGNAL_DISPLAY.get(f["signal_key"], f["signal_key"])
-        phrase = _LABEL_PHRASE[f["label_user"]]
-        sentence = f"최근 측정된 {display}은(는) {phrase}"
+        sentence = f.get("sentence")
+        if not sentence:
+            display = _SIGNAL_DISPLAY.get(f["signal_key"], f["signal_key"])
+            phrase = _LABEL_PHRASE[f["label_user"]]
+            sentence = f"최근 측정된 {display}은(는) {phrase}"
         lines.append(f"- {sentence}.")
         surfaced.append({
             "signal_key": f["signal_key"],

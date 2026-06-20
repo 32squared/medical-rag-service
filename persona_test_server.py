@@ -67,7 +67,7 @@ def compute_preview(persona: dict, query: str) -> dict:
     parsed = parse_agent_inputs(agent_input)
     vitals = parsed.get("vital_signs") or []
 
-    findings, safe_block, summary = [], "", "개인화 입력 없음"
+    raw = []
     if vitals:
         raw = vr.run(
             vitals[-1],
@@ -75,21 +75,31 @@ def compute_preview(persona: dict, query: str) -> dict:
             population=persona.get("population", "adult"),
             context=persona.get("context", "clinic"),
         )
-        findings = [{
-            "signal": f.get("signal_key"),
-            "label_user": f.get("label_user"),
-            "clinical_label": f.get("clinical_label"),  # dev 미리보기에서만 노출(내부)
-            "match": f.get("match"),
-        } for f in raw]
-        try:
-            safe_block = pc.safe_block(raw, query or "") or ""
-        except Exception as e:
-            safe_block = f"(safe_block 계산 오류: {e})"
-        if findings:
-            labels = ", ".join(f"{f['signal']}={f['label_user']}" for f in findings)
-            summary = f"밴드 {len(findings)}건: {labels}"
-        else:
-            summary = "밴드 매칭 0 (fail-closed — 개인화 생략)"
+    # 환경(공기질) 비해석적 노트 결합 (5층 환경×건강)
+    try:
+        from env_rules import air_quality_finding
+        aqf = air_quality_finding(parsed.get("air_quality"))
+        if aqf:
+            raw = list(raw) + [aqf]
+    except Exception:
+        pass
+
+    findings = [{
+        "signal": f.get("signal_key"),
+        "label_user": f.get("label_user"),
+        "clinical_label": f.get("clinical_label"),  # dev 미리보기에서만 노출(내부)
+        "match": f.get("match"),
+    } for f in raw]
+    safe_block = ""
+    try:
+        safe_block = pc.safe_block(raw, query or "") or ""
+    except Exception as e:
+        safe_block = f"(safe_block 계산 오류: {e})"
+    if findings:
+        labels = ", ".join(f"{f['signal']}={f['label_user']}" for f in findings)
+        summary = f"신호 {len(findings)}건: {labels}"
+    else:
+        summary = "밴드/환경 매칭 0 (fail-closed — 개인화 생략)"
     return {
         "findings": findings,
         "safe_block": safe_block,
