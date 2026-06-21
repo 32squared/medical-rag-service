@@ -122,7 +122,7 @@ def compute_preview(persona: dict, query: str) -> dict:
         "checkup_chart": build_checkup_chart(persona),
         "prescriptions": __import__("persona_history").generate_prescriptions(persona),
         "profile": build_profile(persona),
-        "followups": __import__("followups").suggest(query or "", personal_findings=raw),
+        "clarifiers": __import__("followups").clarify(query or "", personal_findings=raw),
     }
 
 
@@ -377,6 +377,7 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
  .fulabel{color:#888;font-size:11px;margin:0 0 4px}
  .fu{display:inline-block;background:#fff;border:1px solid #b9c9e8;color:#0a58ca;border-radius:16px;padding:6px 13px;font-size:12.5px;margin:0 6px 6px 0;cursor:pointer;text-align:left}
  .fu:hover{background:#eef3fb;border-color:#0a58ca}
+ .fu.on{background:#0a58ca;color:#fff;border-color:#0a58ca}
  .row{display:flex;gap:8px;margin-top:10px}
  textarea{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical}
  button{padding:10px 16px;border:0;border-radius:8px;background:#0a58ca;color:#fff;font-size:14px;cursor:pointer}
@@ -450,6 +451,7 @@ function selPersona(){
   const id=document.getElementById('sel').value;
   cur=DATA.personas.find(p=>p.id===id);
   conv=crypto.randomUUID(); log.innerHTML=''; citeSources=[];
+  document.getElementById('followups').innerHTML='';
   document.getElementById('pfdesc').textContent=cur.profile||'';
   document.getElementById('tags').innerHTML=(cur.tags||[]).map(t=>`<span>${t}</span>`).join('');
   document.getElementById('expected').textContent=cur.expected_label?('예상: '+cur.expected_label):'';
@@ -471,17 +473,33 @@ async function refreshPreview(query){
   if(r.checkup_chart) drawChart('checkup', r.checkup_chart, '🩺 건강검진 추이 (연 1회 × '+(r.checkup_chart.years||0)+'년)', '가로축=연도. 점=검진값(색=밴드), 배경=참고 구간.');
   if(r.prescriptions) drawRx(r.prescriptions);
   if(r.profile) drawProfile(r.profile);
-  drawFollowups(r.followups);
   return r;
 }
-let lastFollowups=[];
-function drawFollowups(list){
-  lastFollowups=list||[];const host=document.getElementById('followups');
-  if(!lastFollowups.length){host.innerHTML='';return;}
-  host.innerHTML='<div class="fulabel">💬 추천 질문 — 클릭하면 이어서 질문(멀티턴)</div>'
-    +lastFollowups.map((q,i)=>'<button class="fu" onclick="askFu('+i+')">'+esc(q)+'</button>').join('');
+let clarSel={}, clarQ='';
+function drawClarifiers(c, query){
+  const host=document.getElementById('followups');
+  if(!c||!c.questions||!c.questions.length){host.innerHTML='';return;}
+  clarSel={}; clarQ=query||'';
+  let h='<div class="card" style="margin:8px 0 0;background:#f7faff;border-color:#cfe0f6"><div class="fulabel">🩺 '+esc(c.intro||'')+'</div>';
+  c.questions.forEach((qq,qi)=>{
+    h+='<div style="margin:8px 0 2px;font-size:12.5px;font-weight:600">'+esc(qq.q)+'</div><div>';
+    h+=qq.options.map(o=>'<button class="fu opt" data-qi="'+qi+'" data-v="'+esc(o)+'" onclick="selOpt(this)">'+esc(o)+'</button>').join('');
+    h+='</div>';
+  });
+  h+='<button id="goinfo" onclick="askWithInfo()" style="margin-top:10px">✓ 이 정보로 안내받기</button>'
+    +' <span class="dev">선택할수록 더 정밀하게 안내돼요</span></div>';
+  host.innerHTML=h;
 }
-function askFu(i){const t=lastFollowups[i];if(t){document.getElementById('q').value=t;ask();}}
+function selOpt(el){
+  clarSel[el.dataset.qi]=el.dataset.v;
+  el.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+}
+function askWithInfo(){
+  const picks=Object.values(clarSel);
+  const enriched=clarQ+(picks.length?(' / 추가 정보: '+picks.join(', ')):'');
+  document.getElementById('q').value=enriched; ask();
+}
 function vitalsCaption(c){return '가로축=측정 시점(최근 '+(c.window_days||0)+'일, 매일 측정). 점=측정값(색=밴드), 배경=참고 구간, 파란 점=이완기.';}
 function drawRx(list){
   const host=document.getElementById('rx');
@@ -560,7 +578,9 @@ async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q||!cur)return;
   const btn=document.getElementById('send');btn.disabled=true;
   add('<div class="u">🙋 '+esc(q)+'</div>');document.getElementById('q').value='';
-  await refreshPreview(q);     // ② 개인화 정보 갱신(결합 블록·LLM 맥락)
+  const pv=await refreshPreview(q);     // ② 개인화 정보 갱신(결합 블록·LLM 맥락)
+  // 되묻기 카드(질문+선택지) — 단, 이미 '추가 정보'를 실어 보낸 정밀 질의엔 다시 안 묻기
+  if(!/추가 정보:/.test(q)) drawClarifiers(pv.clarifiers,q); else document.getElementById('followups').innerHTML='';
   if(!LIVE){btn.disabled=false;return;}
   citeSources=[];
   const ans=add('<div class="a">…</div>');let text='',meta='';
@@ -574,7 +594,6 @@ async function ask(){
       if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
       else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
-      else if(ev.type==='STOP'&&ev.followups&&ev.followups.length){drawFollowups(ev.followups);}
       else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       log.scrollTop=log.scrollHeight;}}
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';

@@ -49,8 +49,28 @@ def test_adapter_passes_followups():
     assert evs2[-1] == {"type": "STOP"}
 
 
-def test_persona_preview_has_followups():
+def test_clarify_topic_has_options():
+    c = fu.clarify("머리가 아프고 두통이 심해요")
+    assert c["intro"] and c["questions"]
+    assert all(q.get("options") for q in c["questions"])      # 모든 질문에 선택지
+    assert "redflag" in {q["key"] for q in c["questions"]}     # 두통 토픽 되묻기
+
+
+def test_clarify_generic_and_capped():
+    c = fu.clarify("그냥 좀 궁금해요")
+    assert c["questions"] and len(c["questions"]) <= 4
+    assert len(fu.clarify("혈압 두통 기침", max_q=3)["questions"]) == 3
+
+
+def test_clarify_keys_unique():
+    c = fu.clarify("혈압 어지럼")
+    keys = [q["key"] for q in c["questions"]]
+    assert len(keys) == len(set(keys))
+
+
+def test_persona_preview_has_clarifiers():
     import persona_test_server as pts
     p = next(x for x in pts.load_personas()["personas"] if x["id"] == "hypertension_senior")
-    out = pts.compute_preview(p, "혈압 낮추려면?")
-    assert out["followups"] and any("혈압" in x for x in out["followups"])
+    c = pts.compute_preview(p, "혈압이 높아요")["clarifiers"]
+    assert c["questions"] and all(q["options"] for q in c["questions"])
+    assert {"context", "meds"} & {q["key"] for q in c["questions"]}   # 혈압 되묻기
