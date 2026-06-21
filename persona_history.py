@@ -164,15 +164,22 @@ def generate_prescriptions(persona: dict, years: int = 5) -> List[Dict]:
     per_year = 4 if chronic else (2 if meds else 1)
     reasons = (["정기 추적 관리"] if chronic else
                ["증상 상담", "건강 상담"])
+    a = _anchor()
     out = []
     for y in range(years):
         yr = end_year - (years - 1 - y)
         for v in range(per_year):
             month = rng.randint(1, 12)
             day = rng.randint(1, 28)
+            try:
+                dt = date(yr, month, day)
+            except ValueError:
+                dt = date(yr, month, 28)
+            if dt > a:
+                continue  # 기준일 이후(미래) 진료 제외
             drug = meds[v % len(meds)] if meds else None
             out.append({
-                "date": f"{yr}-{month:02d}-{day:02d}",
+                "date": dt.isoformat(),
                 "dept": dept,
                 "reason": reasons[v % len(reasons)],
                 "drug": drug,

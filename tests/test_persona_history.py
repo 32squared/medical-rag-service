@@ -68,11 +68,11 @@ def test_checkups_diabetic_has_hba1c_and_rising_glucose():
 def test_prescriptions_five_years():
     rx = ph.generate_prescriptions(_p("hypertension_senior"))
     years = {int(v["date"][:4]) for v in rx}
-    assert min(years) == 2022 and max(years) == 2026       # 5년
+    assert min(years) == 2022 and max(years) <= 2026 and len(years) >= 4  # 5년 범위
+    assert all(v["date"] <= ANCHOR.isoformat() for v in rx)  # 미래 진료 없음
     assert all(v["dept"] == "순환기내과" for v in rx)
     assert any("암로디핀" in (v["drug"] or "") for v in rx)
-    # 최신순 정렬 가능하도록 날짜 ISO
-    assert rx == sorted(rx, key=lambda x: x["date"])
+    assert rx == sorted(rx, key=lambda x: x["date"])         # 날짜 정렬
 
 
 def test_acute_persona_few_visits():
