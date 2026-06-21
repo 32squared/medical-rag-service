@@ -520,15 +520,21 @@ function drawChart(hostId, spec, title, sub){
     +`<div class="dev">${sub||''}</div>`;
 }
 function linkCites(html){return html.replace(/\[(\d+)\]/g,(m,n)=>'<a class="cite" onclick="showCite(event,'+n+')">['+n+']</a>');}
+const SRC_URL={'질병관리청 국가건강정보포털':'https://health.kdca.go.kr','질병관리청 감염병포털':'https://www.kdca.go.kr','질병관리청 예방접종도우미':'https://nip.kdca.go.kr','식약처 의약품안전나라':'https://nedrug.mfds.go.kr','식약처 DUR':'https://nedrug.mfds.go.kr','식약처 e약은요':'https://nedrug.mfds.go.kr','응급의료포털 E-Gen':'https://www.e-gen.or.kr','국가법령정보센터':'https://www.law.go.kr'};
 function showCite(ev,n){
   ev.stopPropagation();
   const s=citeSources[n-1],pop=document.getElementById('pop');
   if(!s){pop.innerHTML='<div class="dev">['+n+'] 출처 정보가 없습니다.</div>';}
-  else{const host=(s.url&&s.url.split('/')[2])||'';
+  else{
+    const url=s.url||SRC_URL[s.source]||'';
+    const exact=!!s.url, host=(url&&url.split('/')[2])||url;
+    const link = url
+      ? '<a href="'+url+'" target="_blank" rel="noopener">'+esc(host)+' ↗</a>'+(exact?'':' <span class="dev">(출처 기관 사이트)</span>')
+      : '<span class="dev">공개 원문 링크 없음 (내부·시드 콘텐츠)</span>';
     pop.innerHTML='<div style="font-weight:700;margin-bottom:3px">['+n+'] '+esc(s.source||'출처')+'</div>'
       +(s.title?'<div style="color:#333;margin-bottom:3px">'+esc(s.title)+'</div>':'')
       +(s.snippet?'<div style="font-size:11px;color:#777;margin-bottom:5px">'+esc((s.snippet||'').slice(0,200))+'</div>':'')
-      +(s.url?'<a href="'+s.url+'" target="_blank" rel="noopener">'+esc(host||s.url)+' ↗</a>':'<span class="dev">링크 없음</span>');}
+      +link;}
   pop.style.display='block';
   const w=Math.min(330,window.innerWidth-20);
   pop.style.left=Math.max(8,Math.min(ev.clientX,window.innerWidth-w-12))+'px';

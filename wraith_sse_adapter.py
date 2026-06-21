@@ -40,6 +40,19 @@ _SOURCE_DISPLAY = {
     "internal_md": "의료진 작성 콘텐츠",
 }
 
+# source_id → 출처 기관 공식 사이트 (문서별 source_url이 비었을 때 폴백 링크).
+# 정확한 원문 URL은 KB ingest 시 d.source_url에 채워야 함(D1). 내부/seed 출처는 공개 URL 없음.
+_SOURCE_URL = {
+    "health_kdca": "https://health.kdca.go.kr",
+    "kdca_api": "https://www.kdca.go.kr",
+    "nip": "https://nip.kdca.go.kr",
+    "mfds": "https://nedrug.mfds.go.kr",
+    "mfds_dur": "https://nedrug.mfds.go.kr",
+    "mfds_drug_info": "https://nedrug.mfds.go.kr",
+    "nemc": "https://www.e-gen.or.kr",
+    "kr_law": "https://www.law.go.kr",
+}
+
 
 def new_usage_strid(conversation_id: str) -> str:
     """graph_usage_strid 생성 — 원본 예시 형식: '{conversation_uuid}_{uuid}'."""
@@ -66,7 +79,8 @@ def chunk_to_search_result(chunk: Dict) -> Dict:
     chunk_id = chunk.get("chunk_id") or ""
     source_id = chunk.get("source_id") or ""
     content = chunk.get("content") or ""
-    url = chunk.get("source_url") or ""
+    # 문서별 원문 URL 우선, 없으면 출처 기관 공식 사이트로 폴백(근거 확인 링크 보장)
+    url = chunk.get("source_url") or _SOURCE_URL.get(source_id, "")
     return {
         "strid": chunk_id,
         "content_type": "WEBPAGE",

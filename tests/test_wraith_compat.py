@@ -108,6 +108,16 @@ def test_chunk_without_url():
     assert sr["source"] == "unknown_src"  # 미등록 출처는 id 그대로
 
 
+def test_chunk_url_fallback_to_source_site():
+    # 문서 source_url이 없으면 출처 기관 공식 사이트로 폴백(근거 확인 링크 보장)
+    sr = chunk_to_search_result({"chunk_id": "c3", "content": "x", "source_id": "mfds"})
+    assert sr["url"] == "https://nedrug.mfds.go.kr" and "mfds.go.kr" in sr["display_link"]
+    # 문서 원문 URL이 있으면 그게 우선
+    sr2 = chunk_to_search_result(
+        {"chunk_id": "c4", "content": "x", "source_id": "mfds", "source_url": "https://ex.kr/doc"})
+    assert sr2["url"] == "https://ex.kr/doc"
+
+
 # ─────────────────────── 인증 어댑터 ───────────────────────
 
 def _make_jwt(payload: dict, secret: str = None) -> str:
