@@ -349,66 +349,79 @@ def _headers(rag_url: str) -> dict:
 PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <title>페르소나 개인화 테스트</title>
 <style>
- body{font-family:system-ui,'Malgun Gothic',sans-serif;max-width:980px;margin:18px auto;padding:0 16px;color:#1c1c1c}
- h1{font-size:19px;margin:0 0 2px} .sub{color:#888;font-size:12px;margin-bottom:14px}
- .wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
- .card{border:1px solid #e2e6ea;border-radius:10px;padding:12px}
+ *{box-sizing:border-box}
+ body{font-family:system-ui,'Malgun Gothic',sans-serif;margin:0;color:#1c1c1c;background:#f7f8fa}
+ .top{padding:10px 16px;border-bottom:1px solid #e5e9ee;background:#fff;position:sticky;top:0;z-index:20}
+ .top h1{font-size:16px;margin:0;display:inline-block} .sub{color:#888;font-size:12px;margin-left:10px}
+ .app{display:grid;grid-template-columns:260px minmax(0,1fr) minmax(0,1.05fr);gap:12px;padding:12px;align-items:start}
+ .col{min-width:0} .colhdr{font-size:12px;font-weight:700;color:#1f4e79;margin:0 2px 6px}
+ .card{background:#fff;border:1px solid #e2e6ea;border-radius:10px;padding:12px;margin-bottom:10px}
+ .card h3{font-size:12px;color:#1f4e79;margin:0 0 5px}
  select{width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;font-size:14px}
- .pf{font-size:13px;color:#444;margin:8px 0}
+ .pf{font-size:13px;color:#444;margin:8px 0;line-height:1.5}
  .tags span{display:inline-block;background:#eef3f8;color:#3a5a78;border-radius:10px;padding:1px 8px;font-size:11px;margin:2px 3px 0 0}
- .pv{margin-top:10px;border-top:1px dashed #e0e0e0;padding-top:8px}
- .pv h3{font-size:12px;color:#1f4e79;margin:6px 0 4px}
  .band{font-size:12px;margin:2px 0}
  .b0{color:#2e7d32}.b1{color:#b06a00}.b2{color:#c62828;font-weight:600}
  .blk{background:#f6f8fb;border:1px solid #e0e6ee;border-radius:8px;padding:8px;font-size:12px;white-space:pre-wrap;margin-top:4px}
  .dev{color:#aaa;font-size:11px}
- #log{border:1px solid #e2e6ea;border-radius:10px;padding:12px;min-height:300px;line-height:1.5}
+ .stack{max-height:calc(100vh - 96px);overflow:auto;padding-right:4px}
+ #log{min-height:300px;max-height:calc(100vh - 210px);overflow:auto;line-height:1.5}
  .u{color:#0a58ca;font-weight:600;margin-top:10px;white-space:pre-wrap}
  .a{color:#111;margin:4px 0 10px} .a h2{font-size:15px;margin:12px 0 6px;border-bottom:1px solid #eee}
  .a p{margin:4px 0} .a ul{margin:4px 0 8px;padding-left:20px} .a strong{font-weight:700}
- .pblk{background:#eef7ee;border:1px solid #bfe0bf;border-radius:8px;padding:8px;font-size:12px;white-space:pre-wrap;margin:6px 0}
- .meta{color:#888;font-size:12px}
+ .cite{color:#0a58ca;cursor:pointer;font-weight:600;border-bottom:1px dotted #0a58ca;padding:0 1px}
+ .meta{color:#888;font-size:12px;margin:4px 0}
  .chips span{display:inline-block;background:#f0f3f6;border:1px solid #dde3ea;border-radius:14px;padding:3px 10px;font-size:12px;margin:3px 4px 0 0;cursor:pointer}
  .row{display:flex;gap:8px;margin-top:10px}
  textarea{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical}
  button{padding:10px 16px;border:0;border-radius:8px;background:#0a58ca;color:#fff;font-size:14px;cursor:pointer}
  button:disabled{background:#9bb8e6}
+ #pop{position:fixed;z-index:50;max-width:330px;background:#fff;border:1px solid #cfd6de;border-radius:8px;padding:10px 12px;box-shadow:0 6px 22px rgba(0,0,0,.16);font-size:12px;display:none}
+ #pop a{color:#0a58ca;word-break:break-all}
+ @media(max-width:1100px){.app{grid-template-columns:1fr}.stack,#log{max-height:none}}
 </style></head><body>
-<h1>페르소나 개인화 테스트</h1>
-<div class="sub" id="mode"></div>
-<div class="wrap">
- <div class="card">
-   <select id="sel" onchange="selPersona()"></select>
-   <div class="pf" id="profile"></div>
-   <div class="tags" id="tags"></div>
-   <div class="pv">
-     <h3>📋 개인화 미리보기 (결정적·로컬)</h3>
-     <div id="bands"></div>
-     <div class="dev" id="summary"></div>
-     <div class="blk" id="block">질문을 보내면 결합될 ‘내 기록’ 블록이 표시됩니다.</div>
-     <h3 style="margin-top:10px">🔐 옵션2: LLM에 들어갈 비식별 맥락</h3>
-     <div class="blk" id="llmctx">밴드 라벨만(원시값·진단명 0). 서버 PERSONAL_SIGNAL_TO_LLM=on + 동의 시 본문 답변에 반영됩니다.</div>
+<div class="top"><h1>페르소나 개인화 테스트</h1><span class="sub" id="mode"></span></div>
+<div class="app">
+ <div class="col">
+   <div class="colhdr">① 페르소나 요약·선택</div>
+   <div class="card">
+     <select id="sel" onchange="selPersona()"></select>
+     <div class="pf" id="pfdesc"></div>
+     <div class="tags" id="tags"></div>
+     <div class="dev" id="expected" style="margin-top:8px"></div>
    </div>
  </div>
- <div>
-   <div id="chart" class="card" style="margin-bottom:10px"></div>
-   <div id="checkup" class="card" style="margin-bottom:10px"></div>
-   <div id="rx" class="card" style="margin-bottom:10px"></div>
-   <div id="profile" class="card" style="margin-bottom:10px"></div>
-   <div id="log"></div>
-   <div class="chips" id="chips"></div>
-   <div class="row">
-     <textarea id="q" rows="2" placeholder="질문 입력 (또는 위 예시 클릭)"></textarea>
-     <button id="send" onclick="ask()">보내기</button>
+ <div class="col">
+   <div class="colhdr">② 개인화 정보</div>
+   <div class="stack">
+     <div class="card"><h3>밴드 / 추세</h3><div id="bands"></div><div class="dev" id="summary"></div></div>
+     <div class="card"><h3>📋 결합 블록 (답변에 붙는 ‘내 기록’)</h3><div class="blk" id="block">질문을 보내면 결합될 블록이 표시됩니다.</div></div>
+     <div class="card"><h3>🔐 LLM 비식별 맥락 (옵션2)</h3><div class="blk" id="llmctx">밴드 라벨만(원시값·진단명 0). 서버 PERSONAL_SIGNAL_TO_LLM=on + 동의 시 답변 본문 반영.</div></div>
+     <div id="chart" class="card"></div>
+     <div id="checkup" class="card"></div>
+     <div id="rx" class="card"></div>
+     <div id="profile" class="card"></div>
+   </div>
+ </div>
+ <div class="col">
+   <div class="colhdr">③ 대화</div>
+   <div class="card">
+     <div id="log"></div>
+     <div class="chips" id="chips"></div>
+     <div class="row">
+       <textarea id="q" rows="2" placeholder="질문 입력 (또는 예시 클릭)"></textarea>
+       <button id="send" onclick="ask()">보내기</button>
+     </div>
    </div>
  </div>
 </div>
+<div id="pop"></div>
 <script>
-let DATA={personas:[]}, cur=null, conv=crypto.randomUUID();
+let DATA={personas:[]}, cur=null, conv=crypto.randomUUID(), citeSources=[];
 const LIVE = %LIVE%;
 document.getElementById('mode').textContent = LIVE
-  ? '백엔드 프록시 ON — 라이브 대화 + 개인화. (좌측은 결정적 미리보기)'
-  : '미리보기 전용 모드 — 좌측에 페르소나별 개인화 블록 표시. (--rag-url 주면 라이브 대화)';
+  ? '라이브 대화 ON · 3분할(① 페르소나 / ② 개인화 / ③ 대화) · 답변의 인용 [n] 클릭=출처'
+  : '미리보기 전용 · 3분할 뷰 · 라이브 대화는 서버 --rag-url 필요';
 const log=document.getElementById('log');
 function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function inline(s){return s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');}
@@ -430,11 +443,12 @@ async function boot(){
 function selPersona(){
   const id=document.getElementById('sel').value;
   cur=DATA.personas.find(p=>p.id===id);
-  conv=crypto.randomUUID(); log.innerHTML='';
-  document.getElementById('profile').textContent=cur.profile||'';
+  conv=crypto.randomUUID(); log.innerHTML=''; citeSources=[];
+  document.getElementById('pfdesc').textContent=cur.profile||'';
   document.getElementById('tags').innerHTML=(cur.tags||[]).map(t=>`<span>${t}</span>`).join('');
+  document.getElementById('expected').textContent=cur.expected_label?('예상: '+cur.expected_label):'';
   document.getElementById('chips').innerHTML=(cur.sample_queries||[]).map(q=>`<span onclick="useChip(this)">${q}</span>`).join('');
-  document.getElementById('block').textContent='질문을 보내면 결합될 ‘내 기록’ 블록이 표시됩니다.';
+  document.getElementById('block').textContent='질문을 보내면 결합될 블록이 표시됩니다.';
   refreshPreview('');
 }
 function useChip(el){document.getElementById('q').value=el.textContent;}
@@ -505,13 +519,29 @@ function drawChart(hostId, spec, title, sub){
     +`<svg viewBox="0 0 ${W} ${y}" width="100%" style="max-width:560px" font-family="inherit">${rows.join('')}</svg>`
     +`<div class="dev">${sub||''}</div>`;
 }
+function linkCites(html){return html.replace(/\[(\d+)\]/g,(m,n)=>'<a class="cite" onclick="showCite(event,'+n+')">['+n+']</a>');}
+function showCite(ev,n){
+  ev.stopPropagation();
+  const s=citeSources[n-1],pop=document.getElementById('pop');
+  if(!s){pop.innerHTML='<div class="dev">['+n+'] 출처 정보가 없습니다.</div>';}
+  else{const host=(s.url&&s.url.split('/')[2])||'';
+    pop.innerHTML='<div style="font-weight:700;margin-bottom:3px">['+n+'] '+esc(s.source||'출처')+'</div>'
+      +(s.title?'<div style="color:#333;margin-bottom:3px">'+esc(s.title)+'</div>':'')
+      +(s.snippet?'<div style="font-size:11px;color:#777;margin-bottom:5px">'+esc((s.snippet||'').slice(0,200))+'</div>':'')
+      +(s.url?'<a href="'+s.url+'" target="_blank" rel="noopener">'+esc(host||s.url)+' ↗</a>':'<span class="dev">링크 없음</span>');}
+  pop.style.display='block';
+  const w=Math.min(330,window.innerWidth-20);
+  pop.style.left=Math.max(8,Math.min(ev.clientX,window.innerWidth-w-12))+'px';
+  pop.style.top=(ev.clientY+14)+'px';
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#pop')&&!e.target.classList.contains('cite'))document.getElementById('pop').style.display='none';});
 async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q||!cur)return;
   const btn=document.getElementById('send');btn.disabled=true;
   add('<div class="u">🙋 '+esc(q)+'</div>');document.getElementById('q').value='';
-  const pv=await refreshPreview(q);
-  if(pv.safe_block){add('<div class="pblk">📋 결합된 내 기록(개인화 미리보기)\n'+esc(pv.safe_block)+'</div>');}
+  await refreshPreview(q);     // ② 개인화 정보 갱신(결합 블록·LLM 맥락)
   if(!LIVE){btn.disabled=false;return;}
+  citeSources=[];
   const ans=add('<div class="a">…</div>');let text='',meta='';
   try{
     const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -520,11 +550,13 @@ async function ask(){
     while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
      while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
       const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
-      if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+md(text)+'</div>';}
+      if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
+      else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
-      else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+md(text)+'</div>';}
+      else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       log.scrollTop=log.scrollHeight;}}
-    if(meta)add('<div class="meta">'+esc(meta)+'</div>');
+    let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
+    if(mm)add('<div class="meta">'+esc(mm)+'</div>');
     if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';
   }catch(e){ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
   btn.disabled=false;
