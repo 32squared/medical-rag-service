@@ -119,6 +119,7 @@ def compute_preview(persona: dict, query: str) -> dict:
         "summary": summary,
         "agent_input": agent_input,
         "chart": build_chart(persona),
+        "profile": build_profile(persona),
     }
 
 
@@ -146,6 +147,24 @@ _GAUGE = {
             "zones": [("주의", 15, 18.5), ("안정", 18.5, 23), ("주의", 23, 30), ("경고", 30, 40)]},
     "heart_rate": {"label": "심박수", "unit": "bpm", "field": "bpm", "min": 40, "max": 120,
                    "zones": [("주의", 40, 60), ("안정", 60, 100), ("주의", 100, 120)]},
+}
+
+# 공인 밴드가 없는 측정 — 그래프엔 그리되 분류(색)는 하지 않는다(중립).
+# (이완기 혈압은 혈압 차트의 보조선으로 이미 표시 → 별도 추가 안 함)
+_PLAIN = {
+    "stress": {"label": "스트레스 지수", "unit": "", "field": "stress", "min": 0, "max": 100},
+}
+
+# 전체 데이터 패널용 — 원시 측정 필드 표시명(개발 점검용 입력 데이터 뷰).
+_RAW_FIELDS = [
+    ("bps", "수축기 혈압", "mmHg"), ("bpd", "이완기 혈압", "mmHg"),
+    ("bpm", "심박수", "bpm"), ("spo2", "산소포화도", "%"),
+    ("fever", "체온", "℃"), ("bmi", "체질량지수", ""), ("stress", "스트레스 지수", ""),
+]
+_PHR_LABEL = {
+    "meds": "복약", "dx": "진단 이력", "history": "병력", "checkup": "검진",
+    "hba1c": "당화혈색소", "bmi_band": "비만 단계", "lifestyle": "생활습관",
+    "pregnancy": "임신", "status": "상태", "breastfeeding": "수유", "ldl": "LDL", "sensitive": "민감 이력",
 }
 
 
@@ -194,7 +213,48 @@ def build_chart(persona: dict) -> dict:
             "zones": [{"band": z[0], "from": z[1], "to": z[2]} for z in spec["zones"]],
             "points": points, "second": second,
         })
+    # 무밴드 수치(스트레스·이완기 등) — 중립 그래프(색/구간 없음)
+    for signal, spec in _PLAIN.items():
+        points, present = [], False
+        for r in vitals:
+            if not isinstance(r, dict):
+                continue
+            v = r.get(spec["field"])
+            if not isinstance(v, (int, float)):
+                continue
+            present = True
+            points.append({"t": (str(r.get("create_date") or ""))[5:10], "v": v, "band": None})
+        if present:
+            series.append({"signal": signal, "label": spec["label"], "unit": spec["unit"],
+                           "min": spec["min"], "max": spec["max"], "zones": [],
+                           "points": points, "second": []})
     return {"series": series}
+
+
+def build_profile(persona: dict) -> dict:
+    """페르소나의 전체 입력 데이터(개발 점검용) — 원시 측정·PHR·환경·태그."""
+    vitals = persona.get("vitals") or []
+    latest = vitals[-1] if isinstance(vitals[-1], dict) else {} if vitals else {}
+    measures = [{"label": l, "value": latest.get(k), "unit": u}
+                for k, l, u in _RAW_FIELDS if isinstance(latest.get(k), (int, float))]
+    phr_raw = persona.get("phr")
+    try:
+        phr = json.loads(phr_raw) if isinstance(phr_raw, str) and phr_raw.strip() else (phr_raw or {})
+    except Exception:
+        phr = {}
+    phr_rows = []
+    if isinstance(phr, dict):
+        for k, v in phr.items():
+            val = ", ".join(map(str, v)) if isinstance(v, list) else (
+                "예" if v is True else ("아니오" if v is False else str(v)))
+            phr_rows.append({"label": _PHR_LABEL.get(k, k), "value": val})
+    return {
+        "measures": measures,
+        "phr": phr_rows,
+        "air_quality": persona.get("air_quality") or "",
+        "tags": persona.get("tags") or [],
+        "readings": len(vitals),
+    }
 
 
 # ── 클라우드 토큰(선택) ──────────────────────────────────────
@@ -282,6 +342,7 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
  </div>
  <div>
    <div id="chart" class="card" style="margin-bottom:10px"></div>
+   <div id="profile" class="card" style="margin-bottom:10px"></div>
    <div id="log"></div>
    <div class="chips" id="chips"></div>
    <div class="row">
@@ -335,7 +396,18 @@ async function refreshPreview(query){
   if(query){document.getElementById('block').textContent=r.safe_block||'(이 질문엔 결합 블록 없음 — 관련성 게이트)';}
   document.getElementById('llmctx').textContent = r.llm_context || '(이 질의엔 주입할 비식별 맥락 없음)';
   if(r.chart) drawChart(r.chart);
+  if(r.profile) drawProfile(r.profile);
   return r;
+}
+function drawProfile(p){
+  const host=document.getElementById('profile');
+  const tag=(t,b)=>'<span style="display:inline-block;background:#f0f3f6;border:1px solid #dde3ea;border-radius:6px;padding:2px 8px;margin:2px 3px 0 0;font-size:12px">'+t+(b!==undefined?' <b>'+b+'</b>':'')+'</span>';
+  const m=(p.measures||[]).map(x=>tag(x.label, x.value+(x.unit||''))).join('');
+  const aq=p.air_quality? tag('실내 공기질', p.air_quality):'';
+  const phr=(p.phr||[]).map(x=>'<div style="font-size:12px;margin:2px 0"><span class="dev">'+x.label+':</span> '+x.value+'</div>').join('') || '<div class="dev">기록 없음</div>';
+  host.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:6px">🗂️ 전체 입력 데이터 <span class="dev">(개발 점검용 · 측정 '+(p.readings||0)+'회)</span></div>'
+    +'<div style="margin-bottom:8px">'+m+aq+'</div>'
+    +'<div><div class="dev" style="margin-bottom:2px">PHR / 건강기록</div>'+phr+'</div>';
 }
 const ZC={'안정':['#2e7d32','#e7f3e8'],'주의':['#b06a00','#fdf1df'],'경고':['#c62828','#fbe9e9']};
 function zcol(b){return ZC[b]||['#8a8a8a','#ececec'];}

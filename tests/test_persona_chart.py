@@ -55,3 +55,33 @@ def test_chart_serializable():
     import json
     for p in pts.load_personas()["personas"]:
         json.dumps(pts.build_chart(p))   # 직렬화 가능(서버 응답)
+
+
+def test_stress_plotted_without_band():
+    # 무밴드 측정(스트레스)도 그래프에 포함되되 분류(색)는 없음
+    chart = pts.build_chart(_persona("anxiety_palpitation"))  # stress 88
+    st = _series(chart, "stress")
+    assert st and st["points"][-1]["v"] == 88
+    assert st["points"][-1]["band"] is None and st["zones"] == []
+
+
+def test_profile_full_data():
+    prof = pts.build_profile(_persona("hypertension_senior"))
+    labels = {m["label"]: m["value"] for m in prof["measures"]}
+    assert labels.get("수축기 혈압") == 152 and labels.get("이완기 혈압") == 96
+    phr = {r["label"]: r["value"] for r in prof["phr"]}
+    assert "복약" in phr
+    assert prof["readings"] == 1
+
+
+def test_profile_phr_parsed():
+    prof = pts.build_profile(_persona("diabetes_followup"))
+    phr = {r["label"]: r["value"] for r in prof["phr"]}
+    assert phr.get("당화혈색소") == "7.2"
+    assert "type2_diabetes" in phr.get("진단 이력", "")
+
+
+def test_profile_serializable():
+    import json
+    for p in pts.load_personas()["personas"]:
+        json.dumps(pts.build_profile(p))
