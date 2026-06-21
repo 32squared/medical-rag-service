@@ -106,9 +106,16 @@ def compute_preview(persona: dict, query: str) -> dict:
         summary = f"신호 {len(findings)}건: {labels}"
     else:
         summary = "밴드/환경 매칭 0 (fail-closed — 개인화 생략)"
+    # 방향 2 미리보기: 옵션 활성화 시 LLM 프롬프트에 들어갈 비식별 맥락(밴드 라벨만)
+    try:
+        import personal_llm_context as _plc
+        llm_context = _plc.preview_context(raw, query or "")
+    except Exception:
+        llm_context = ""
     return {
         "findings": findings,
         "safe_block": safe_block,
+        "llm_context": llm_context,
         "summary": summary,
         "agent_input": agent_input,
     }
@@ -203,6 +210,8 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
      <div id="bands"></div>
      <div class="dev" id="summary"></div>
      <div class="blk" id="block">질문을 보내면 결합될 ‘내 기록’ 블록이 표시됩니다.</div>
+     <h3 style="margin-top:10px">🔐 옵션2: LLM에 들어갈 비식별 맥락</h3>
+     <div class="blk" id="llmctx">밴드 라벨만(원시값·진단명 0). 서버 PERSONAL_SIGNAL_TO_LLM=on + 동의 시 본문 답변에 반영됩니다.</div>
    </div>
  </div>
  <div>
@@ -257,6 +266,7 @@ async function refreshPreview(query){
     `<div class="band ${bcls[f.label_user]||''}">• ${f.signal}: <b>${f.label_user||'-'}</b> <span class="dev">(${f.clinical_label||''})</span></div>`).join('')
     || '<div class="dev">밴드 매칭 없음</div>';
   if(query){document.getElementById('block').textContent=r.safe_block||'(이 질문엔 결합 블록 없음 — 관련성 게이트)';}
+  document.getElementById('llmctx').textContent = r.llm_context || '(이 질의엔 주입할 비식별 맥락 없음)';
   return r;
 }
 async function ask(){
@@ -345,6 +355,7 @@ class Handler(BaseHTTPRequestHandler):
             "conversation_strid": req.get("conversation_id") or "",
             "source_types": ["WEB"],
             "agent_input_field_to_value": build_agent_input(persona),
+            "personal_consent": True,   # 데모: 동의 가정(옵션2 게이트 G2). 실제 플래그는 서버 env.
         }, ensure_ascii=False).encode("utf-8")
         url = f"{self.rag_url}/api/service/conversations/{self.graph}"
         r = urllib.request.Request(url, data=payload, headers=_headers(self.rag_url), method="POST")

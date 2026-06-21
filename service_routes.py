@@ -162,6 +162,8 @@ class ServiceRoutesMixin:
         stop_sent = False
         try:
             from rag_engine import generate_response
+            # 방향 2: 비식별 개인맥락 LLM 주입 동의(민감정보+국외이전). 게이트는 정본 17·rag_engine.
+            _personal_consent = bool(payload.get('personal_consent'))
             for event in generate_response(
                 query=query,
                 conversation_id=conversation_id,
@@ -169,6 +171,7 @@ class ServiceRoutesMixin:
                 top_k=5,
                 enable_guardrails=True,
                 personal_findings=_personal_findings,
+                personal_consent=_personal_consent,
             ):
                 wraith_events = adapt_event(event)
                 for pev in wraith_events:

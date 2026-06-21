@@ -1130,6 +1130,7 @@ def generate_response(
     top_k: int = 5,
     enable_guardrails: bool = True,
     personal_findings=None,
+    personal_consent: bool = False,
 ) -> Iterator[Dict]:
     """
     Hybrid search → 프롬프트 빌드 → LLM 스트리밍 → 가드레일 → DB 기록.
@@ -1367,6 +1368,22 @@ def generate_response(
     # 프론트가 /api/rag/result 로 폴링 복구하므로 별도 스레드 keep-alive 불필요.
     llm_start = time.time()
     provider = get_llm_provider(provider_id)
+
+    # 방향 2: 비식별 개인 맥락(밴드 라벨만)을 LLM 프롬프트에 주입 — 플래그·동의·국외이전·
+    # 응급 게이트로 통제(정본 17). 기본 off → 미설정 시 행동 변화 0. 원시값·진단명 미투입.
+    try:
+        import personal_llm_context as _plc
+        _pctx = _plc.build_llm_context(
+            personal_findings, query,
+            consent=personal_consent, provider=provider,
+            is_emergency=((_classification or {}).get("intent") == "emergency"),
+        )
+        if _pctx:
+            system_prompt = system_prompt + "\n\n" + _pctx
+            logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과)")
+    except Exception as _e:
+        logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
+
     full_text = ""
     tokens = {"input": 0, "output": 0}
 
