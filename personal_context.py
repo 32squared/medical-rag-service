@@ -53,6 +53,32 @@ _LABEL_PHRASE = {
 _BLOCK_HEADER = "## 📋 내 기록 참고"
 _BLOCK_CLOSING = "측정값의 해석과 진단은 의료진과 상담하세요."
 
+# 밴드별 행동 안내(navigation·안전) — 진단·처방 아님, 원시값/질환명 0(C20/C21 통과).
+# 119 등 2자리+ 숫자 금지 → '응급실' 표현 사용. 생활수칙은 일반 보건정보 수준.
+_GUIDANCE: Dict[str, Dict[str, str]] = {
+    "blood_pressure": {
+        "주의": ("여러 번 나눠 재서 평균 흐름을 보시고, 싱겁게 드시기·꾸준한 걷기·적정 체중·절주가 "
+                "도움이 될 수 있어요. 다음 진료 때 측정 기록을 가져가시면 상담에 좋습니다."),
+        "경고": ("안정을 취한 뒤 다시 측정하고, 높은 상태가 반복되면 의료진 진료를 권해드려요. "
+                "심한 두통·가슴 통증·한쪽 팔다리 마비·말 어눌함·갑작스런 시야 이상이 있으면 "
+                "지체 말고 응급실을 이용하세요."),
+    },
+    "body_temperature": {
+        "주의": "수분을 충분히 드시고 쉬시면 좋아요. 열이 더 오르거나 며칠 이어지면 진료를 권해드려요.",
+        "경고": ("수분·휴식과 함께, 고열이 이어지면 진료를 권해드려요. 의식이 흐려지거나 숨쉬기가 "
+                "힘들고 경련이 있으면 지체 말고 응급실을 이용하세요."),
+    },
+    "spo2": {
+        "주의": "안정된 상태에서 다시 측정해 보시고, 숨참이나 기침이 함께 있으면 진료를 권해드려요.",
+        "경고": ("낮은 상태가 반복되면 진료를 권해드리고, 입술이 푸르게 변하거나 숨쉬기가 많이 "
+                "힘들면 지체 말고 응급실을 이용하세요."),
+    },
+    "bmi": {
+        "주의": "체중과 허리둘레 변화를 주기적으로 살펴보시면 좋아요.",
+        "경고": "체중 관리를 위해 의료진이나 영양 상담을 받아보시길 권해드려요.",
+    },
+}
+
 
 def relevance_gate(query: Optional[str], findings: List[Dict]) -> List[Dict]:
     """질의 scope와 매칭되는 finding만 통과(09 §7-1). 매칭 0이면 빈 리스트(과노출 차단)."""
@@ -109,11 +135,17 @@ def build(findings: List[Dict], query: Optional[str]) -> Dict:
     # 밴드 finding (환경 등 자체 sentence 보유 finding은 그대로 사용)
     for f in surfaced_in:
         sentence = f.get("sentence")
+        is_band = not sentence
         if not sentence:
             display = _SIGNAL_DISPLAY.get(f["signal_key"], f["signal_key"])
             phrase = _LABEL_PHRASE[f["label_user"]]
             sentence = f"최근 측정된 {display}은(는) {phrase}"
         lines.append(f"- {sentence}.")
+        # 밴드 finding이면 밴드별 행동 안내를 한 줄 덧붙인다(navigation·안전, 비진단).
+        if is_band:
+            guide = _GUIDANCE.get(f.get("signal_key"), {}).get(f.get("label_user"))
+            if guide:
+                lines.append(f"  {guide}")
         surfaced.append({
             "signal_key": f["signal_key"],
             "label_user": f["label_user"],
