@@ -213,6 +213,7 @@
       "id": "bp_rising_trend", "name": "혈압 상승 추세(다회 측정)", "emoji": "📈",
       "profile": "54세. 최근 4회 가정 측정에서 혈압이 점차 상승(138→156). 마지막 156/98.",
       "tags": ["고혈압", "추세", "다회측정"], "locale": "KR", "population": "adult", "context": "clinic",
+      "history": {"days": 120, "trend": {"bps": 22, "bpd": 15}},
       "vitals": [
         {"bps": 138, "bpd": 86, "bpm": 78, "create_date": "2026-06-18T08:00:00"},
         {"bps": 144, "bpd": 90, "bpm": 80, "create_date": "2026-06-19T08:00:00"},

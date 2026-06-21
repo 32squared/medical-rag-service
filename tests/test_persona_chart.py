@@ -21,14 +21,14 @@ def _series(chart, signal):
     return next((s for s in chart["series"] if s["signal"] == signal), None)
 
 
-def test_trend_persona_has_four_bp_points():
+def test_trend_persona_daily_series():
     chart = pts.build_chart(_persona("bp_rising_trend"))
     bp = _series(chart, "blood_pressure")
-    assert bp and len(bp["points"]) == 4
-    assert [p["v"] for p in bp["points"]] == [138, 144, 150, 156]   # 점=수축기
-    assert bp["points"][-1]["band"] == "경고"
-    assert len(bp["second"]) == 4                                   # 이완기 보조선
-    assert bp["zones"]                                              # 참고 구간
+    assert bp and len(bp["points"]) == 120        # history days=120, 매일 측정
+    assert chart["window_days"] == 120
+    assert bp["points"][0]["v"] < bp["points"][-1]["v"]   # 상승 추세
+    assert bp["points"][-1]["v"] == 156 and bp["points"][-1]["band"] == "경고"
+    assert len(bp["second"]) == 120 and bp["zones"]       # 이완기 보조선 + 참고 구간
 
 
 def test_hypertension_bp_warning_and_spo2_stable():

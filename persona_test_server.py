@@ -119,6 +119,8 @@ def compute_preview(persona: dict, query: str) -> dict:
         "summary": summary,
         "agent_input": agent_input,
         "chart": build_chart(persona),
+        "checkup_chart": build_checkup_chart(persona),
+        "prescriptions": __import__("persona_history").generate_prescriptions(persona),
         "profile": build_profile(persona),
     }
 
@@ -187,8 +189,9 @@ def _classify_point(signal: str, reading: dict, *, locale="KR", population="adul
 
 
 def build_chart(persona: dict) -> dict:
-    """페르소나 → 신호별 시계열 차트 스펙(원시값은 점 좌표로만, 라벨=밴드 색)."""
-    vitals = persona.get("vitals") or []
+    """페르소나 → 신호별 일일 시계열 차트 스펙(원시값은 점 좌표로만, 라벨=밴드 색)."""
+    from persona_history import generate_vitals_series, window_days
+    vitals = generate_vitals_series(persona)
     series = []
     for signal, spec in _GAUGE.items():
         points, second, present = [], [], False
@@ -228,7 +231,54 @@ def build_chart(persona: dict) -> dict:
             series.append({"signal": signal, "label": spec["label"], "unit": spec["unit"],
                            "min": spec["min"], "max": spec["max"], "zones": [],
                            "points": points, "second": []})
-    return {"series": series}
+    return {"series": series, "window_days": window_days(persona)}
+
+
+# 검진 추이용 추가 구간(연 1회 × 10년)
+_GLU_ZONES = [("안정", 70, 100), ("주의", 100, 126), ("경고", 126, 160)]
+_HBA1C_ZONES = [("안정", 4.5, 5.7), ("주의", 5.7, 6.5), ("경고", 6.5, 9)]
+
+
+def _zfmt(zt):
+    return [{"band": z[0], "from": z[1], "to": z[2]} for z in zt]
+
+
+def _mk_series(label, unit, vmin, vmax, zones_tuples, points):
+    return {"signal": label, "label": label, "unit": unit, "min": vmin, "max": vmax,
+            "zones": _zfmt(zones_tuples), "points": points, "second": []}
+
+
+def build_checkup_chart(persona: dict) -> dict:
+    """건강검진 10년치 → 지표별 연도 추이 차트(혈압·공복혈당·콜레스테롤·BMI·당화혈색소)."""
+    import vital_rules as vr
+    from persona_history import generate_checkups
+    rows = generate_checkups(persona)
+    if not rows:
+        return {"series": [], "years": 0}
+
+    def cls(sig, val):
+        b = vr.lookup_band(sig, val)
+        return b["label_user"] if b["match"] == "ok" else None
+
+    def cls_bp(r):
+        b = vr.lookup_band("blood_pressure", {"systolic": r["수축기"], "diastolic": r["이완기"]})
+        return b["label_user"] if b["match"] == "ok" else None
+
+    yrs = [str(r["year"]) for r in rows]
+    series = [
+        _mk_series("혈압(수축기)", "mmHg", 90, 190, _GAUGE["blood_pressure"]["zones"],
+                   [{"t": yrs[i], "v": r["수축기"], "band": cls_bp(r)} for i, r in enumerate(rows)]),
+        _mk_series("공복혈당", "mg/dL", 70, 160, _GLU_ZONES,
+                   [{"t": yrs[i], "v": r["공복혈당"], "band": cls("fasting_glucose", r["공복혈당"])} for i, r in enumerate(rows)]),
+        _mk_series("총콜레스테롤", "mg/dL", 120, 280, [],
+                   [{"t": yrs[i], "v": r["총콜레스테롤"], "band": None} for i, r in enumerate(rows)]),
+        _mk_series("체질량지수", "", 15, 40, _GAUGE["bmi"]["zones"],
+                   [{"t": yrs[i], "v": r["BMI"], "band": cls("bmi", r["BMI"])} for i, r in enumerate(rows)]),
+    ]
+    if "당화혈색소" in rows[0]:
+        series.append(_mk_series("당화혈색소", "%", 4.5, 9, _HBA1C_ZONES,
+                      [{"t": yrs[i], "v": r["당화혈색소"], "band": cls("hba1c", r["당화혈색소"])} for i, r in enumerate(rows)]))
+    return {"series": series, "years": len(rows)}
 
 
 def build_profile(persona: dict) -> dict:
@@ -342,6 +392,8 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
  </div>
  <div>
    <div id="chart" class="card" style="margin-bottom:10px"></div>
+   <div id="checkup" class="card" style="margin-bottom:10px"></div>
+   <div id="rx" class="card" style="margin-bottom:10px"></div>
    <div id="profile" class="card" style="margin-bottom:10px"></div>
    <div id="log"></div>
    <div class="chips" id="chips"></div>
@@ -395,9 +447,21 @@ async function refreshPreview(query){
     || '<div class="dev">밴드 매칭 없음</div>';
   if(query){document.getElementById('block').textContent=r.safe_block||'(이 질문엔 결합 블록 없음 — 관련성 게이트)';}
   document.getElementById('llmctx').textContent = r.llm_context || '(이 질의엔 주입할 비식별 맥락 없음)';
-  if(r.chart) drawChart(r.chart);
+  if(r.chart) drawChart('chart', r.chart, '📊 '+(cur.emoji||'')+' '+cur.name+' — 바이탈 추이', vitalsCaption(r.chart));
+  if(r.checkup_chart) drawChart('checkup', r.checkup_chart, '🩺 건강검진 추이 (연 1회 × '+(r.checkup_chart.years||0)+'년)', '가로축=연도. 점=검진값(색=밴드), 배경=참고 구간.');
+  if(r.prescriptions) drawRx(r.prescriptions);
   if(r.profile) drawProfile(r.profile);
   return r;
+}
+function vitalsCaption(c){return '가로축=측정 시점(최근 '+(c.window_days||0)+'일, 매일 측정). 점=측정값(색=밴드), 배경=참고 구간, 파란 점=이완기.';}
+function drawRx(list){
+  const host=document.getElementById('rx');
+  if(!list||!list.length){host.innerHTML='<div class="dev">처방·진료 이력 없음</div>';return;}
+  const rows=list.slice().reverse().map(v=>{
+    const drug=v.drug?(' · 처방 '+v.drug+' '+v.days+'일분'):'';
+    return '<div style="font-size:12px;margin:3px 0;display:flex;gap:8px"><span class="dev" style="min-width:80px">'+v.date+'</span><span><b>'+v.dept+'</b> · '+v.reason+drug+'</span></div>';
+  }).join('');
+  host.innerHTML='<div style="font-size:13px;font-weight:700;margin-bottom:6px">💊 처방·진료 이력 <span class="dev">(최근 5년 · '+list.length+'건, 최신순)</span></div>'+rows;
 }
 function drawProfile(p){
   const host=document.getElementById('profile');
@@ -411,34 +475,35 @@ function drawProfile(p){
 }
 const ZC={'안정':['#2e7d32','#e7f3e8'],'주의':['#b06a00','#fdf1df'],'경고':['#c62828','#fbe9e9']};
 function zcol(b){return ZC[b]||['#8a8a8a','#ececec'];}
-function drawChart(spec){
-  const host=document.getElementById('chart');
-  if(!spec||!spec.series||!spec.series.length){host.innerHTML='<div class="dev">이 페르소나엔 그래프로 그릴 측정 신호가 없습니다.</div>';return;}
-  const W=520,L=66,R=70,plotW=W-L-R,rowH=50,gap=12; let y=8,rows=[];
+function drawChart(hostId, spec, title, sub){
+  const host=document.getElementById(hostId);
+  if(!spec||!spec.series||!spec.series.length){host.innerHTML='<div class="dev">그릴 데이터가 없습니다.</div>';return;}
+  const W=520,L=66,R=70,plotW=W-L-R,rowH=46,gap=12; let y=8,rows=[];
   for(const s of spec.series){
     const top=y,h=rowH,vmin=s.min,vmax=s.max;
     const vy=v=>top+h-3-((v-vmin)/(vmax-vmin))*(h-6);
     const n=s.points.length, px=i=> n<=1? L+plotW/2 : L+plotW*i/(n-1);
+    const pr = n>40?1.5:(n>12?2.4:3.6);
     let b='';
     for(const z of s.zones){const yA=vy(z.to),yB=vy(z.from);
       b+=`<rect x="${L}" y="${Math.min(yA,yB)}" width="${plotW}" height="${Math.abs(yB-yA)||1}" fill="${zcol(z.band)[1]}"/>`;}
     b+=`<line x1="${L}" y1="${top}" x2="${L}" y2="${top+h}" stroke="#d4dde7"/>`;
-    b+=`<text x="0" y="${top+h/2-2}" font-size="12" font-weight="700">${s.label}</text>`;
+    b+=`<text x="0" y="${top+h/2-2}" font-size="11.5" font-weight="700">${s.label}</text>`;
     b+=`<text x="0" y="${top+h/2+12}" font-size="9" fill="#999">${s.unit||''}</text>`;
     if(s.second&&s.second.length>1){let d=s.second.map((p,i)=>`${i?'L':'M'}${px(i)},${vy(p.v)}`).join(' ');
-      b+=`<path d="${d}" fill="none" stroke="#9bb8e6" stroke-width="1.2" stroke-dasharray="3 2"/>`;}
-    if(s.second) s.second.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="2.4" fill="#9bb8e6"/>`;});
+      b+=`<path d="${d}" fill="none" stroke="#9bb8e6" stroke-width="1" stroke-dasharray="3 2"/>`;}
+    else if(s.second) s.second.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="2.4" fill="#9bb8e6"/>`;});
     if(n>1){let d=s.points.map((p,i)=>`${i?'L':'M'}${px(i)},${vy(p.v)}`).join(' ');
-      b+=`<path d="${d}" fill="none" stroke="#1f4e79" stroke-width="1.6"/>`;}
-    s.points.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="3.7" fill="${zcol(p.band)[0]}"><title>${p.t}: ${p.v}${s.unit} (${p.band||'-'})</title></circle>`;});
+      b+=`<path d="${d}" fill="none" stroke="#1f4e79" stroke-width="1.4"/>`;}
+    s.points.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="${pr}" fill="${zcol(p.band)[0]}"><title>${p.t}: ${p.v}${s.unit} (${p.band||'무분류'})</title></circle>`;});
     const last=s.points[n-1],c=zcol(last.band);
     b+=`<rect x="${W-R+6}" y="${top+h/2-9}" width="56" height="18" rx="9" fill="${c[1]}" stroke="${c[0]}"/>`;
     b+=`<text x="${W-R+34}" y="${top+h/2+1}" font-size="11" fill="${c[0]}" text-anchor="middle" dominant-baseline="middle">${last.band||'-'}</text>`;
     rows.push('<g>'+b+'</g>'); y+=h+gap;
   }
-  host.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:4px">📊 ${cur.emoji||''} ${cur.name} — 측정 그래프</div>`
+  host.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:4px">${title}</div>`
     +`<svg viewBox="0 0 ${W} ${y}" width="100%" style="max-width:560px" font-family="inherit">${rows.join('')}</svg>`
-    +`<div class="dev">점=측정값(색=밴드), 배경=참고 구간(안정/주의/경고), 점선=이완기·보조. 가로축=측정 시점.</div>`;
+    +`<div class="dev">${sub||''}</div>`;
 }
 async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q||!cur)return;
