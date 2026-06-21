@@ -11,13 +11,13 @@ persona_test_server.py — 페르소나를 골라 개인화 대화를 로컬에�
      → 백엔드가 동일 개인화 경로(service_routes→vital_rules.run)로 답변을 만든다.
 
 사용:
-  python persona_test_server.py                      # 미리보기 전용(백엔드 없이도 동작)
-  python persona_test_server.py --rag-url http://127.0.0.1:8000   # 로컬 rag_server 프록시
-  python persona_test_server.py --rag-url https://...run.app      # 클라우드(gcloud 토큰 자동)
+  python persona_test_server.py                      # 기본: 클라우드 dev RAG 라이브 대화(gcloud 토큰 자동)
+  python persona_test_server.py --preview            # 미리보기 전용(백엔드 미연결)
+  python persona_test_server.py --rag-url http://127.0.0.1:8080   # 로컬 rag_server 프록시
   python persona_test_server.py --port 8770 --graph SUPERVISED_HYBRID_SEARCH
 
-전제(라이브 대화 시): 대상 RAG 서버 기동(rag_server.py, PG+OPENAI_API_KEY).
-로컬 대상이면 RAG_TRUST_SECRET 미설정 시 트러스트 통과. 클라우드면 gcloud 로그인.
+전제: 기본(클라우드)은 gcloud 로그인 필요. 로컬 대상은 rag_server.py 기동(PG+OPENAI_API_KEY,
+RAG_TRUST_SECRET 미설정 시 트러스트 통과). 미리보기(--preview)는 백엔드 없이도 동작.
 """
 
 from __future__ import annotations
@@ -36,6 +36,10 @@ from urllib.parse import quote
 
 REPO_ROOT = Path(__file__).resolve().parent
 PERSONAS_PATH = REPO_ROOT / "test_personas" / "personas.json"
+
+# 라이브 대화 기본 대상 — 클라우드 dev (gcloud 토큰 자동 부착). 환경변수로 덮어쓰기 가능.
+CLOUD_DEV_URL = os.environ.get(
+    "RAG_DEV_URL", "https://medical-rag-dev-716262961556.asia-northeast3.run.app")
 
 
 # ── 페르소나 로딩 ────────────────────────────────────────────
@@ -368,20 +372,41 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    # Windows cp949 콘솔에서 한글·특수문자(—·) 출력 크래시 방지
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8770)
-    ap.add_argument("--rag-url", default=os.environ.get("PERSONA_RAG_URL", ""),
-                    help="라이브 대화 대상 RAG 서버 (비우면 미리보기 전용)")
+    ap.add_argument("--rag-url", default=os.environ.get("PERSONA_RAG_URL", CLOUD_DEV_URL),
+                    help="라이브 대화 대상 RAG 서버 (기본: 클라우드 dev)")
+    ap.add_argument("--cloud", action="store_true", help="클라우드 dev RAG로 연결(기본값)")
+    ap.add_argument("--preview", action="store_true", help="미리보기 전용 — 백엔드 미연결")
     ap.add_argument("--graph", default="SUPERVISED_HYBRID_SEARCH")
     args = ap.parse_args()
-    Handler.rag_url = args.rag_url.rstrip("/")
+
+    # 우선순위: --preview(미연결) > --cloud > --rag-url(기본=클라우드 dev)
+    if args.preview:
+        rag_url = ""
+    elif args.cloud:
+        rag_url = CLOUD_DEV_URL
+    else:
+        rag_url = args.rag_url
+    Handler.rag_url = (rag_url or "").rstrip("/")
     Handler.graph = args.graph
 
     data = load_personas()
+    tok_note = None
+    if ".run.app" in Handler.rag_url:  # 클라우드 대상이면 토큰 가용성 점검
+        tok_note = "발급 OK" if get_id_token() else "실패(gcloud 로그인 필요)"
     print("=" * 60)
     print(" 페르소나 개인화 테스트 서버")
     print(f"  페르소나 : {len(data.get('personas', []))}개  ({PERSONAS_PATH.name})")
-    print(f"  대상 RAG : {Handler.rag_url or '(없음 — 미리보기 전용)'}")
+    print(f"  대상 RAG : {Handler.rag_url or '(없음 - 미리보기 전용, --preview)'}")
+    if tok_note:
+        print(f"  토큰     : {tok_note}")
     print(f"  브라우저 : http://localhost:{args.port}")
     print("  종료     : Ctrl+C")
     print("=" * 60)
