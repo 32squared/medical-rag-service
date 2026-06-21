@@ -1679,6 +1679,13 @@ def generate_response(
         gave_referral=bool((_classification or {}).get("requires_clinician_consult")),
         refusal=False, emergency=emergency_detected,
     )
+    # 후속 질문 제안(멀티턴 버튼용) — 결정적, 비차단.
+    try:
+        import followups as _fu
+        _followups = _fu.suggest(query, classification=_classification,
+                                 personal_findings=personal_findings)
+    except Exception:
+        _followups = []
     yield {
         "type": "STOP",
         "text": full_text,
@@ -1689,6 +1696,7 @@ def generate_response(
         "guardrail_action": guardrail_result["action"],
         "evidence_quality": gate_result["evidence_quality"],
         "gate_decision": gate_result["decision"],
+        "followups": _followups,
     }
 
 

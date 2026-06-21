@@ -122,6 +122,7 @@ def compute_preview(persona: dict, query: str) -> dict:
         "checkup_chart": build_checkup_chart(persona),
         "prescriptions": __import__("persona_history").generate_prescriptions(persona),
         "profile": build_profile(persona),
+        "followups": __import__("followups").suggest(query or "", personal_findings=raw),
     }
 
 
@@ -372,6 +373,10 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
  .cite{color:#0a58ca;cursor:pointer;font-weight:600;border-bottom:1px dotted #0a58ca;padding:0 1px}
  .meta{color:#888;font-size:12px;margin:4px 0}
  .chips span{display:inline-block;background:#f0f3f6;border:1px solid #dde3ea;border-radius:14px;padding:3px 10px;font-size:12px;margin:3px 4px 0 0;cursor:pointer}
+ #followups{margin:8px 0 2px}
+ .fulabel{color:#888;font-size:11px;margin:0 0 4px}
+ .fu{display:inline-block;background:#fff;border:1px solid #b9c9e8;color:#0a58ca;border-radius:16px;padding:6px 13px;font-size:12.5px;margin:0 6px 6px 0;cursor:pointer;text-align:left}
+ .fu:hover{background:#eef3fb;border-color:#0a58ca}
  .row{display:flex;gap:8px;margin-top:10px}
  textarea{flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical}
  button{padding:10px 16px;border:0;border-radius:8px;background:#0a58ca;color:#fff;font-size:14px;cursor:pointer}
@@ -407,9 +412,10 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
    <div class="colhdr">③ 대화</div>
    <div class="card">
      <div id="log"></div>
+     <div id="followups"></div>
      <div class="chips" id="chips"></div>
      <div class="row">
-       <textarea id="q" rows="2" placeholder="질문 입력 (또는 예시 클릭)"></textarea>
+       <textarea id="q" rows="2" placeholder="질문 입력 (또는 추천 질문·예시 클릭)"></textarea>
        <button id="send" onclick="ask()">보내기</button>
      </div>
    </div>
@@ -465,8 +471,17 @@ async function refreshPreview(query){
   if(r.checkup_chart) drawChart('checkup', r.checkup_chart, '🩺 건강검진 추이 (연 1회 × '+(r.checkup_chart.years||0)+'년)', '가로축=연도. 점=검진값(색=밴드), 배경=참고 구간.');
   if(r.prescriptions) drawRx(r.prescriptions);
   if(r.profile) drawProfile(r.profile);
+  drawFollowups(r.followups);
   return r;
 }
+let lastFollowups=[];
+function drawFollowups(list){
+  lastFollowups=list||[];const host=document.getElementById('followups');
+  if(!lastFollowups.length){host.innerHTML='';return;}
+  host.innerHTML='<div class="fulabel">💬 추천 질문 — 클릭하면 이어서 질문(멀티턴)</div>'
+    +lastFollowups.map((q,i)=>'<button class="fu" onclick="askFu('+i+')">'+esc(q)+'</button>').join('');
+}
+function askFu(i){const t=lastFollowups[i];if(t){document.getElementById('q').value=t;ask();}}
 function vitalsCaption(c){return '가로축=측정 시점(최근 '+(c.window_days||0)+'일, 매일 측정). 점=측정값(색=밴드), 배경=참고 구간, 파란 점=이완기.';}
 function drawRx(list){
   const host=document.getElementById('rx');
@@ -559,6 +574,7 @@ async function ask(){
       if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
       else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
+      else if(ev.type==='STOP'&&ev.followups&&ev.followups.length){drawFollowups(ev.followups);}
       else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       log.scrollTop=log.scrollHeight;}}
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';

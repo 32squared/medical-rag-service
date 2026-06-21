@@ -141,7 +141,10 @@ def _stop_to_events(ev: Dict) -> List[Dict]:
                 "input_tokens": ti, "output_tokens": to, "total_tokens": ti + to,
             }}},
         })
-    out.append({"type": "STOP"})
+    stop = {"type": "STOP"}
+    if ev.get("followups"):
+        stop["followups"] = ev["followups"]   # 멀티턴 후속 질문 제안(있으면)
+    out.append(stop)
     return out
 
 
