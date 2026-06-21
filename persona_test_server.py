@@ -522,7 +522,7 @@ function sendToRag(q, clarifiers){
    try{
     const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({persona_id:cur.id,query:q,conversation_id:conv})});
-    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';
+    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';let stopped=false;
     while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
      while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
       const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
@@ -530,10 +530,12 @@ function sendToRag(q, clarifiers){
       else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';
         setSt('✍️ 답변 생성 중…');                            // 토큰 오는 동안
         if(gtimer)clearTimeout(gtimer);
-        gtimer=setTimeout(()=>setSt('🔍 마무리 점검 중 — 근거·인용·안전 검증, 기록 저장…'),1000);}  // 멈추면 후처리로
+        gtimer=setTimeout(()=>setSt('🔍 마무리 점검 중 — 근거·인용·안전 검증, 기록 저장…'),1500);}  // 멈추면 후처리로
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
+      else if(ev.type==='STOP'){stopped=true;}                 // STOP 즉시 마무리(연결 종료 대기 안 함)
       else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
-      log.scrollTop=log.scrollHeight;}}
+      log.scrollTop=log.scrollHeight;}
+     if(stopped){try{await rd.cancel();}catch(e){} break;}}    // STOP 받으면 읽기 중단
     clearSt();                                                // STOP/스트림 끝 → 상태줄 제거
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
     if(mm)add('<div class="meta">'+esc(mm)+'</div>');
