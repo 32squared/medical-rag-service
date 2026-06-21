@@ -450,7 +450,7 @@ async function boot(){
 function selPersona(){
   const id=document.getElementById('sel').value;
   cur=DATA.personas.find(p=>p.id===id);
-  conv=crypto.randomUUID(); log.innerHTML=''; citeSources=[];
+  conv=crypto.randomUUID(); log.innerHTML=''; citeSources=[]; iv=null;
   document.getElementById('followups').innerHTML='';
   document.getElementById('pfdesc').textContent=cur.profile||'';
   document.getElementById('tags').innerHTML=(cur.tags||[]).map(t=>`<span>${t}</span>`).join('');
@@ -475,30 +475,59 @@ async function refreshPreview(query){
   if(r.profile) drawProfile(r.profile);
   return r;
 }
-let clarSel={}, clarQ='';
-function drawClarifiers(c, query){
-  const host=document.getElementById('followups');
-  if(!c||!c.questions||!c.questions.length){host.innerHTML='';return;}
-  clarSel={}; clarQ=query||'';
-  let h='<div class="card" style="margin:8px 0 0;background:#f7faff;border-color:#cfe0f6"><div class="fulabel">🩺 '+esc(c.intro||'')+'</div>';
-  c.questions.forEach((qq,qi)=>{
-    h+='<div style="margin:8px 0 2px;font-size:12.5px;font-weight:600">'+esc(qq.q)+'</div><div>';
-    h+=qq.options.map(o=>'<button class="fu opt" data-qi="'+qi+'" data-v="'+esc(o)+'" onclick="selOpt(this)">'+esc(o)+'</button>').join('');
-    h+='</div>';
-  });
-  h+='<button id="goinfo" onclick="askWithInfo()" style="margin-top:10px">✓ 이 정보로 안내받기</button>'
-    +' <span class="dev">선택할수록 더 정밀하게 안내돼요</span></div>';
-  host.innerHTML=h;
+// 순차 문진(한 번에 한 질문) — Claude Code가 인풋 받을 때처럼 질문→선택→다음 질문
+let iv=null;
+function startInterview(query, c){
+  if(!c||!c.questions||!c.questions.length) return false;
+  iv={query:query, questions:c.questions, idx:0, answers:[], last:null};
+  add('<div class="meta">🩺 정확히 안내드리려고 몇 가지 여쭤볼게요 — 선택하시거나 ‘바로 답변 받기’</div>');
+  postQuestion(); return true;
 }
-function selOpt(el){
-  clarSel[el.dataset.qi]=el.dataset.v;
-  el.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
+function postQuestion(){
+  const qq=iv.questions[iv.idx];
+  const opts=qq.options.map(o=>'<button class="fu" data-v="'+esc(o)+'" onclick="answerIv(this)">'+esc(o)+'</button>').join('');
+  iv.last=add('<div class="a"><b>('+(iv.idx+1)+'/'+iv.questions.length+')</b> '+esc(qq.q)
+    +'<div style="margin-top:6px">'+opts+'<button class="fu" style="color:#888;border-color:#d2d2d2" onclick="finishIv()">바로 답변 받기</button></div></div>');
 }
-function askWithInfo(){
-  const picks=Object.values(clarSel);
-  const enriched=clarQ+(picks.length?(' / 추가 정보: '+picks.join(', ')):'');
-  document.getElementById('q').value=enriched; ask();
+function answerIv(el){
+  if(!iv) return;
+  if(iv.last) iv.last.querySelectorAll('button').forEach(b=>{b.disabled=true;b.style.opacity=.5;});
+  el.style.opacity=1; el.classList.add('on');
+  iv.answers.push(el.dataset.v);
+  add('<div class="u">→ '+esc(el.dataset.v)+'</div>');
+  iv.idx++;
+  if(iv.idx<iv.questions.length) postQuestion(); else finishIv();
+}
+function finishIv(){
+  if(!iv) return;
+  if(iv.last) iv.last.querySelectorAll('button').forEach(b=>{b.disabled=true;});
+  const enriched=iv.query+(iv.answers.length?(' / 문진: '+iv.answers.join(', ')):'');
+  iv=null; refreshPreview(enriched); sendToRag(enriched);
+}
+function sendToRag(q){
+  const btn=document.getElementById('send'); btn.disabled=true;
+  if(!LIVE){add('<div class="meta">(미리보기 전용 — 라이브 답변은 서버 --rag-url 필요)</div>');btn.disabled=false;return;}
+  citeSources=[];
+  const ans=add('<div class="a">…</div>'); let text='',meta='';
+  (async()=>{
+   try{
+    const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({persona_id:cur.id,query:q,conversation_id:conv})});
+    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';
+    while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
+     while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
+      const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
+      if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
+      else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
+      else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
+      else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
+      log.scrollTop=log.scrollHeight;}}
+    let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
+    if(mm)add('<div class="meta">'+esc(mm)+'</div>');
+    if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';
+   }catch(e){ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
+   btn.disabled=false;
+  })();
 }
 function vitalsCaption(c){return '가로축=측정 시점(최근 '+(c.window_days||0)+'일, 매일 측정). 점=측정값(색=밴드), 배경=참고 구간, 파란 점=이완기.';}
 function drawRx(list){
@@ -575,32 +604,12 @@ function showCite(ev,n){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#pop')&&!e.target.classList.contains('cite'))document.getElementById('pop').style.display='none';});
 async function ask(){
-  const q=document.getElementById('q').value.trim(); if(!q||!cur)return;
-  const btn=document.getElementById('send');btn.disabled=true;
-  add('<div class="u">🙋 '+esc(q)+'</div>');document.getElementById('q').value='';
-  const pv=await refreshPreview(q);     // ② 개인화 정보 갱신(결합 블록·LLM 맥락)
-  // 되묻기 카드(질문+선택지) — 단, 이미 '추가 정보'를 실어 보낸 정밀 질의엔 다시 안 묻기
-  if(!/추가 정보:/.test(q)) drawClarifiers(pv.clarifiers,q); else document.getElementById('followups').innerHTML='';
-  if(!LIVE){btn.disabled=false;return;}
-  citeSources=[];
-  const ans=add('<div class="a">…</div>');let text='',meta='';
-  try{
-    const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({persona_id:cur.id,query:q,conversation_id:conv})});
-    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';
-    while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
-     while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
-      const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
-      if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
-      else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
-      else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
-      else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
-      log.scrollTop=log.scrollHeight;}}
-    let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
-    if(mm)add('<div class="meta">'+esc(mm)+'</div>');
-    if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';
-  }catch(e){ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
-  btn.disabled=false;
+  const q=document.getElementById('q').value.trim(); if(!q||!cur||iv)return;
+  document.getElementById('q').value='';
+  add('<div class="u">🙋 '+esc(q)+'</div>');
+  const pv=await refreshPreview(q);     // ② 개인화 정보 갱신
+  // 간단한 질문이면 순차 문진 시작, 문진 결과(/ 문진:)를 실은 질의면 바로 답변
+  if(/\/ 문진:/.test(q) || !startInterview(q, pv && pv.clarifiers)) sendToRag(q);
 }
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask();}});
 boot();
