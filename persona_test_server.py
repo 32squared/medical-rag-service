@@ -514,6 +514,10 @@ function sendToRag(q, clarifiers){
     if(clarifiers) offerInterview(q, clarifiers); return;}
   citeSources=[];
   const ans=add('<div class="a">…</div>'); let text='',meta='';
+  // 후처리(생성 직후~STOP) 침묵 구간을 설명하는 상태줄 — 토큰 흐름 디바운스로 단계 전환
+  const st=add('<div class="meta">🔎 검색·근거 검증 중…</div>'); let gtimer=null;
+  const setSt=h=>{st.innerHTML='<div class="meta">'+h+'</div>';log.scrollTop=log.scrollHeight;};
+  const clearSt=()=>{if(gtimer)clearTimeout(gtimer);if(st&&st.parentNode)st.remove();};
   (async()=>{
    try{
     const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -523,15 +527,19 @@ function sendToRag(q, clarifiers){
      while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
       const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
       if(ev.type==='INFO'&&ev.data&&ev.data.search_results){citeSources=ev.data.search_results;}
-      else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
+      else if(ev.type==='GENERATION'){text+=(ev.text||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';
+        setSt('✍️ 답변 생성 중…');                            // 토큰 오는 동안
+        if(gtimer)clearTimeout(gtimer);
+        gtimer=setTimeout(()=>setSt('🔍 마무리 점검 중 — 근거·인용·안전 검증, 기록 저장…'),1000);}  // 멈추면 후처리로
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
       else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       log.scrollTop=log.scrollHeight;}}
+    clearSt();                                                // STOP/스트림 끝 → 상태줄 제거
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
     if(mm)add('<div class="meta">'+esc(mm)+'</div>');
     if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';
     if(clarifiers) offerInterview(q, clarifiers);   // ← 답변이 끝난 뒤 되묻기(문진) 제안
-   }catch(e){ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
+   }catch(e){clearSt();ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
    btn.disabled=false;
   })();
 }

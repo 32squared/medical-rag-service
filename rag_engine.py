@@ -1468,9 +1468,11 @@ def generate_response(
                     guardrail_result["violations"], _regen_ms, llm_ms,
                 )
 
-            # 인용 검증
+            # 인용 검증 — INSUFFICIENT면 이미 헤지 답변이므로 '인용 0건 재생성'
+            # (꼬리 LLM 추가 호출)을 생략해 마무리 지연을 줄인다. 범위 밖 [N] 제거는 유지.
             full_text, citations_action = _validate_and_fix_citations(
-                full_text, chunks, system_prompt, user_prompt
+                full_text, chunks, system_prompt, user_prompt,
+                allow_regen=(gate_result["decision"] != "INSUFFICIENT"),
             )
             if citations_action == "regenerated":
                 guardrail_result["action"] = "regenerated_citation"
@@ -1595,97 +1597,112 @@ def generate_response(
         gate_result=gate_result,
     )
 
-    # ── 7.5 감사 필드 + 검수 큐 적재 (스펙 통합, 가드) ─────────
-    try:
-        if rag_query_id and _classification is not None:
-            import rag_db as _rag_db
-            from review_queue import should_review
-            _answer_id = "ans_" + rag_query_id[:12]
-            _model_v = getattr(provider, "model_id", None) or getattr(provider, "provider_id", "unknown")
-            # 멀티턴 재작성 추적(06 §6-4): 재작성 방법 + 원 질의 해시(원문 미저장)
-            _rewritten_from = None
-            if _rewrite_method != "none":
-                import hashlib as _hl
-                _rewritten_from = _hl.sha1((query or "").encode("utf-8")).hexdigest()[:16]
-            _rag_db.update_rag_query_audit(
-                rag_query_id,
-                answer_id=_answer_id,
-                model_version=_model_v,
-                prompt_version="rag-engine-v1",
-                classification_json=json.dumps(_classification, ensure_ascii=False),
-                evidence_pack_json=(
-                    json.dumps(_evidence_pack, ensure_ascii=False) if _evidence_pack else None
-                ),
-                rewrite_method=_rewrite_method,
-                rewritten_from=_rewritten_from,
-            )
-            _decision = should_review(
-                classification=_classification,
-                citation_result=(_citation_result or {
-                    "overall_pass": guardrail_result["action"] != "blocked",
-                    "citation_coverage": 1.0 if citations else 0.0,
-                }),
-                safety_result={
-                    "safe_to_send": guardrail_result["action"] != "blocked",
-                    "risk_flags": guardrail_result.get("violations", []),
-                },
-            )
-            if _decision.get("needs_review"):
-                _rag_db.add_review_item({
-                    "answer_id": _answer_id, "rag_query_id": rag_query_id,
-                    "question": query[:500], "answer": full_text[:2000],
-                    "priority": _decision["priority"],
-                    "assignee_role": _decision["assignee_role"],
-                    "reasons": _decision["reasons"],
-                })
-    except Exception as _e:
-        logger.debug("[RAGEngine] 감사/검수 스킵: %s", _e)
-
-    # ── 7.6 멀티턴 세션 컨텍스트 갱신 (06 §3 step 5, 가드) ─────
-    # 비식별 요약만 저장(증상키·intent·진료과). 후속질의(증상 0건)는 직전 주제를
-    # carry-forward 해 대화 주제를 유지한다. 실패는 비차단.
-    try:
-        import conversation_context as _cc
-        _persist_keys = _cc.keys_to_persist(_mt_cur_keys, _mt_ctx)
-        _persist_depts = []
-        if _persist_keys:
-            try:
-                from symptom_matcher import departments_for
-                _persist_depts = departments_for(_persist_keys)
-            except Exception:
-                _persist_depts = []
-        _cc.update_context(
-            conversation_id,
-            symptom_keys=_persist_keys,
-            intent=(_classification or {}).get("intent"),
-            departments=_persist_depts,
-        )
-    except Exception as _e:
-        logger.debug("[RAGEngine] 멀티턴 컨텍스트 갱신 스킵: %s", _e)
-
-    # ── 8. STOP 이벤트 ────────────────────────────────────────
+    # ── 7.5~8. 후처리 쓰기 비차단화 ───────────────────────────
+    # 감사·검수큐·멀티턴컨텍스트·analytics는 답변 렌더와 무관하다(STOP 페이로드가
+    # 의존하지 않음). 클라우드 DB 동기 왕복이 STOP을 지연시키므로 데몬 스레드로 옮겨
+    # 답변 마무리(STOP)를 즉시 방출한다. rag_queries INSERT(rag_query_id)는 STOP에
+    # 필요하므로 위에서 차단 유지. 스레드 내부 실패는 비차단(로그만).
     _total_ms = int((time.time() - start_ts) * 1000)
-    # 지연/가드레일 측정용 요약 로그 (재생성 빈도·비용 추적)
     logger.info(
         "[RAGEngine] 응답완료 총=%dms gen=%dms 가드레일=%s 인용=%d",
         _total_ms, llm_ms, guardrail_result["action"], len(citations),
     )
-    _emit_analytics(
-        "answer_shown", conversation_id, _classification,
-        rag_query_id=rag_query_id,
-        guardrail_action=guardrail_result["action"], gate_result=gate_result,
-        citations_count=len(citations), latency_ms=_total_ms,
-        is_followup=_is_followup, had_personal_block=_had_personal_block,
-        gave_referral=bool((_classification or {}).get("requires_clinician_consult")),
-        refusal=False, emergency=emergency_detected,
-    )
-    # 후속 질문 제안(멀티턴 버튼용) — 결정적, 비차단.
+
+    def _post_writes():
+        # 7.5 감사 필드 + 검수 큐 적재 (스펙 통합, 가드)
+        try:
+            if rag_query_id and _classification is not None:
+                import rag_db as _rag_db
+                from review_queue import should_review
+                _answer_id = "ans_" + rag_query_id[:12]
+                _model_v = getattr(provider, "model_id", None) or getattr(provider, "provider_id", "unknown")
+                # 멀티턴 재작성 추적(06 §6-4): 재작성 방법 + 원 질의 해시(원문 미저장)
+                _rewritten_from = None
+                if _rewrite_method != "none":
+                    import hashlib as _hl
+                    _rewritten_from = _hl.sha1((query or "").encode("utf-8")).hexdigest()[:16]
+                _rag_db.update_rag_query_audit(
+                    rag_query_id,
+                    answer_id=_answer_id,
+                    model_version=_model_v,
+                    prompt_version="rag-engine-v1",
+                    classification_json=json.dumps(_classification, ensure_ascii=False),
+                    evidence_pack_json=(
+                        json.dumps(_evidence_pack, ensure_ascii=False) if _evidence_pack else None
+                    ),
+                    rewrite_method=_rewrite_method,
+                    rewritten_from=_rewritten_from,
+                )
+                _decision = should_review(
+                    classification=_classification,
+                    citation_result=(_citation_result or {
+                        "overall_pass": guardrail_result["action"] != "blocked",
+                        "citation_coverage": 1.0 if citations else 0.0,
+                    }),
+                    safety_result={
+                        "safe_to_send": guardrail_result["action"] != "blocked",
+                        "risk_flags": guardrail_result.get("violations", []),
+                    },
+                )
+                if _decision.get("needs_review"):
+                    _rag_db.add_review_item({
+                        "answer_id": _answer_id, "rag_query_id": rag_query_id,
+                        "question": query[:500], "answer": full_text[:2000],
+                        "priority": _decision["priority"],
+                        "assignee_role": _decision["assignee_role"],
+                        "reasons": _decision["reasons"],
+                    })
+        except Exception as _e:
+            logger.debug("[RAGEngine] 감사/검수 스킵: %s", _e)
+
+        # 7.6 멀티턴 세션 컨텍스트 갱신 (06 §3 step 5, 가드)
+        # 비식별 요약만 저장(증상키·intent·진료과). 후속질의(증상 0건)는 직전 주제를
+        # carry-forward 해 대화 주제를 유지한다. 실패는 비차단.
+        try:
+            import conversation_context as _cc
+            _persist_keys = _cc.keys_to_persist(_mt_cur_keys, _mt_ctx)
+            _persist_depts = []
+            if _persist_keys:
+                try:
+                    from symptom_matcher import departments_for
+                    _persist_depts = departments_for(_persist_keys)
+                except Exception:
+                    _persist_depts = []
+            _cc.update_context(
+                conversation_id,
+                symptom_keys=_persist_keys,
+                intent=(_classification or {}).get("intent"),
+                departments=_persist_depts,
+            )
+        except Exception as _e:
+            logger.debug("[RAGEngine] 멀티턴 컨텍스트 갱신 스킵: %s", _e)
+
+        # answer_shown analytics (비식별 이벤트)
+        try:
+            _emit_analytics(
+                "answer_shown", conversation_id, _classification,
+                rag_query_id=rag_query_id,
+                guardrail_action=guardrail_result["action"], gate_result=gate_result,
+                citations_count=len(citations), latency_ms=_total_ms,
+                is_followup=_is_followup, had_personal_block=_had_personal_block,
+                gave_referral=bool((_classification or {}).get("requires_clinician_consult")),
+                refusal=False, emergency=emergency_detected,
+            )
+        except Exception as _e:
+            logger.debug("[RAGEngine] analytics 스킵: %s", _e)
+
+    import threading as _threading
+    _threading.Thread(target=_post_writes, daemon=True).start()
+
+    # 후속 질문 제안(멀티턴 버튼용) — 결정적, 비차단. STOP에 포함되므로 동기로 계산.
     try:
         import followups as _fu
         _followups = _fu.suggest(query, classification=_classification,
                                  personal_findings=personal_findings)
     except Exception:
         _followups = []
+
+    # ── 8. STOP 이벤트 (감사·검수·analytics는 백그라운드에서 계속) ──
     yield {
         "type": "STOP",
         "text": full_text,
@@ -2027,12 +2044,16 @@ def _validate_and_fix_citations(
     chunks: List[dict],
     system_prompt: str = "",
     user_prompt: str = "",
+    allow_regen: bool = True,
 ) -> tuple:
     """
     응답 텍스트의 인용 번호를 검증한다.
 
     - 사용된 [N]이 1..len(chunks) 범위를 벗어나면 해당 인용을 제거
-    - 인용이 0건이면 fallback provider로 재생성 1회 시도
+    - 인용이 0건이면 fallback provider로 재생성 1회 시도(allow_regen=True일 때만)
+
+    allow_regen=False면 인용 0건이어도 재생성하지 않는다(예: 근거 INSUFFICIENT —
+    이미 헤지 답변이라 추가 LLM 호출 가치가 낮고 꼬리 지연만 키움).
 
     Returns:
         (수정된 텍스트, 액션) — 액션: "pass" | "fixed" | "regenerated"
@@ -2053,9 +2074,9 @@ def _validate_and_fix_citations(
     fixed_text = _CITATION_PATTERN.sub(replace_invalid, text)
     action = "pass" if fixed_text == text else "fixed"
 
-    # 인용 0건이면 재생성 시도
+    # 인용 0건이면 재생성 시도 (allow_regen일 때만 — 꼬리 LLM 호출 억제 옵션)
     found = _CITATION_PATTERN.findall(fixed_text)
-    if not found and system_prompt:
+    if not found and system_prompt and allow_regen:
         regen_system = (
             system_prompt
             + "\n\n### 중요: 응답에 반드시 제공된 검토 자료 [1]~[{}]에서 최소 1개 이상 인용하라.".format(max_idx)
