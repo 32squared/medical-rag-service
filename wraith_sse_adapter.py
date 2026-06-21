@@ -144,6 +144,8 @@ def _stop_to_events(ev: Dict) -> List[Dict]:
     stop = {"type": "STOP"}
     if ev.get("followups"):
         stop["followups"] = ev["followups"]   # 멀티턴 후속 질문 제안(있으면)
+    if ev.get("personal_injected"):
+        stop["personal_injected"] = ev["personal_injected"]   # 방향2 주입 밴드(관찰성)
     out.append(stop)
     return out
 

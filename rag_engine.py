@@ -1371,6 +1371,7 @@ def generate_response(
 
     # 방향 2: 비식별 개인 맥락(밴드 라벨만)을 LLM 프롬프트에 주입 — 플래그·동의·국외이전·
     # 응급 게이트로 통제(정본 17). 기본 off → 미설정 시 행동 변화 0. 원시값·진단명 미투입.
+    _personal_injected = []   # 관찰성: 실제 LLM에 주입된 밴드 라벨(없으면 빈 리스트)
     try:
         import personal_llm_context as _plc
         _pctx = _plc.build_llm_context(
@@ -1380,7 +1381,10 @@ def generate_response(
         )
         if _pctx:
             system_prompt = system_prompt + "\n\n" + _pctx
-            logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과)")
+            # 주입된 (표시명, 밴드) → "혈압=경고" 형태로 STOP에 실어 클라이언트가 검증 가능
+            _personal_injected = [f"{d}={l}" for d, l in _plc.candidate_items(personal_findings, query)]
+            logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과): %s",
+                        _personal_injected)
     except Exception as _e:
         logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
 
@@ -1714,6 +1718,7 @@ def generate_response(
         "evidence_quality": gate_result["evidence_quality"],
         "gate_decision": gate_result["decision"],
         "followups": _followups,
+        "personal_injected": _personal_injected,   # 방향2 주입 밴드(관찰성 — 빈 리스트면 미주입)
     }
 
 
