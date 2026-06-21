@@ -118,6 +118,7 @@ def compute_preview(persona: dict, query: str) -> dict:
         "llm_context": llm_context,
         "summary": summary,
         "agent_input": agent_input,
+        "chart": build_chart(persona),
     }
 
 
@@ -129,6 +130,71 @@ def build_agent_input(persona: dict) -> dict:
         "Air Quality Score": persona.get("air_quality") or "",
         "PHR": persona.get("phr") or "{}",
     }
+
+
+# ── 측정 그래프 스펙 (신호별 표시범위 + 참고 구간) ───────────────
+# 구간(zones)은 표시용 참고치. 점의 밴드(색)는 vital_rules가 권위 있게 분류한다.
+_GAUGE = {
+    "blood_pressure": {"label": "혈압", "unit": "mmHg", "field": "bps", "min": 90, "max": 190,
+                       "zones": [("안정", 90, 120), ("주의", 120, 140), ("경고", 140, 190)],
+                       "second": "bpd"},
+    "spo2": {"label": "산소포화도", "unit": "%", "field": "spo2", "min": 85, "max": 100,
+             "zones": [("경고", 85, 90), ("주의", 90, 95), ("안정", 95, 100)]},
+    "body_temperature": {"label": "체온", "unit": "℃", "field": "fever", "min": 35.5, "max": 40,
+                         "zones": [("안정", 35.5, 37.3), ("주의", 37.3, 38), ("경고", 38, 40)]},
+    "bmi": {"label": "체질량지수", "unit": "", "field": "bmi", "min": 15, "max": 40,
+            "zones": [("주의", 15, 18.5), ("안정", 18.5, 23), ("주의", 23, 30), ("경고", 30, 40)]},
+    "heart_rate": {"label": "심박수", "unit": "bpm", "field": "bpm", "min": 40, "max": 120,
+                   "zones": [("주의", 40, 60), ("안정", 60, 100), ("주의", 100, 120)]},
+}
+
+
+def _classify_point(signal: str, reading: dict, *, locale="KR", population="adult", context="clinic"):
+    """측정 1건 → (그래프 y값, 밴드 라벨|None). 밴드는 vital_rules 권위 분류(인구집단 반영)."""
+    import vital_rules as vr
+    kw = dict(locale=locale, population=population, context=context)
+    if signal == "blood_pressure":
+        bps, bpd = reading.get("bps"), reading.get("bpd")
+        if not (isinstance(bps, (int, float)) and isinstance(bpd, (int, float))):
+            return None, None
+        b = vr.lookup_band("blood_pressure", {"systolic": bps, "diastolic": bpd}, **kw)
+        return bps, (b["label_user"] if b["match"] == "ok" else None)
+    field = _GAUGE[signal]["field"]
+    v = reading.get(field)
+    if not isinstance(v, (int, float)):
+        return None, None
+    b = vr.lookup_band(signal, v, **kw)
+    return v, (b["label_user"] if b["match"] == "ok" else None)
+
+
+def build_chart(persona: dict) -> dict:
+    """페르소나 → 신호별 시계열 차트 스펙(원시값은 점 좌표로만, 라벨=밴드 색)."""
+    vitals = persona.get("vitals") or []
+    series = []
+    for signal, spec in _GAUGE.items():
+        points, second, present = [], [], False
+        for r in vitals:
+            if not isinstance(r, dict):
+                continue
+            v, band = _classify_point(signal, r, locale=persona.get("locale", "KR"),
+                                      population=persona.get("population", "adult"),
+                                      context=persona.get("context", "clinic"))
+            if v is None:
+                continue
+            present = True
+            t = (str(r.get("create_date") or ""))[5:10]  # MM-DD
+            points.append({"t": t, "v": v, "band": band})
+            if signal == "blood_pressure" and isinstance(r.get("bpd"), (int, float)):
+                second.append({"t": t, "v": r["bpd"]})
+        if not present:
+            continue
+        series.append({
+            "signal": signal, "label": spec["label"], "unit": spec["unit"],
+            "min": spec["min"], "max": spec["max"],
+            "zones": [{"band": z[0], "from": z[1], "to": z[2]} for z in spec["zones"]],
+            "points": points, "second": second,
+        })
+    return {"series": series}
 
 
 # ── 클라우드 토큰(선택) ──────────────────────────────────────
@@ -215,6 +281,7 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
    </div>
  </div>
  <div>
+   <div id="chart" class="card" style="margin-bottom:10px"></div>
    <div id="log"></div>
    <div class="chips" id="chips"></div>
    <div class="row">
@@ -267,7 +334,39 @@ async function refreshPreview(query){
     || '<div class="dev">밴드 매칭 없음</div>';
   if(query){document.getElementById('block').textContent=r.safe_block||'(이 질문엔 결합 블록 없음 — 관련성 게이트)';}
   document.getElementById('llmctx').textContent = r.llm_context || '(이 질의엔 주입할 비식별 맥락 없음)';
+  if(r.chart) drawChart(r.chart);
   return r;
+}
+const ZC={'안정':['#2e7d32','#e7f3e8'],'주의':['#b06a00','#fdf1df'],'경고':['#c62828','#fbe9e9']};
+function zcol(b){return ZC[b]||['#8a8a8a','#ececec'];}
+function drawChart(spec){
+  const host=document.getElementById('chart');
+  if(!spec||!spec.series||!spec.series.length){host.innerHTML='<div class="dev">이 페르소나엔 그래프로 그릴 측정 신호가 없습니다.</div>';return;}
+  const W=520,L=66,R=70,plotW=W-L-R,rowH=50,gap=12; let y=8,rows=[];
+  for(const s of spec.series){
+    const top=y,h=rowH,vmin=s.min,vmax=s.max;
+    const vy=v=>top+h-3-((v-vmin)/(vmax-vmin))*(h-6);
+    const n=s.points.length, px=i=> n<=1? L+plotW/2 : L+plotW*i/(n-1);
+    let b='';
+    for(const z of s.zones){const yA=vy(z.to),yB=vy(z.from);
+      b+=`<rect x="${L}" y="${Math.min(yA,yB)}" width="${plotW}" height="${Math.abs(yB-yA)||1}" fill="${zcol(z.band)[1]}"/>`;}
+    b+=`<line x1="${L}" y1="${top}" x2="${L}" y2="${top+h}" stroke="#d4dde7"/>`;
+    b+=`<text x="0" y="${top+h/2-2}" font-size="12" font-weight="700">${s.label}</text>`;
+    b+=`<text x="0" y="${top+h/2+12}" font-size="9" fill="#999">${s.unit||''}</text>`;
+    if(s.second&&s.second.length>1){let d=s.second.map((p,i)=>`${i?'L':'M'}${px(i)},${vy(p.v)}`).join(' ');
+      b+=`<path d="${d}" fill="none" stroke="#9bb8e6" stroke-width="1.2" stroke-dasharray="3 2"/>`;}
+    if(s.second) s.second.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="2.4" fill="#9bb8e6"/>`;});
+    if(n>1){let d=s.points.map((p,i)=>`${i?'L':'M'}${px(i)},${vy(p.v)}`).join(' ');
+      b+=`<path d="${d}" fill="none" stroke="#1f4e79" stroke-width="1.6"/>`;}
+    s.points.forEach((p,i)=>{b+=`<circle cx="${px(i)}" cy="${vy(p.v)}" r="3.7" fill="${zcol(p.band)[0]}"><title>${p.t}: ${p.v}${s.unit} (${p.band||'-'})</title></circle>`;});
+    const last=s.points[n-1],c=zcol(last.band);
+    b+=`<rect x="${W-R+6}" y="${top+h/2-9}" width="56" height="18" rx="9" fill="${c[1]}" stroke="${c[0]}"/>`;
+    b+=`<text x="${W-R+34}" y="${top+h/2+1}" font-size="11" fill="${c[0]}" text-anchor="middle" dominant-baseline="middle">${last.band||'-'}</text>`;
+    rows.push('<g>'+b+'</g>'); y+=h+gap;
+  }
+  host.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:4px">📊 ${cur.emoji||''} ${cur.name} — 측정 그래프</div>`
+    +`<svg viewBox="0 0 ${W} ${y}" width="100%" style="max-width:560px" font-family="inherit">${rows.join('')}</svg>`
+    +`<div class="dev">점=측정값(색=밴드), 배경=참고 구간(안정/주의/경고), 점선=이완기·보조. 가로축=측정 시점.</div>`;
 }
 async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q||!cur)return;
