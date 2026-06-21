@@ -475,19 +475,20 @@ async function refreshPreview(query){
   if(r.profile) drawProfile(r.profile);
   return r;
 }
-// 순차 문진(한 번에 한 질문) — Claude Code가 인풋 받을 때처럼 질문→선택→다음 질문
+// 답변 먼저 → 그 답변을 바탕으로 되묻기(문진). Claude Code가 일단 작업하고 필요할 때 되묻듯.
+// 순차(한 번에 한 질문) → 선택 → 다음 질문 → 다 모이면 그 정보로 답변을 좁혀 재안내.
 let iv=null;
-function startInterview(query, c){
-  if(!c||!c.questions||!c.questions.length) return false;
+function offerInterview(query, c){
+  if(!c||!c.questions||!c.questions.length) return;
   iv={query:query, questions:c.questions, idx:0, answers:[], last:null};
-  add('<div class="meta">🩺 정확히 안내드리려고 몇 가지 여쭤볼게요 — 선택하시거나 ‘바로 답변 받기’</div>');
-  postQuestion(); return true;
+  add('<div class="meta">🩺 더 정확히 좁혀 드릴까요? 아래에 답해 주시면 위 답변을 상황에 맞게 다시 안내드려요 — 또는 ‘괜찮아요’</div>');
+  postQuestion();
 }
 function postQuestion(){
   const qq=iv.questions[iv.idx];
   const opts=qq.options.map(o=>'<button class="fu" data-v="'+esc(o)+'" onclick="answerIv(this)">'+esc(o)+'</button>').join('');
   iv.last=add('<div class="a"><b>('+(iv.idx+1)+'/'+iv.questions.length+')</b> '+esc(qq.q)
-    +'<div style="margin-top:6px">'+opts+'<button class="fu" style="color:#888;border-color:#d2d2d2" onclick="finishIv()">바로 답변 받기</button></div></div>');
+    +'<div style="margin-top:6px">'+opts+'<button class="fu" style="color:#888;border-color:#d2d2d2" onclick="finishIv()">괜찮아요</button></div></div>');
 }
 function answerIv(el){
   if(!iv) return;
@@ -501,12 +502,16 @@ function answerIv(el){
 function finishIv(){
   if(!iv) return;
   if(iv.last) iv.last.querySelectorAll('button').forEach(b=>{b.disabled=true;});
-  const enriched=iv.query+(iv.answers.length?(' / 문진: '+iv.answers.join(', ')):'');
-  iv=null; refreshPreview(enriched); sendToRag(enriched);
+  const q0=iv.query, ans=iv.answers; iv=null;
+  if(!ans.length){add('<div class="meta">알겠습니다 — 더 궁금한 점 있으면 말씀해 주세요.</div>');return;}
+  const enriched=q0+' / 문진: '+ans.join(', ');
+  add('<div class="meta">↳ 받은 정보로 다시 안내드릴게요.</div>');
+  refreshPreview(enriched); sendToRag(enriched);   // 정밀 답변(재문진 없음 — clarifiers 미전달)
 }
-function sendToRag(q){
+function sendToRag(q, clarifiers){
   const btn=document.getElementById('send'); btn.disabled=true;
-  if(!LIVE){add('<div class="meta">(미리보기 전용 — 라이브 답변은 서버 --rag-url 필요)</div>');btn.disabled=false;return;}
+  if(!LIVE){add('<div class="meta">(미리보기 전용 — 라이브 답변은 서버 --rag-url 필요)</div>');btn.disabled=false;
+    if(clarifiers) offerInterview(q, clarifiers); return;}
   citeSources=[];
   const ans=add('<div class="a">…</div>'); let text='',meta='';
   (async()=>{
@@ -525,6 +530,7 @@ function sendToRag(q){
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
     if(mm)add('<div class="meta">'+esc(mm)+'</div>');
     if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';
+    if(clarifiers) offerInterview(q, clarifiers);   // ← 답변이 끝난 뒤 되묻기(문진) 제안
    }catch(e){ans.innerHTML='<div class="a">[요청 실패] '+esc(''+e)+'</div>';}
    btn.disabled=false;
   })();
@@ -607,9 +613,11 @@ async function ask(){
   const q=document.getElementById('q').value.trim(); if(!q||!cur||iv)return;
   document.getElementById('q').value='';
   add('<div class="u">🙋 '+esc(q)+'</div>');
-  const pv=await refreshPreview(q);     // ② 개인화 정보 갱신
-  // 간단한 질문이면 순차 문진 시작, 문진 결과(/ 문진:)를 실은 질의면 바로 답변
-  if(/\/ 문진:/.test(q) || !startInterview(q, pv && pv.clarifiers)) sendToRag(q);
+  const pv=await refreshPreview(q);     // 개인화 정보 갱신
+  // ① 일단 답변을 먼저 준다 → ② 답변이 끝나면 그 답변을 바탕으로 되묻기(문진) 제안.
+  // 이미 문진 답을 실은 질의(/ 문진:)면 재문진 없이 정밀 답변만.
+  const clar = /\/ 문진:/.test(q) ? null : (pv && pv.clarifiers);
+  sendToRag(q, clar);
 }
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask();}});
 boot();
