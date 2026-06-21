@@ -136,7 +136,10 @@ class ServiceRoutesMixin:
         self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
         self.send_header('Cache-Control', 'no-cache')
         self.send_header('X-Accel-Buffering', 'no')
-        self.send_header('Connection', 'keep-alive')
+        # SSE는 단발 스트림 — keep-alive로 두면 응답 후 핸들러가 다음 요청을
+        # settimeout(30)만큼 유휴 대기하다 닫아, 클라이언트가 마지막 이벤트(STOP)를
+        # ~30초 늦게(연결 종료 시) 받는다(요청 레이턴시 ~40s). close로 즉시 종료.
+        self.send_header('Connection', 'close')
         self._set_cors_headers()
         self.end_headers()
 
@@ -193,3 +196,6 @@ class ServiceRoutesMixin:
             if not client_gone and not stop_sent:
                 _emit({"type": "ERROR", "message": "answer generation failed"})
                 _emit({"type": "STOP"})
+        finally:
+            # SSE 종료 후 연결을 즉시 닫는다(유휴 30초 대기 제거 — STOP 즉시 전달).
+            self.close_connection = True
