@@ -42,12 +42,28 @@ _DISEASE_NOUNS = (
 # 원시 측정값 백스톱 — 2자리 이상 숫자(120·80·98·165…). 블록은 라벨만이라 숫자 0이어야 함.
 _MULTI_DIGIT_RE = re.compile(r"\d{2,}")
 
+# [C22] 거짓안심 절대표현 — 측정 기반 단정적 안심은 위험(거짓안심 0 = 1급 KPI).
+# 개인화 블록에 등장하면 주입 차단. ('특이소견이 보이지 않습니다'처럼 측정시점으로 한정·완화된
+# 안정 문구는 여기 없음 — 단정적·무조건적 안심만 금지.)
+_FALSE_REASSURE = (
+    "위급하지 않", "걱정하지 않아도", "걱정 안 해도", "걱정마", "걱정 마",
+    "안심하셔도", "안심하세요", "정상입니다", "이상 없습니다", "이상이 없습니다",
+    "문제없습니다", "문제 없습니다", "괜찮습니다", "괜찮아요",
+)
+
 
 def find_clinical_labels(text: Optional[str]) -> List[str]:
     """[C21] 명사구 진단·병기 라벨 탐지. 발견 목록 반환(없으면 빈 리스트)."""
     if not text:
         return []
     return _CLINICAL_LABEL_RE.findall(text)
+
+
+def find_false_reassurance(text: Optional[str]) -> List[str]:
+    """[C22] 거짓안심 절대표현 탐지. 발견 목록 반환(없으면 빈 리스트)."""
+    if not text:
+        return []
+    return [p for p in _FALSE_REASSURE if p in text]
 
 
 def scan_personal_block(text: Optional[str]) -> Dict:
@@ -65,6 +81,8 @@ def scan_personal_block(text: Optional[str]) -> Dict:
             violations.append(f"disease_noun:{noun}")
     for lbl in find_clinical_labels(text):
         violations.append(f"clinical_label:{lbl}")
+    for phr in find_false_reassurance(text):
+        violations.append(f"false_reassurance:{phr}")
     return {"safe": not violations, "violations": violations}
 
 
