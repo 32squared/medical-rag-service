@@ -431,12 +431,77 @@ else:                       # actionable & 비응급
 
 ---
 
-## 7. 데이터 모델 (초안 — 다음 증분에서 확정)
+## 7. 데이터 모델 (확정 · 증분 7)
 
-- `coaching_session(session_id, conversation_id, mode, track, started_at)`
-- `coaching_plan(plan_id, session_id, track, items_json, target_period, created_at)`
-- `coaching_checkin(checkin_id, plan_id, item_key, done_bool, ts)` — 행동 추적(밴드/원시값 아님, 실천 여부만)
-- **이벤트 스토어 확장**([analytics_events](../../migrations/015_analytics_events.sql)): `handoff_offered`, `handoff_accepted`, `track_selected`, `plan_shown`, `checkin_done` — 전부 비식별(라벨/카운트/bool).
+### 7.1 설계 원칙 (프라이버시 최소수집)
+- **운영 테이블**(coaching_*) = 플랜 콘텐츠 + 실천 bool. checkin엔 **실천 여부만**, 추세·원시수치·진단명 미저장. 밴드는 생성 시점 **라벨**로만(캡 적용 근거).
+- **분석**은 [analytics_events](../../migrations/015_analytics_events.sql)(015) **재사용** — 원문·PII 미저장, BI는 이 테이블만 조회.
+- `created_at` = **UTC ISO8601 TEXT**(기존 관례 `datetime.now(utc).isoformat()`), 표시 KST 변환([admin_routes](../../admin_routes.py) `_kst_str`).
+- **PG/SQLite 양립**(dbcommon) — `CREATE TABLE IF NOT EXISTS`, `NNN.sql` + `NNN_sqlite.sql` 쌍, 러너 schema_migrations 추적.
+
+### 7.2 운영 테이블 (신규 — migration **018**)
+
+```
+coaching_session
+  session_id        TEXT PK
+  conversation_id   TEXT          -- 조인키(내부 id, PII 아님), 06 conversation_context.mode 동기
+  mode              TEXT          -- medical | wellness:diet | wellness:exercise | wellness:habit
+  track             TEXT          -- diet|exercise|habit (미선택 시 NULL)
+  band_at_start     TEXT          -- 안정|주의|경고 라벨(원시값 아님). 응급은 진입차단이라 없음
+  consent_personal  INTEGER       -- 코칭 개인신호 동의 스냅샷(0/1) — 미동의=비개인화 일반플랜
+  started_at        TEXT
+
+coaching_plan
+  plan_id              TEXT PK
+  session_id           TEXT       -- FK→coaching_session
+  track                TEXT
+  items_json           TEXT       -- [{item_key, text, citation_refs:[n]}]
+  target_period        TEXT       -- 2주|1개월|3개월+
+  band_at_creation     TEXT       -- 라벨
+  safety_banner        TEXT       -- 밴드 조건부 배너(§5.4)
+  compliance_action    TEXT       -- pass|softened|band_capped (WC-C 결과)
+  original_items_json  TEXT       -- WC-C1/C2 완화 전 원본(무변경 시 NULL) — §5.6 원본보관
+  created_at           TEXT
+
+coaching_checkin
+  checkin_id  TEXT PK
+  plan_id     TEXT               -- FK→coaching_plan
+  item_key    TEXT               -- plan 항목 키
+  done        INTEGER            -- 0/1, 실천 여부만 (밴드·원시값 절대 미저장)
+  ts          TEXT
+```
+인덱스: `coaching_plan(session_id)` · `coaching_checkin(plan_id)` · `coaching_session(conversation_id)` · 각 `created_at/ts`.
+
+### 7.3 분석 이벤트 (analytics_events 재사용 — **스키마 변경 0**)
+
+015 컬럼 그대로. 신규 `event_name` 값 + 코칭 고유 차원은 `props_json`:
+
+| event_name | 기존 컬럼 활용 | props_json |
+|---|---|---|
+| `handoff_offered` | risk_level(밴드) | `{topic}` |
+| `handoff_suppressed` | risk_level | `{reason: emergency\|pure_info\|ambiguous\|coaching_mode}` |
+| `track_selected` | risk_level | `{track}` |
+| `plan_shown` | risk_level, guardrail_action | `{track, item_count, compliance_action}` |
+| `checkin_done` | — | `{track, item_key}` |
+| `referral_offered` | risk_level, **gave_referral=1** | `{kind: emergency\|hospital\|pharmacy}` |
+| `wc_efficacy_blocked` / `wc_prescription_softened` / `wc_band_cap_applied` / `wc_referral_blocked` | risk_level, guardrail_action | `{track}` |
+
+- 재사용: `risk_level`=밴드 · `gave_referral`(이미 존재) · `emergency` · `conversation_id`. → **마이그레이션 불필요**.
+- (선택) track 분석 빈도 높으면 향후 `track` 컬럼 승격(019) — 일단 props_json.
+
+### 7.4 기존 자산 연계
+- [conversation_context](../../conversation_context.py)(06): `mode` 저장 재사용 → `coaching_session.mode` 동기.
+- [rag_queries](../../migrations/001_rag_tables.sql): 의료 답변 원문 감사 보유 ↔ 코칭 플랜 원문은 `coaching_plan.original_items_json`(동형, §5.6 / admin B 기능).
+- 정본 온톨로지: `docs/ontology/feedback-ontology.ttl`에 `phr:CoachingSession/Plan/Checkin` 추가 검토(015 주석 정본 패턴).
+
+### 7.5 프라이버시·동의·보존
+- **최소수집**: checkin=실천 bool only. 밴드는 session/plan에 라벨로만(생성 근거), 추세·원시값 미저장.
+- **동의(B 블로커)**: `consent_personal` 스냅샷 — 미동의 시 개인신호 미반영(방향2 fail-closed) + 비개인화 일반플랜.
+- **보존·삭제권**: 운영 테이블은 개인정보보호법 삭제권 대상 → `conversation_id` 기준 캐스케이드 삭제. analytics_events는 비식별이라 별도.
+
+### 7.6 마이그레이션 산출물
+- `018_coaching_tables.sql` (+ `_sqlite`): `CREATE TABLE IF NOT EXISTS` × 3 + 인덱스.
+- analytics_events: 신규 event_name만 → **마이그레이션 없음**(props_json). track 컬럼 승격 시에만 019.
 
 ---
 
@@ -479,4 +544,4 @@ else:                       # actionable & 비응급
 7. **MVP 트랙 선정**: P2를 식단 vs 운동 중 무엇으로(개인화 데이터 적합도 기준)
 8. **referral(§5.8)**: E-Gen·심평원·공공데이터포털 API 접근·라이선스, 위치정보법 LBS 신고 필요 여부, 증상→진료과 매핑 데이터 출처
 
-> 다음 /loop 증분 우선순위(자체 판단): ~~§2 라우터(증분2)~~ → ~~§5 컴플라이언스(증분3)~~ → ~~§4 트랙 스펙(증분4)~~ → ~~§5.8 referral(증분5)~~ → ~~§3 핸드오프 트리거(증분6)~~ → **§7 데이터모델 확정(증분7)** → §6 17게이트 코칭 프로파일 → §8 P1 구현 착수 준비.
+> 다음 /loop 증분 우선순위(자체 판단): ~~§2 라우터(증분2)~~ → ~~§5 컴플라이언스(증분3)~~ → ~~§4 트랙 스펙(증분4)~~ → ~~§5.8 referral(증분5)~~ → ~~§3 핸드오프 트리거(증분6)~~ → ~~§7 데이터모델(증분7)~~ → **§6 17게이트 코칭 프로파일(증분8)** → §8 P1 구현 착수 준비(증분9).
