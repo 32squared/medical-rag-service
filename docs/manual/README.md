@@ -1,4 +1,4 @@
-# 기능별 매뉴얼 — 나만의 주치의 (medical-rag-service)
+# 기능별 매뉴얼 — 마이헬스케어 (medical-rag-service)
 
 > ⚠️ **현재 단계: 출시 전 검토용 프로토타입** (점진적 완성 중). 테스트 그린 ≠ 출시 가능.
 > **출시 전 반드시 끝내야 할 업무(법무·동의·의료 콘텐츠 등)는 [LAUNCH-READINESS.md](../LAUNCH-READINESS.md)** 참조 —
@@ -29,8 +29,8 @@ rag_engine.generate_response  ── 검색→LLM 생성→가드레일→ (개�
 **원시 측정값은 LLM에 절대 안 들어간다.** 개인화 결합은 2경로: ① (기본) 결정적 중립 블록을 생성 *후* 답변에 후append, ② (방향2·옵트인) **비식별 밴드 라벨만**(원시값·진단명 아님) LLM system_prompt에 주입(6게이트 fail-closed, 기본 off).
 
 > **전체를 한 문서로 보려면 → [00 전체 기능·개발 매뉴얼](00-전체-기능-매뉴얼.md)** (2026-06-22 최신, 성능·방향2·관찰성·운영 포함).
-> **인쇄용 PDF(다이어그램 5종 포함) → [나만의주치의-기능매뉴얼.pdf](나만의주치의-기능매뉴얼.pdf)** · 재생성: `python docs/manual/build/build_manual_pdf.py` → Chrome `--headless --print-to-pdf`.
-> **임원·비개발자용 쉬운 안내서(용어 없음) → [임원용-쉬운설명.md](임원용-쉬운설명.md) · [나만의주치의-쉬운안내서.pdf](나만의주치의-쉬운안내서.pdf)** (4쪽, 신호등·안전장치 그림). 재생성: `python docs/manual/build/build_exec_pdf.py`.
+> **인쇄용 PDF(다이어그램 5종 포함) → [마이헬스케어-기능매뉴얼.pdf](마이헬스케어-기능매뉴얼.pdf)** · 재생성: `python docs/manual/build/build_manual_pdf.py` → Chrome `--headless --print-to-pdf`.
+> **임원·비개발자용 쉬운 안내서(용어 없음) → [임원용-쉬운설명.md](임원용-쉬운설명.md) · [마이헬스케어-쉬운안내서.pdf](마이헬스케어-쉬운안내서.pdf)** (4쪽, 신호등·안전장치 그림). 재생성: `python docs/manual/build/build_exec_pdf.py`.
 
 ## 매뉴얼 목차
 

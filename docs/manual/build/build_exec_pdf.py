@@ -68,9 +68,9 @@ SAFE = """
 
 BODY = f"""
 <div class="cover">
-  <h1>나만의 주치의</h1>
+  <h1>마이헬스케어 Phase 2 프로토타입</h1>
   <div class="sub">쉽게 보는 안내서</div>
-  <div class="meta">기술 용어 없이 정리한 설명 · 2026-06-22<br>출시 전 시제품</div>
+  <div class="meta">기술 용어 없이 정리한 설명 · 2026-06-22</div>
 </div>
 
 <h2>한마디로</h2>
