@@ -3,8 +3,10 @@
 rag_queries + response_feedback 를 집계해 답변속도·토큰·대화통계·최근쿼리·프롬프트를
 JSON 으로 제공한다. 호출 측 = 비밀번호 보호 admin 대시보드(서버-대-서버, X-Admin-Secret).
 
-이식성: created_at 은 ISO8601 문자열 → 구간 필터는 ISO 컷오프 파라미터, 일자 버킷은
-Python 측 str(created_at)[:10] 로 처리(PG/SQLite 공통, DB 날짜함수 미사용).
+이식성:
+- created_at 은 ISO8601 TEXT → 구간 필터는 ISO 컷오프 파라미터, 일자 버킷은 Python str()[:10].
+- dbcommon 커서는 PG=RealDictCursor / SQLite=sqlite3.Row → **행은 dict-like**.
+  따라서 행 접근은 정수 인덱스가 아니라 **컬럼명**으로(집계는 alias). (정수 인덱스는 PG에서 KeyError.)
 """
 
 from __future__ import annotations
@@ -18,9 +20,16 @@ PRICE_IN = float(os.environ.get("ADMIN_PRICE_IN_USD_PER_M", "0.30"))    # 추정
 PRICE_OUT = float(os.environ.get("ADMIN_PRICE_OUT_USD_PER_M", "1.20"))  # 실제 단가로 교체
 
 
-def _cost_krw(tin: float, tout: float) -> float:
-    usd = (tin * PRICE_IN + tout * PRICE_OUT) / 1_000_000.0
+def _cost_krw(tin, tout) -> float:
+    usd = (float(tin or 0) * PRICE_IN + float(tout or 0) * PRICE_OUT) / 1_000_000.0
     return round(usd * FX_KRW, 1)
+
+
+def _i(v) -> int:
+    try:
+        return int(v or 0)
+    except Exception:
+        return 0
 
 
 class AdminRoutesMixin:
@@ -54,41 +63,45 @@ class AdminRoutesMixin:
         try:
             with get_conn() as (conn, cur):
                 cur.execute(
-                    f"""SELECT count(*),
-                               coalesce(avg(latency_total_ms),0), coalesce(max(latency_total_ms),0),
-                               coalesce(avg(latency_retrieval_ms),0), coalesce(avg(latency_llm_ms),0),
-                               coalesce(sum(token_input),0), coalesce(sum(token_output),0),
-                               coalesce(avg(token_input),0), coalesce(avg(token_output),0)
+                    f"""SELECT count(*) AS n,
+                               coalesce(avg(latency_total_ms),0)     AS avg_total,
+                               coalesce(max(latency_total_ms),0)     AS max_total,
+                               coalesce(avg(latency_retrieval_ms),0) AS avg_ret,
+                               coalesce(avg(latency_llm_ms),0)       AS avg_llm,
+                               coalesce(sum(token_input),0)          AS sum_in,
+                               coalesce(sum(token_output),0)         AS sum_out,
+                               coalesce(avg(token_input),0)          AS avg_in,
+                               coalesce(avg(token_output),0)         AS avg_out
                         FROM rag_queries WHERE created_at >= {_p()}""",
                     (cutoff,))
                 r = cur.fetchone()
-                n = int(r[0] or 0)
-                tin, tout = int(r[5] or 0), int(r[6] or 0)
+                n = _i(r["n"])
+                tin, tout = _i(r["sum_in"]), _i(r["sum_out"])
+                avg_in, avg_out = float(r["avg_in"] or 0), float(r["avg_out"] or 0)
                 out.update({
                     "queries": n,
-                    "latency_ms": {"avg_total": round(float(r[1] or 0)),
-                                   "max_total": round(float(r[2] or 0)),
-                                   "avg_retrieval": round(float(r[3] or 0)),
-                                   "avg_llm": round(float(r[4] or 0))},
+                    "latency_ms": {"avg_total": round(float(r["avg_total"] or 0)),
+                                   "max_total": round(float(r["max_total"] or 0)),
+                                   "avg_retrieval": round(float(r["avg_ret"] or 0)),
+                                   "avg_llm": round(float(r["avg_llm"] or 0))},
                     "tokens": {"sum_in": tin, "sum_out": tout, "sum_total": tin + tout,
-                               "avg_in": round(float(r[7] or 0)), "avg_out": round(float(r[8] or 0))},
+                               "avg_in": round(avg_in), "avg_out": round(avg_out)},
                     "cost_krw_est": {"total": _cost_krw(tin, tout),
-                                     "per_query": _cost_krw(r[7] or 0, r[8] or 0)},
+                                     "per_query": _cost_krw(avg_in, avg_out)},
                 })
-                # 피드백 (있으면)
                 fb = {"up": 0, "down": 0}
                 try:
                     cur.execute(
-                        f"""SELECT rating, count(*) FROM response_feedback
+                        f"""SELECT rating, count(*) AS cnt FROM response_feedback
                             WHERE created_at >= {_p()} GROUP BY rating""", (cutoff,))
-                    for rating, c in cur.fetchall():
-                        if rating in fb:
-                            fb[rating] = int(c)
+                    for row in cur.fetchall():
+                        if row["rating"] in fb:
+                            fb[row["rating"]] = _i(row["cnt"])
                 except Exception:
                     pass
                 out["feedback"] = fb
         except Exception as e:
-            return self._send_error(500, f"집계 실패: {e}")
+            return self._send_error(500, f"집계 실패: {type(e).__name__}: {e}")
         return self._send_json(200, out)
 
     # ── 구간별(일자) 시계열 ───────────────────────────────────
@@ -105,16 +118,15 @@ class AdminRoutesMixin:
                     f"""SELECT created_at, token_input, token_output, latency_total_ms
                         FROM rag_queries WHERE created_at >= {_p()}
                         ORDER BY created_at""", (cutoff,))
-                for ca, ti, to, lat in cur.fetchall():
-                    day = str(ca)[:10]
-                    b = buckets.setdefault(day, {"date": day, "queries": 0, "in": 0,
-                                                 "out": 0, "lat_sum": 0})
+                for row in cur.fetchall():
+                    day = str(row["created_at"])[:10]
+                    b = buckets.setdefault(day, {"queries": 0, "in": 0, "out": 0, "lat_sum": 0})
                     b["queries"] += 1
-                    b["in"] += int(ti or 0)
-                    b["out"] += int(to or 0)
-                    b["lat_sum"] += int(lat or 0)
+                    b["in"] += _i(row["token_input"])
+                    b["out"] += _i(row["token_output"])
+                    b["lat_sum"] += _i(row["latency_total_ms"])
         except Exception as e:
-            return self._send_error(500, f"시계열 실패: {e}")
+            return self._send_error(500, f"시계열 실패: {type(e).__name__}: {e}")
         series = []
         for day in sorted(buckets):
             b = buckets[day]
@@ -135,11 +147,14 @@ class AdminRoutesMixin:
 
         def dist(cur, col):
             cur.execute(
-                f"""SELECT {col}, count(*) FROM rag_queries
+                f"""SELECT {col} AS label, count(*) AS cnt FROM rag_queries
                     WHERE created_at >= {_p()} GROUP BY {col} ORDER BY count(*) DESC""",
                 (cutoff,))
-            return [{"label": (k if k is not None else "(없음)"), "count": int(c)}
-                    for k, c in cur.fetchall()]
+            res = []
+            for row in cur.fetchall():
+                lab = row["label"]
+                res.append({"label": (lab if lab is not None else "(없음)"), "count": _i(row["cnt"])})
+            return res
         try:
             with get_conn() as (conn, cur):
                 out = {"days": days,
@@ -147,7 +162,7 @@ class AdminRoutesMixin:
                        "gate_decision": dist(cur, "gate_decision"),
                        "guardrail_action": dist(cur, "guardrail_action")}
         except Exception as e:
-            return self._send_error(500, f"통계 실패: {e}")
+            return self._send_error(500, f"통계 실패: {type(e).__name__}: {e}")
         return self._send_json(200, out)
 
     # ── 최근 쿼리(감사, 원문 포함) ────────────────────────────
@@ -170,25 +185,27 @@ class AdminRoutesMixin:
                         FROM rag_queries ORDER BY created_at DESC LIMIT {_p()}""",
                     (limit,))
                 for r in cur.fetchall():
+                    ti, to = _i(r["token_input"]), _i(r["token_output"])
                     rows.append({
-                        "created_at": str(r[0]),
-                        "query": (r[1] or "")[:500],
-                        "answer": (r[2] or "")[:1200],
-                        "token_in": int(r[3] or 0), "token_out": int(r[4] or 0),
-                        "latency_ms": int(r[5] or 0), "latency_llm_ms": int(r[6] or 0),
-                        "guardrail_action": r[7], "evidence_quality": r[8],
-                        "gate_decision": r[9],
-                        "cost_krw_est": _cost_krw(r[3] or 0, r[4] or 0),
+                        "created_at": str(r["created_at"]),
+                        "query": (r["query_text"] or "")[:500],
+                        "answer": (r["response_text"] or "")[:1200],
+                        "token_in": ti, "token_out": to,
+                        "latency_ms": _i(r["latency_total_ms"]),
+                        "latency_llm_ms": _i(r["latency_llm_ms"]),
+                        "guardrail_action": r["guardrail_action"],
+                        "evidence_quality": r["evidence_quality"],
+                        "gate_decision": r["gate_decision"],
+                        "cost_krw_est": _cost_krw(ti, to),
                     })
         except Exception as e:
-            return self._send_error(500, f"최근쿼리 실패: {e}")
+            return self._send_error(500, f"최근쿼리 실패: {type(e).__name__}: {e}")
         return self._send_json(200, {"limit": limit, "rows": rows})
 
     # ── 현재 시스템 프롬프트 ──────────────────────────────────
     def _rag_admin_prompt(self, parsed):
         if not self._admin_ok():
             return self._send_error(403, "admin secret 필요")
-        text = ""
         try:
             from rag_engine import _build_rag_system_prompt
             text = _build_rag_system_prompt("샘플 질의(예: 혈압이 높게 나왔어요)", [])
