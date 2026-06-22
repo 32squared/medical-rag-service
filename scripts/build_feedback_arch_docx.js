@@ -16,7 +16,7 @@ const doc=new Document({styles:{default:{document:{run:{font:FONT,size:20}}},par
   children:[
    new Paragraph({spacing:{before:900,after:0},alignment:AlignmentType.CENTER,children:[t("대화 기반 성능 개선 루프",{bold:true,size:40,color:"1F4E79"})]}),
    new Paragraph({spacing:{after:400},alignment:AlignmentType.CENTER,children:[t("아키텍처 · 도구 분담 · 비식별 이벤트 스키마",{size:23,color:"2E5496"})]}),
-   new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("나만의 주치의 · 2026-06-21",{size:20,color:"555555"})]}),
+   new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("마이헬스케어 · 2026-06-21",{size:20,color:"555555"})]}),
    p("대화·반응을 메모리화하고, 피드백을 추출해 성능을 점점 개선하는 폐루프. 단, 의료 데이터라 ‘비식별·동의·국내저장·골든셋 게이트’가 전제. 정본: docs/ontology/feedback-ontology.ttl",{r:{italics:true,color:"555555"}}),
    new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:60},children:[new ImageRun({type:"png",data:LOOP,transformation:{width:620,height:392},altText:{title:"개선 폐루프",description:"대화→3채널→백로그→골든셋게이트→배포",name:"loop"}})]}),
    new Paragraph({children:[new PageBreak()]}),

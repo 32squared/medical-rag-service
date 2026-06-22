@@ -58,10 +58,10 @@ const doc = new Document({
   numbering: { config: [{ reference: "b", levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 460, hanging: 260 } } } }] }] },
   sections: [{
     properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
-    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("나만의 주치의 · 서비스 소개 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
+    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("마이헬스케어 · 서비스 소개 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
     children: [
       // 표지
-      new Paragraph({ spacing: { before: 1500, after: 0 }, alignment: AlignmentType.CENTER, children: [t("나만의 주치의", { bold: true, size: 50, color: "1F4E79" })] }),
+      new Paragraph({ spacing: { before: 1500, after: 0 }, alignment: AlignmentType.CENTER, children: [t("마이헬스케어", { bold: true, size: 50, color: "1F4E79" })] }),
       new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("무엇을 해주는 서비스인가", { bold: true, size: 32, color: "2E5496" })] }),
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 700 }, children: [t("실제 대화로 보는 서비스 소개 · 2026-06-20", { size: 21, color: "555555" })] }),
       new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 }, bottom: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 } }, spacing: { before: 200, after: 200 }, children: [
@@ -126,7 +126,7 @@ const doc = new Document({
       p("같은 “내 혈압 145/92”를 받았을 때:"),
       table([3000, 6360], ["", "응답"], [
         ["일반 AI(GPT·Gemini)", "거절(“의사와 상담하세요”) 또는 위험한 단정(“고혈압입니다”). 둘 다 쓸모없거나 위험."],
-        (() => { const r = ["나만의 주치의", "“관리 권장 구간 — 반복 측정·의료진 상담 권유”로 안전하게 안내. 원시 수치·질환명은 외부 AI에 전송조차 안 함."]; r.__star = true; return r; })(),
+        (() => { const r = ["마이헬스케어", "“관리 권장 구간 — 반복 측정·의료진 상담 권유”로 안전하게 안내. 원시 수치·질환명은 외부 AI에 전송조차 안 함."]; r.__star = true; return r; })(),
       ]),
       p("= 기기·검진 데이터를 가진 헬스앱이 일반 AI 대비 가질 수 있는 ‘유일하게 합법적인 무기’.", { run: { bold: true } }),
 
@@ -150,4 +150,4 @@ const doc = new Document({
   }],
 });
 
-Packer.toBuffer(doc).then((buf) => { fs.writeFileSync("docs/나만의주치의_서비스소개_2026-06-20.docx", buf); console.log("written:", buf.length, "bytes"); });
+Packer.toBuffer(doc).then((buf) => { fs.writeFileSync("docs/마이헬스케어_서비스소개_2026-06-20.docx", buf); console.log("written:", buf.length, "bytes"); });

@@ -21,7 +21,7 @@ const doc=new Document({
     children:[
       new Paragraph({spacing:{before:900,after:0},alignment:AlignmentType.CENTER,children:[t("교차신호 · 환경×건강",{bold:true,size:40,color:"1F4E79"})]}),
       new Paragraph({spacing:{after:400},alignment:AlignmentType.CENTER,children:[t("4층 교차신호 조기신호 · 5층 환경×건강 — 화면 흐름·시나리오",{size:22,color:"2E5496"})]}),
-      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("나만의 주치의 · 2026-06-21",{size:20,color:"555555"})]}),
+      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("마이헬스케어 · 2026-06-21",{size:20,color:"555555"})]}),
       p("4층은 여러 측정을 ‘공인 근거 있는 조합’으로만 엮어 조기신호를 보여주고, 5층은 실내 공기질을 증상·이력과 결합해 환경 안내를 한다. 둘 다 진단이 아니라 ‘함께 살펴볼 패턴/환기 권유’ 천장.",{r:{italics:true,bold:true}}),
       new Paragraph({children:[new PageBreak()]}),
 

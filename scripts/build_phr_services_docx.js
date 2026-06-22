@@ -43,11 +43,11 @@ const doc = new Document({
   numbering: { config: [{ reference: "b", levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 460, hanging: 260 } } } }] }] },
   sections: [{
     properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
-    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("나만의 주치의 · PHR 서비스 기획 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
+    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("마이헬스케어 · PHR 서비스 기획 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
     children: [
       new Paragraph({ spacing: { before: 1400, after: 0 }, alignment: AlignmentType.CENTER, children: [t("PHR로 가능한 서비스 기획", { bold: true, size: 44, color: "1F4E79" })] }),
       new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("건강검진·진료·처방 데이터로 무엇을 해줄 수 있나 — 4갈래 12기능", { size: 24, color: "2E5496" })] }),
-      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 700 }, children: [t("나만의 주치의 · 2026-06-21", { size: 20, color: "555555" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 700 }, children: [t("마이헬스케어 · 2026-06-21", { size: 20, color: "555555" })] }),
       new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 }, bottom: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 } }, spacing: { before: 200, after: 200 }, children: [t("PHR(건강검진·진료·처방 기록)은 ‘챙겨주기 · 결과 풀이 · 맞춤 상담 · 건강 요약’ 4갈래로 가치를 낸다. 모두 ", { size: 21, italics: true }), t("진단 없이, 민감정보는 표시하지 않고", { size: 21, italics: true, bold: true }), t(" 안전하게 제공한다.", { size: 21, italics: true })] }),
       new Paragraph({ children: [new PageBreak()] }),
 

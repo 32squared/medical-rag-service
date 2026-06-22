@@ -43,7 +43,7 @@ const doc = new Document({
   sections: [{
     properties: { page: { size: { width: 12240, height: 15840, orientation: PageOrientation.LANDSCAPE }, margin: { top: 864, right: 864, bottom: 720, left: 864 } } },
     children: [
-      P([t("나만의 주치의", { bold: true, size: 32, color: "1F4E79" }), t("   임원 요약 (1-pager)", { size: 22, color: "2E5496" }), t("    ·  2026-06-21", { size: 16, color: "888888" })], { after: 40 }),
+      P([t("마이헬스케어", { bold: true, size: 32, color: "1F4E79" }), t("   임원 요약 (1-pager)", { size: 22, color: "2E5496" }), t("    ·  2026-06-21", { size: 16, color: "888888" })], { after: 40 }),
       // 한 줄 결론
       new Table({ width: { size: CW, type: WidthType.DXA }, columnWidths: [CW], rows: [new TableRow({ children: [cell([
         P([t("디바이스·검진 데이터를 ", { size: 19 }), t("의료법 위반 0", { size: 19, bold: true }), t("으로 활용 — 범용 AI가 못 하는 ‘내 데이터 기반 건강 안내’. ", { size: 19 }),

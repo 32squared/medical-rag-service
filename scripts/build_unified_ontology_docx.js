@@ -31,7 +31,7 @@ const doc = new Document({
     children: [
       new Paragraph({ spacing: { before: 1100, after: 0 }, alignment: AlignmentType.CENTER, children: [t("통합 데이터 온톨로지", { bold: true, size: 42, color: "1F4E79" })] }),
       new Paragraph({ spacing: { after: 400 }, alignment: AlignmentType.CENTER, children: [t("PHR · 장치 · 환경 · OCR · LLM 대화", { size: 24, color: "2E5496" })] }),
-      new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("나만의 주치의 · 2026-06-21", { size: 20, color: "555555" })] }),
+      new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("마이헬스케어 · 2026-06-21", { size: 20, color: "555555" })] }),
       p("정본: docs/ontology/*.ttl (phr·device·context) — 통합 741 트리플·120 노드. 핵심: 모든 소스가 signalKey로 같은 참조범위를 조인 → 해석·안전 코어는 하나.", { r: { italics: true, color: "555555" } }),
       ontoImg(),
       p("[그림] 여러 입력 소스(PHR·디바이스·환경·OCR·대화) → 정규화 → 하나의 해석·안전 코어.", { r: { size: 16, color: "777777" }, p: { alignment: AlignmentType.CENTER } }),

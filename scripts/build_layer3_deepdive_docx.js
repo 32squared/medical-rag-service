@@ -22,7 +22,7 @@ const doc=new Document({
     children:[
       new Paragraph({spacing:{before:1000,after:0},alignment:AlignmentType.CENTER,children:[t("증상 상담 + 내 데이터 결합",{bold:true,size:40,color:"1F4E79"})]}),
       new Paragraph({spacing:{after:400},alignment:AlignmentType.CENTER,children:[t("3층 결합형 상담 — 화면 흐름 · 대화 시나리오",{size:24,color:"2E5496"})]}),
-      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("나만의 주치의 · 2026-06-21",{size:20,color:"555555"})]}),
+      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("마이헬스케어 · 2026-06-21",{size:20,color:"555555"})]}),
       p("3층은 사용자가 증상을 물으면, 연결된 측정·검진·복약 데이터를 그 답변에 ‘진단 없이’ 결합하는 서비스다. 범용 AI가 못 하는 핵심 차별 영역.",{r:{italics:true,bold:true}}),
       new Paragraph({children:[new PageBreak()]}),
 

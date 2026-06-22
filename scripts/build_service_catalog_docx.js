@@ -50,7 +50,7 @@ const doc=new Document({
     children:[
       new Paragraph({spacing:{before:900,after:0},alignment:AlignmentType.CENTER,children:[t("서비스 카탈로그",{bold:true,size:44,color:"1F4E79"})]}),
       new Paragraph({spacing:{after:400},alignment:AlignmentType.CENTER,children:[t("통합 데이터 온톨로지 기반 · 22개 서비스",{size:24,color:"2E5496"})]}),
-      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("나만의 주치의 · 2026-06-21",{size:20,color:"555555"})]}),
+      new Paragraph({spacing:{after:500},alignment:AlignmentType.CENTER,children:[t("마이헬스케어 · 2026-06-21",{size:20,color:"555555"})]}),
       p("PHR·디바이스·환경·OCR·대화를 진단 없이 안전하게 활용하는 22개 서비스. 단일 소스(1·2층)는 각 기기/기록 해석, 결합형(3·4·5·6층)은 소스를 엮은 차별 서비스.",{r:{italics:true,color:"555555"}}),
       new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:60},children:[new ImageRun({type:"png",data:ONTO_PNG,transformation:{width:600,height:380},altText:{title:"통합 데이터 온톨로지",description:"여러 소스가 하나의 안전 코어로",name:"onto"}})]}),
       p("[그림] 이 22개 서비스가 딛고 선 통합 온톨로지 — 여러 소스가 하나의 안전 코어로.",{r:{size:16,color:"777777"},sp:{after:40}}),

@@ -31,7 +31,7 @@ const doc = new Document({
     children: [
       new Paragraph({ spacing: { before: 1200, after: 0 }, alignment: AlignmentType.CENTER, children: [t("PHR 데이터 온톨로지", { bold: true, size: 44, color: "1F4E79" })] }),
       new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("개념 · 관계 · 통제어휘 · 안전 공리", { size: 24, color: "2E5496" })] }),
-      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [t("나만의 주치의 · 2026-06-21", { size: 20, color: "555555" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [t("마이헬스케어 · 2026-06-21", { size: 20, color: "555555" })] }),
       p("공단·심평원 건강검진/진료/처방 데이터를 진단 없이 안전하게 활용하기 위한 개념 모델. 정본 파일: phr-ontology.ttl(OWL), PHR_온톨로지.xlsx.", { r: { italics: true, color: "555555" } }),
       new Paragraph({ children: [new PageBreak()] }),
 

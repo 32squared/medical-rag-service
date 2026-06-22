@@ -52,13 +52,13 @@ const doc = new Document({
   numbering: { config: [{ reference: "b", levels: [{ level: 0, format: LevelFormat.BULLET, text: "•", alignment: AlignmentType.LEFT, style: { paragraph: { indent: { left: 460, hanging: 260 } } } }] }] },
   sections: [{
     properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
-    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("나만의 주치의 · 개인화 고객가치 보고서 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
+    footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [t("마이헬스케어 · 개인화 고객가치 보고서 · ", { size: 16, color: "888888" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 16, color: "888888" })] })] }) },
     children: [
       // 표지
       new Paragraph({ spacing: { before: 1300, after: 0 }, alignment: AlignmentType.CENTER, children: [t("개인 건강데이터·기기 연동 AI 안내", { bold: true, size: 40, color: "1F4E79" })] }),
       new Paragraph({ spacing: { after: 500 }, alignment: AlignmentType.CENTER, children: [t("고객 가치 보고서", { bold: true, size: 34, color: "2E5496" })] }),
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [t("무엇을 연결하나 · 무엇을 제공하나 · 어떤 가치를 주나", { size: 23, color: "333333" })] }),
-      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [t("나만의 주치의 (medical-rag-service) · 2026-06-20", { size: 20, color: "555555" })] }),
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [t("마이헬스케어 (medical-rag-service) · 2026-06-20", { size: 20, color: "555555" })] }),
       new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 }, bottom: { style: BorderStyle.SINGLE, size: 6, color: "1F4E79", space: 8 } }, spacing: { before: 200, after: 200 }, children: [
         t("혈압기·체중계·워치·검진기록 등의 데이터를 ", { size: 21, italics: true }),
         t("안전하게(의료법 위반 0) ", { size: 21, italics: true, bold: true }),
@@ -120,7 +120,7 @@ const doc = new Document({
       p("같은 “내 혈압 150”을 받았을 때:"),
       table([3000, 6360], ["", "응답"], [
         ["범용 AI(GPT·Gemini)", "거절(“의사와 상담하세요”) 또는 위험한 단정(“고혈압 2기입니다”). 둘 다 가치 없거나 위험."],
-        (() => { const r = ["나만의 주치의", "진단하지 않고 “관리 권장 구간 — 의료진 상담 권유”로 안내. 원시 수치·질환명은 외부 AI에 전송조차 안 함."]; r.__star = true; return r; })(),
+        (() => { const r = ["마이헬스케어", "진단하지 않고 “관리 권장 구간 — 의료진 상담 권유”로 안내. 원시 수치·질환명은 외부 AI에 전송조차 안 함."]; r.__star = true; return r; })(),
       ]),
       p("= 기기·검진 데이터를 가진 헬스앱이 범용 AI 대비 가질 수 있는 ‘유일하게 합법적인 무기’. 데이터를 자산으로 만들려면 그 데이터를 안전하게 쓰는 엔진이 필요하다.", { run: { bold: true } }),
 
