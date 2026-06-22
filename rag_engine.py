@@ -1411,6 +1411,10 @@ def generate_response(
     # 진단: 1차 LLM 스트리밍이 완료됐는지(여기 도달하면 스트리밍 OK, 행은 이후 단계)
     logger.info("[RAGEngine] LLM1 스트리밍 완료 llm_ms=%d len=%d", llm_ms, len(full_text))
 
+    # 가드레일이 교체/재생성하기 전의 원본 LLM 답변(감사·과차단 디버깅용 — B).
+    # 가드레일이 실제로 바꾼 경우에만 STOP 후 rag_queries.original_response 에 저장.
+    _original_text = full_text
+
     # ── 5. 가드레일 후처리 ────────────────────────────────────
     guardrail_result = {"action": "pass", "violations": []}
 
@@ -1599,6 +1603,8 @@ def generate_response(
         guardrail_violations=guardrail_result.get("violations", []),
         guardrail_action=guardrail_result["action"],
         gate_result=gate_result,
+        original_response=(_original_text if guardrail_result["action"] in
+                           ("blocked", "regenerated", "regenerated_citation") else None),
     )
 
     # ── 7.5~8. 후처리 쓰기 비차단화 ───────────────────────────
@@ -2282,6 +2288,7 @@ def _insert_rag_query(
     guardrail_violations: list,
     guardrail_action: str,
     gate_result: Dict = None,
+    original_response: str = None,
 ) -> Optional[str]:
     """
     rag_queries 테이블에 레코드를 INSERT하고 생성된 id를 반환한다.
@@ -2321,7 +2328,7 @@ def _insert_rag_query(
                     guardrail_violations, guardrail_action,
                     evidence_quality, retrieval_top1_score, retrieval_chunk_count,
                     retrieval_weighted_score, gate_decision, blocked_reasons,
-                    created_at
+                    created_at, original_response
                 ) VALUES (
                     {_p()}, {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
@@ -2330,7 +2337,7 @@ def _insert_rag_query(
                     {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
-                    {_p()}
+                    {_p()}, {_p()}
                 )
                 """,
                 (
@@ -2355,6 +2362,7 @@ def _insert_rag_query(
                     gate_decision,
                     blocked_reasons_str,
                     now,
+                    original_response,
                 ),
             )
             conn.commit()

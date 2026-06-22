@@ -11,7 +11,9 @@ JSON 으로 제공한다. 호출 측 = 비밀번호 보호 admin 대시보드(�
 
 from __future__ import annotations
 
+import json
 import os
+from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from urllib.parse import parse_qs
 
@@ -30,6 +32,14 @@ def _i(v) -> int:
         return int(v or 0)
     except Exception:
         return 0
+
+
+def _pct(vals, q) -> int:
+    """nearest-rank 백분위(p50/p95용). vals: 정수 리스트."""
+    if not vals:
+        return 0
+    s = sorted(vals)
+    return s[min(len(s) - 1, int(q * len(s)))]
 
 
 KST = timezone(timedelta(hours=9))
@@ -76,32 +86,42 @@ class AdminRoutesMixin:
                "price_in_usd_per_m": PRICE_IN, "price_out_usd_per_m": PRICE_OUT}
         try:
             with get_conn() as (conn, cur):
+                # 행을 가져와 Python에서 avg/max/p50/p95 + 액션별 분리 계산(C).
                 cur.execute(
-                    f"""SELECT count(*) AS n,
-                               coalesce(avg(latency_total_ms),0)     AS avg_total,
-                               coalesce(max(latency_total_ms),0)     AS max_total,
-                               coalesce(avg(latency_retrieval_ms),0) AS avg_ret,
-                               coalesce(avg(latency_llm_ms),0)       AS avg_llm,
-                               coalesce(sum(token_input),0)          AS sum_in,
-                               coalesce(sum(token_output),0)         AS sum_out,
-                               coalesce(avg(token_input),0)          AS avg_in,
-                               coalesce(avg(token_output),0)         AS avg_out
+                    f"""SELECT latency_total_ms, latency_retrieval_ms, latency_llm_ms,
+                               token_input, token_output, guardrail_action
                         FROM rag_queries WHERE created_at >= {_p()}""",
                     (cutoff,))
-                r = cur.fetchone()
-                n = _i(r["n"])
-                tin, tout = _i(r["sum_in"]), _i(r["sum_out"])
-                avg_in, avg_out = float(r["avg_in"] or 0), float(r["avg_out"] or 0)
+                lat, ret, llm, ain, aout = [], [], [], [], []
+                tin = tout = 0
+                by = defaultdict(list)
+
+                def _avg(a):
+                    return round(sum(a) / len(a)) if a else 0
+                for r in cur.fetchall():
+                    lt = _i(r["latency_total_ms"])
+                    lat.append(lt)
+                    ret.append(_i(r["latency_retrieval_ms"]))
+                    llm.append(_i(r["latency_llm_ms"]))
+                    ti, to = _i(r["token_input"]), _i(r["token_output"])
+                    tin += ti
+                    tout += to
+                    ain.append(ti)
+                    aout.append(to)
+                    by[r["guardrail_action"] or "(없음)"].append(lt)
+                n = len(lat)
                 out.update({
                     "queries": n,
-                    "latency_ms": {"avg_total": round(float(r["avg_total"] or 0)),
-                                   "max_total": round(float(r["max_total"] or 0)),
-                                   "avg_retrieval": round(float(r["avg_ret"] or 0)),
-                                   "avg_llm": round(float(r["avg_llm"] or 0))},
+                    "latency_ms": {"avg_total": _avg(lat), "p50_total": _pct(lat, 0.5),
+                                   "p95_total": _pct(lat, 0.95), "max_total": max(lat) if lat else 0,
+                                   "avg_retrieval": _avg(ret), "avg_llm": _avg(llm)},
                     "tokens": {"sum_in": tin, "sum_out": tout, "sum_total": tin + tout,
-                               "avg_in": round(avg_in), "avg_out": round(avg_out)},
+                               "avg_in": _avg(ain), "avg_out": _avg(aout)},
                     "cost_krw_est": {"total": _cost_krw(tin, tout),
-                                     "per_query": _cost_krw(avg_in, avg_out)},
+                                     "per_query": _cost_krw(_avg(ain), _avg(aout))},
+                    "by_action": [{"action": a, "count": len(v), "avg_ms": _avg(v),
+                                   "p50_ms": _pct(v, 0.5), "p95_ms": _pct(v, 0.95)}
+                                  for a, v in sorted(by.items(), key=lambda x: -len(x[1]))],
                 })
                 fb = {"up": 0, "down": 0}
                 try:
@@ -195,16 +215,23 @@ class AdminRoutesMixin:
                 cur.execute(
                     f"""SELECT created_at, query_text, response_text, token_input, token_output,
                                latency_total_ms, latency_llm_ms, guardrail_action,
+                               guardrail_violations, original_response,
                                evidence_quality, gate_decision
                         FROM rag_queries ORDER BY created_at DESC LIMIT {_p()}""",
                     (limit,))
                 for r in cur.fetchall():
                     ti, to = _i(r["token_input"]), _i(r["token_output"])
+                    try:
+                        viol = json.loads(r["guardrail_violations"] or "[]")
+                    except Exception:
+                        viol = []
                     rows.append({
                         "created_at": str(r["created_at"]),
                         "created_kst": _kst_str(r["created_at"]),
                         "query": (r["query_text"] or "")[:500],
-                        "answer": (r["response_text"] or "")[:8000],   # 전체(클릭 시 표시)
+                        "answer": (r["response_text"] or "")[:8000],   # 사용자에게 보낸 최종본
+                        "original": (r["original_response"] or "")[:8000],  # 가드레일 전 원본(블락/재생성 시)
+                        "violations": viol,
                         "token_in": ti, "token_out": to,
                         "latency_ms": _i(r["latency_total_ms"]),
                         "latency_llm_ms": _i(r["latency_llm_ms"]),

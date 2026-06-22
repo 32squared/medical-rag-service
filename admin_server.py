@@ -113,6 +113,7 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
  <span id=note class=sub style="margin-left:8px"></span></div>
 <div id=tab-overview class=tab>
  <div class=cards id=cards></div>
+ <div class=sec><h2>액션별 응답속도 <span class=sub>(avg · p50 · p95)</span></h2><div id=byact></div></div>
  <div class=sec><h2>구간별 (일자 · KST)</h2><div id=ts></div></div>
  <div class=sec><h2>대화 통계</h2><div id=stats></div></div>
 </div>
@@ -135,7 +136,7 @@ async function load(){
   const [s,ts,st,rc,pr]=await Promise.all([
    j('/api/admin/summary?days='+d),j('/api/admin/timeseries?days='+d),
    j('/api/admin/stats?days='+d),j('/api/admin/recent?limit=50'),j('/api/admin/prompt')]);
-  renderCards(s);renderTs(ts);renderStats(st);renderRecent(rc);renderPrompt(pr);
+  renderCards(s);renderByAct(s.by_action);renderTs(ts);renderStats(st);renderRecent(rc);renderPrompt(pr);
   $('note').textContent='단가 가정 $'+s.price_in_usd_per_m+'/$'+s.price_out_usd_per_m+' per 1M · 환율 '+n(s.fx_krw)+'원';
  }catch(e){$('note').textContent='오류: '+e.message}
 }
@@ -144,10 +145,16 @@ function renderCards(s){
  const L=s.latency_ms,T=s.tokens,C=s.cost_krw_est,F=s.feedback||{up:0,down:0};
  $('cards').innerHTML=
   card('쿼리 수',n(s.queries),s.days+'일')+
-  card('평균 응답속도',(L.avg_total/1000).toFixed(1)+'s','검색 '+(L.avg_retrieval/1000).toFixed(1)+'s · LLM '+(L.avg_llm/1000).toFixed(1)+'s · 최대 '+(L.max_total/1000).toFixed(1)+'s')+
+  card('평균 응답속도',(L.avg_total/1000).toFixed(1)+'s','p50 '+(L.p50_total/1000).toFixed(1)+'s · p95 '+(L.p95_total/1000).toFixed(1)+'s · 최대 '+(L.max_total/1000).toFixed(1)+'s')+
   card('총 토큰',n(T.sum_total),'입력 '+n(T.sum_in)+' · 출력 '+n(T.sum_out)+' · 평균 '+n(T.avg_in+T.avg_out)+'/쿼리')+
   card('추정 비용',n(C.total)+'원','쿼리당 '+C.per_query+'원 (가정 단가)')+
   card('피드백','👍 '+n(F.up)+' / 👎 '+n(F.down),'');
+}
+function renderByAct(a){
+ if(!a||!a.length){$('byact').innerHTML='<div class=sub>데이터 없음</div>';return}
+ let h='<table><tr><th>가드레일 액션</th><th>건수</th><th>평균</th><th>p50</th><th>p95</th></tr>';
+ for(const x of a)h+='<tr><td>'+esc(x.action)+'</td><td>'+n(x.count)+'</td><td>'+(x.avg_ms/1000).toFixed(1)+'s</td><td>'+(x.p50_ms/1000).toFixed(1)+'s</td><td>'+(x.p95_ms/1000).toFixed(1)+'s</td></tr>';
+ $('byact').innerHTML=h+'</table>';
 }
 function renderTs(d){
  if(!d.series.length){$('ts').innerHTML='<div class=sub>데이터 없음</div>';return}
@@ -172,7 +179,11 @@ function renderRecent(d){
     '<td style="white-space:nowrap">in '+n(r.token_in)+'<br>out '+n(r.token_out)+'<br>'+r.cost_krw_est+'원</td>'+
     '<td style="white-space:nowrap">'+(r.latency_ms/1000).toFixed(1)+'s</td>'+
     '<td>'+esc(r.guardrail_action||'')+'</td><td>'+esc(r.evidence_quality||'')+'</td></tr>'+
-    '<tr id=det'+i+' style=display:none><td colspan=6><div class=detail><b>답변 전체</b> <span class=sub>('+n(r.answer.length)+'자)</span><div class=ans>💬 '+esc(r.answer)+'</div></div></td></tr>';
+    '<tr id=det'+i+' style=display:none><td colspan=6><div class=detail>'+
+    (r.violations&&r.violations.length?'<div style="color:#c62828;margin-bottom:6px">⚠️ 위반 규칙: <b>'+esc(r.violations.join(", "))+'</b></div>':'')+
+    '<b>최종 답변</b> <span class=sub>('+n(r.answer.length)+'자, 사용자에게 전달)</span><div class=ans>💬 '+esc(r.answer)+'</div>'+
+    (r.original?'<div style="margin-top:10px"><b style="color:#b06a00">가드레일 전 원본 답변</b> <span class=sub>(블락/재생성 전 — LLM 원본)</span><div class=ans>'+esc(r.original)+'</div></div>':'')+
+    '</div></td></tr>';
  });
  $('recent').innerHTML=h+'</table>';
 }
