@@ -308,24 +308,42 @@ def build_profile(persona: dict) -> dict:
     }
 
 
-# ── 클라우드 토큰(선택) ──────────────────────────────────────
-_token = {"v": None, "at": 0.0}
+# ── 클라우드 토큰(선택) — Cloud Run 메타데이터 서버 또는 로컬 gcloud ──
+_token = {}  # audience → (token, ts)
 
 
-def get_id_token(force=False):
+def get_id_token(audience=None, force=False):
+    """RAG(IAM 보호) 호출용 identity 토큰.
+
+    Cloud Run 런타임(K_SERVICE)에선 메타데이터 서버로 audience=RAG URL 토큰을 받고
+    (컨테이너엔 gcloud 없음), 로컬에선 gcloud print-identity-token 폴백.
+    """
+    key = audience or "_"
     now = time.time()
-    if not force and _token["v"] and now - _token["at"] < 2400:
-        return _token["v"]
-    try:
-        out = subprocess.run("gcloud auth print-identity-token", shell=True,
-                             capture_output=True, text=True, timeout=30)
-        tok = (out.stdout or "").strip()
-        if tok:
-            _token.update(v=tok, at=now)
-        return tok or None
-    except Exception as e:
-        sys.stderr.write(f"[token] {e}\n")
-        return None
+    cached = _token.get(key)
+    if not force and cached and now - cached[1] < 2400:
+        return cached[0]
+    tok = None
+    if os.environ.get("K_SERVICE"):  # Cloud Run 런타임 → 서비스계정 토큰
+        try:
+            aud = quote(audience or "", safe="")
+            req = urllib.request.Request(
+                "http://metadata.google.internal/computeMetadata/v1/instance/"
+                "service-accounts/default/identity?audience=" + aud,
+                headers={"Metadata-Flavor": "Google"})
+            tok = urllib.request.urlopen(req, timeout=5).read().decode().strip() or None
+        except Exception as e:
+            sys.stderr.write(f"[token:metadata] {e}\n")
+    if not tok:
+        try:
+            out = subprocess.run("gcloud auth print-identity-token", shell=True,
+                                 capture_output=True, text=True, timeout=30)
+            tok = (out.stdout or "").strip() or None
+        except Exception as e:
+            sys.stderr.write(f"[token:gcloud] {e}\n")
+    if tok:
+        _token[key] = (tok, now)
+    return tok
 
 
 def _headers(rag_url: str) -> dict:
@@ -339,8 +357,8 @@ def _headers(rag_url: str) -> dict:
     secret = os.environ.get("RAG_TRUST_SECRET")
     if secret:
         h["X-Rag-Trust"] = secret
-    if ".run.app" in rag_url:  # 클라우드 대상이면 IAM 토큰
-        tok = get_id_token()
+    if ".run.app" in rag_url:  # 클라우드 대상이면 IAM 토큰(audience=RAG URL)
+        tok = get_id_token(audience=rag_url)
         if tok:
             h["Authorization"] = "Bearer " + tok
     return h
@@ -387,6 +405,7 @@ PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
  @media(max-width:1100px){.app{grid-template-columns:1fr}.stack,#log{max-height:none}}
 </style></head><body>
 <div class="top"><h1>페르소나 개인화 테스트</h1><span class="sub" id="mode"></span></div>
+<div style="background:#FAEEDA;color:#854F0B;border:1px solid #EF9F27;border-radius:8px;padding:6px 11px;margin:0 0 10px;font-size:12px;line-height:1.5">⚠️ <b>테스트용 프로토타입</b> · 모든 페르소나는 <b>합성(가짜) 데이터</b>입니다 · 의료 자문이 아니며, 실제 증상은 의료진과 상담하세요.</div>
 <div class="app">
  <div class="col">
    <div class="colhdr">① 페르소나 요약·선택</div>
@@ -749,19 +768,24 @@ def main():
     Handler.graph = args.graph
 
     data = load_personas()
+    # Cloud Run: PORT 환경변수 + 0.0.0.0 바인딩(공개). 로컬: 127.0.0.1.
+    on_cloud = bool(os.environ.get("K_SERVICE") or os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", args.port))
+    host = "0.0.0.0" if on_cloud else "127.0.0.1"
+
     tok_note = None
     if ".run.app" in Handler.rag_url:  # 클라우드 대상이면 토큰 가용성 점검
-        tok_note = "발급 OK" if get_id_token() else "실패(gcloud 로그인 필요)"
+        tok_note = "발급 OK" if get_id_token(audience=Handler.rag_url) else "실패(gcloud 로그인/SA 필요)"
     print("=" * 60)
     print(" 페르소나 개인화 테스트 서버")
     print(f"  페르소나 : {len(data.get('personas', []))}개  ({PERSONAS_PATH.name})")
     print(f"  대상 RAG : {Handler.rag_url or '(없음 - 미리보기 전용, --preview)'}")
     if tok_note:
         print(f"  토큰     : {tok_note}")
-    print(f"  브라우저 : http://localhost:{args.port}")
+    print(f"  바인드   : {host}:{port}")
     print("  종료     : Ctrl+C")
     print("=" * 60)
-    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    ThreadingHTTPServer((host, port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
