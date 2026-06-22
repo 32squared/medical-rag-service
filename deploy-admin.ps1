@@ -5,8 +5,8 @@
 # RAG 이미지(medical-rag-dev)를 재사용하므로 별도 빌드 불필요(-SkipBuild 기본).
 # ※ RAG 쪽에도 동일한 ADMIN_SECRET 을 env 로 설정해야 엔드포인트가 호출을 허용한다.
 param(
-    [Parameter(Mandatory=$true)][string]$AdminPassword,   # 어드민 로그인 비밀번호
-    [Parameter(Mandatory=$true)][string]$AdminSecret,     # RAG 와 공유하는 내부 시크릿
+    [Parameter(Mandatory=$true)][string]$AdminPassword,
+    [Parameter(Mandatory=$true)][string]$AdminSecret,
     [string]$ProjectId   = "medical-compliance-tester",
     [string]$Region      = "asia-northeast3",
     [string]$ServiceName = "medical-rag-admin",
