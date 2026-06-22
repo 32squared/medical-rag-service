@@ -1,0 +1,112 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-font-smoothing:antialiased; }
+  .ti { font-family:'tabler-icons'!important; font-style:normal; }
+  html,body { width:390px; height:844px; }
+  body {
+    font-family:'Pretendard','Pretendard Variable',sans-serif;
+    background:#0E1512; color:#F3F6F4; position:relative; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .aurora { position:absolute; border-radius:50%; filter:blur(58px); opacity:.55; pointer-events:none; }
+  .a1 { width:330px; height:330px; top:-90px; left:-70px;
+    background:radial-gradient(circle, #2BD4A6 0%, rgba(43,212,166,0) 70%); }
+  .a2 { width:300px; height:300px; top:-50px; right:-110px; opacity:.42;
+    background:radial-gradient(circle, #38BDF8 0%, rgba(56,189,248,0) 70%); }
+  .a3 { width:280px; height:280px; bottom:40px; left:-90px; opacity:.20;
+    background:radial-gradient(circle, #34D399 0%, rgba(52,211,153,0) 70%); }
+  .wrap { position:relative; z-index:2; display:flex; flex-direction:column; height:100%; padding:0 26px; }
+  .status { height:54px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    font-size:15px; font-weight:600; letter-spacing:.3px; padding-top:8px; }
+  .status .r { display:flex; gap:7px; align-items:center; font-size:15px; }
+  .top { display:flex; align-items:center; justify-content:space-between; margin-top:2px; }
+  .mark { font-size:12px; font-weight:600; letter-spacing:2.5px; color:rgba(243,246,244,.45); }
+  .avatar { width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center;
+    font-size:19px; color:rgba(243,246,244,.7); }
+  .greet { margin-top:34px; }
+  .greet .s { font-size:15px; color:rgba(243,246,244,.55); font-weight:400; }
+  .greet .n { font-size:29px; font-weight:600; letter-spacing:-.6px; margin-top:5px; }
+  .card { margin-top:24px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09);
+    border-radius:24px; padding:20px; }
+  .card .lab { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    letter-spacing:1.4px; color:#38E0AE; text-transform:uppercase; }
+  .card .lab i { font-size:15px; }
+  .card .txt { font-size:15.5px; line-height:1.62; color:rgba(243,246,244,.92); margin-top:11px;
+    letter-spacing:-.2px; }
+  .card .meta { font-size:11.5px; color:rgba(243,246,244,.4); margin-top:12px; display:flex;
+    align-items:center; gap:5px; }
+  .ask { margin-top:18px; display:flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.11); border-radius:20px;
+    padding:15px 15px 15px 18px; box-shadow:0 8px 40px rgba(43,212,166,.16); }
+  .ask .sp { font-size:20px; color:#38E0AE; }
+  .ask .ph { flex:1; font-size:15px; color:rgba(243,246,244,.5); letter-spacing:-.2px; }
+  .ask .go { width:34px; height:34px; border-radius:50%; background:#2BD4A6; color:#06241C;
+    display:flex; align-items:center; justify-content:center; font-size:18px; flex:none; }
+  .chips { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .chip { font-size:12.5px; color:rgba(243,246,244,.78); background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.08); border-radius:30px; padding:8px 14px; letter-spacing:-.2px; }
+  .chip i { color:#38E0AE; font-size:13px; margin-right:4px; vertical-align:-1px; }
+  .spacer { flex:1; }
+  .stat { display:flex; align-items:center; gap:9px; margin-bottom:14px; font-size:13px;
+    color:rgba(243,246,244,.62); letter-spacing:-.2px; }
+  .dot { width:7px; height:7px; border-radius:50%; background:#38E0AE; box-shadow:0 0 9px #38E0AE; }
+  .tab { display:flex; justify-content:space-between; align-items:center;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.09); border-radius:26px;
+    padding:13px 26px; margin-bottom:20px; }
+  .tab i { font-size:22px; color:rgba(243,246,244,.4); }
+  .tab .on { color:#2BD4A6; position:relative; }
+  .tab .on::after { content:''; position:absolute; left:50%; transform:translateX(-50%); bottom:-9px;
+    width:5px; height:5px; border-radius:50%; background:#2BD4A6; box-shadow:0 0 8px #2BD4A6; }
+</style></head>
+<body>
+  <div class="aurora a1"></div>
+  <div class="aurora a2"></div>
+  <div class="aurora a3"></div>
+  <div class="wrap">
+
+    <div class="status"><span>9:41</span><span class="r"><i class="ti ti-wifi"></i><i class="ti ti-battery-3"></i></span></div>
+
+    <div class="top">
+      <span class="mark">MY HEALTHCARE</span>
+      <div class="avatar"><i class="ti ti-user"></i></div>
+    </div>
+
+    <div class="greet">
+      <div class="s">좋은 저녁이에요</div>
+      <div class="n">김건강님</div>
+    </div>
+
+    <div class="card">
+      <div class="lab"><i class="ti ti-sparkles"></i>AI 인사이트</div>
+      <div class="txt">오늘 혈압이 <b style="font-weight:600;color:#fff">안정 구간</b>으로 확인됐어요. 어제 저염 실천이 이어진 영향일 수 있어요. 이 흐름을 며칠 더 이어가 볼까요?</div>
+      <div class="meta"><i class="ti ti-clock" style="font-size:13px"></i>방금 생성됨 · 비식별 밴드 기준</div>
+    </div>
+
+    <div class="ask">
+      <i class="ti ti-sparkles sp"></i>
+      <span class="ph">건강에 대해 무엇이든 물어보세요</span>
+      <span class="go"><i class="ti ti-arrow-up"></i></span>
+    </div>
+
+    <div class="chips">
+      <span class="chip"><i class="ti ti-bolt"></i>혈압 관리 방법</span>
+      <span class="chip"><i class="ti ti-salad"></i>오늘 저녁 식단</span>
+      <span class="chip"><i class="ti ti-flame"></i>코칭 이어가기</span>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="stat"><span class="dot"></span>혈압 안정 · 식단 챌린지 5일째 실천 중</div>
+
+    <div class="tab">
+      <i class="ti ti-home on"></i>
+      <i class="ti ti-message-2"></i>
+      <i class="ti ti-chart-line"></i>
+      <i class="ti ti-user"></i>
+    </div>
+
+  </div>
+</body></html>
