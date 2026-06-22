@@ -30,6 +30,7 @@ rag_engine.generate_response  ── 검색→LLM 생성→가드레일→ (개�
 
 > **전체를 한 문서로 보려면 → [00 전체 기능·개발 매뉴얼](00-전체-기능-매뉴얼.md)** (2026-06-22 최신, 성능·방향2·관찰성·운영 포함).
 > **인쇄용 PDF(다이어그램 5종 포함) → [나만의주치의-기능매뉴얼.pdf](나만의주치의-기능매뉴얼.pdf)** · 재생성: `python docs/manual/build/build_manual_pdf.py` → Chrome `--headless --print-to-pdf`.
+> **임원·비개발자용 쉬운 안내서(용어 없음) → [임원용-쉬운설명.md](임원용-쉬운설명.md) · [나만의주치의-쉬운안내서.pdf](나만의주치의-쉬운안내서.pdf)** (4쪽, 신호등·안전장치 그림). 재생성: `python docs/manual/build/build_exec_pdf.py`.
 
 ## 매뉴얼 목차
 
