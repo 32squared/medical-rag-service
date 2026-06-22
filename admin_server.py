@@ -88,6 +88,12 @@ th{color:var(--mut);font-weight:600}
 .barrow .fill{height:100%;background:#1d9e75}
 pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(--b);border-radius:8px;padding:10px;max-height:340px;overflow:auto}
 .q{color:#1f4e79}.a{color:#333}
+.tabs{display:flex;gap:6px;align-items:center;margin:12px 0;flex-wrap:wrap}
+.tabbtn{font:inherit;padding:6px 14px;border:1px solid var(--b);border-radius:8px;background:#fff;cursor:pointer;color:var(--mut)}
+.tabbtn.on{background:#0f6e56;color:#fff;border-color:#0f6e56}
+.qrow{cursor:pointer}.qrow:hover{background:#f6f5f0}
+.detail{background:#f6f5f0;border-radius:8px;padding:10px 12px}
+.detail .ans{white-space:pre-wrap;font-size:12px;line-height:1.6;margin-top:5px}
 .login{max-width:320px;margin:14vh auto;text-align:center}
 .login input{font:inherit;padding:8px 10px;border:1px solid var(--b);border-radius:8px;width:100%;margin:8px 0}
 .pill{display:inline-block;font-size:11px;border-radius:6px;padding:1px 6px}
@@ -98,13 +104,28 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
  <a href="/logout" style="font-size:12px;color:#888">로그아웃</a></div>
 <div class=bar>구간 <select id=days onchange=load()>
  <option value=7>최근 7일</option><option value=30 selected>최근 30일</option><option value=90>최근 90일</option></select>
- <button onclick=load()>새로고침</button><span id=note class=sub></span></div>
-<div class=cards id=cards></div>
-<div class=sec><h2>구간별 (일자)</h2><div id=ts></div></div>
-<div class=sec><h2>대화 통계</h2><div id=stats></div></div>
-<div class=sec><h2>최근 쿼리 (원문)</h2><div id=recent></div></div>
-<div class=sec><h2>현재 시스템 프롬프트</h2><div id=prompt></div></div>
+ <button onclick=load()>새로고침</button>
+ <span class=sub style="margin-left:auto">🕒 모든 시간은 <b>KST(UTC+9)</b> 기준</span></div>
+<div class=tabs>
+ <button class="tabbtn on" data-t=overview onclick=tab(this)>개요</button>
+ <button class=tabbtn data-t=recent onclick=tab(this)>최근 쿼리</button>
+ <button class=tabbtn data-t=prompt onclick=tab(this)>프롬프트</button>
+ <span id=note class=sub style="margin-left:8px"></span></div>
+<div id=tab-overview class=tab>
+ <div class=cards id=cards></div>
+ <div class=sec><h2>구간별 (일자 · KST)</h2><div id=ts></div></div>
+ <div class=sec><h2>대화 통계</h2><div id=stats></div></div>
+</div>
+<div id=tab-recent class=tab style=display:none>
+ <div class=sec><h2>최근 쿼리 (원문) <span class=sub>— 행을 클릭하면 답변 전체</span></h2><div id=recent></div></div>
+</div>
+<div id=tab-prompt class=tab style=display:none>
+ <div class=sec><h2>현재 시스템 프롬프트</h2><div id=prompt></div></div>
+</div>
 <script>
+function tab(b){document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ const t=b.dataset.t;document.querySelectorAll('.tab').forEach(s=>s.style.display='none');document.getElementById('tab-'+t).style.display='';}
+function toggle(i){const e=document.getElementById('det'+i);if(e)e.style.display=e.style.display==='none'?'':'none';}
 const $=id=>document.getElementById(id);
 function n(x){return (x||0).toLocaleString()}
 async function j(p){const r=await fetch(p);if(!r.ok)throw new Error(p+' '+r.status);return r.json()}
@@ -143,12 +164,16 @@ function renderStats(d){
  $('stats').innerHTML=bars('근거 품질(evidence_quality)',d.evidence_quality)+bars('게이트 결정(gate_decision)',d.gate_decision)+bars('가드레일 액션(guardrail_action)',d.guardrail_action);
 }
 function renderRecent(d){
- let h='<table><tr><th>시각</th><th>질의 / 답변</th><th>토큰</th><th>속도</th><th>가드레일</th><th>근거</th></tr>';
- for(const r of d.rows)h+='<tr><td style="white-space:nowrap">'+esc(r.created_at.slice(0,19).replace("T"," "))+'</td>'+
-   '<td><div class=q>🙋 '+esc(r.query)+'</div><div class=a>💬 '+esc(r.answer.slice(0,240))+(r.answer.length>240?'…':'')+'</div></td>'+
-   '<td style="white-space:nowrap">in '+n(r.token_in)+'<br>out '+n(r.token_out)+'<br>'+r.cost_krw_est+'원</td>'+
-   '<td style="white-space:nowrap">'+(r.latency_ms/1000).toFixed(1)+'s</td>'+
-   '<td>'+esc(r.guardrail_action||'')+'</td><td>'+esc(r.evidence_quality||'')+'</td></tr>';
+ let h='<table><tr><th>시각(KST)</th><th>질의</th><th>토큰</th><th>속도</th><th>가드레일</th><th>근거</th></tr>';
+ d.rows.forEach((r,i)=>{
+  h+='<tr class=qrow onclick="toggle('+i+')">'+
+    '<td style="white-space:nowrap">'+esc(r.created_kst||r.created_at)+'</td>'+
+    '<td class=q>🙋 '+esc(r.query)+'</td>'+
+    '<td style="white-space:nowrap">in '+n(r.token_in)+'<br>out '+n(r.token_out)+'<br>'+r.cost_krw_est+'원</td>'+
+    '<td style="white-space:nowrap">'+(r.latency_ms/1000).toFixed(1)+'s</td>'+
+    '<td>'+esc(r.guardrail_action||'')+'</td><td>'+esc(r.evidence_quality||'')+'</td></tr>'+
+    '<tr id=det'+i+' style=display:none><td colspan=6><div class=detail><b>답변 전체</b> <span class=sub>('+n(r.answer.length)+'자)</span><div class=ans>💬 '+esc(r.answer)+'</div></div></td></tr>';
+ });
  $('recent').innerHTML=h+'</table>';
 }
 function renderPrompt(p){

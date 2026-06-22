@@ -32,6 +32,20 @@ def _i(v) -> int:
         return 0
 
 
+KST = timezone(timedelta(hours=9))
+
+
+def _kst_str(iso, fmt="%Y-%m-%d %H:%M:%S") -> str:
+    """저장된 UTC ISO created_at → KST 문자열. (created_at 은 datetime.now(utc).isoformat())"""
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(KST).strftime(fmt)
+    except Exception:
+        return str(iso)
+
+
 class AdminRoutesMixin:
     """RagHandler 에 믹스인. self._send_json / self._send_error / self.headers 사용."""
 
@@ -119,7 +133,7 @@ class AdminRoutesMixin:
                         FROM rag_queries WHERE created_at >= {_p()}
                         ORDER BY created_at""", (cutoff,))
                 for row in cur.fetchall():
-                    day = str(row["created_at"])[:10]
+                    day = _kst_str(row["created_at"], "%Y-%m-%d")  # KST 일자 버킷
                     b = buckets.setdefault(day, {"queries": 0, "in": 0, "out": 0, "lat_sum": 0})
                     b["queries"] += 1
                     b["in"] += _i(row["token_input"])
@@ -188,8 +202,9 @@ class AdminRoutesMixin:
                     ti, to = _i(r["token_input"]), _i(r["token_output"])
                     rows.append({
                         "created_at": str(r["created_at"]),
+                        "created_kst": _kst_str(r["created_at"]),
                         "query": (r["query_text"] or "")[:500],
-                        "answer": (r["response_text"] or "")[:1200],
+                        "answer": (r["response_text"] or "")[:8000],   # 전체(클릭 시 표시)
                         "token_in": ti, "token_out": to,
                         "latency_ms": _i(r["latency_total_ms"]),
                         "latency_llm_ms": _i(r["latency_llm_ms"]),
