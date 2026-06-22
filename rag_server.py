@@ -43,6 +43,7 @@ except Exception:
 from rag_routes import RagRoutesMixin
 from service_routes import ServiceRoutesMixin
 from rag_history_routes import HistoryRoutesMixin
+from admin_routes import AdminRoutesMixin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rag_server")
@@ -53,7 +54,7 @@ RAG_TRUST_SECRET = os.environ.get('RAG_TRUST_SECRET', '')
 _SCHEMA_VERSION_CACHE = "unknown"
 
 
-class RagHandler(HistoryRoutesMixin, ServiceRoutesMixin, RagRoutesMixin,
+class RagHandler(AdminRoutesMixin, HistoryRoutesMixin, ServiceRoutesMixin, RagRoutesMixin,
                  BaseHTTPRequestHandler):
     """RagRoutesMixin(+wraith 호환 Service/History 믹스인) 서빙.
     믹스인이 요구하는 8개 헬퍼를 자체 구현(trust-header 인증)."""

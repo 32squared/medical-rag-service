@@ -15,6 +15,10 @@ elif [ "$RUN_MODE" = "viewer" ]; then
     # RAG 대상은 RAG_DEV_URL(기본 CLOUD_DEV_URL), RAG 호출은 메타데이터 SA 토큰.
     echo "[entrypoint] mode=viewer → python /app/persona_test_server.py"
     exec python /app/persona_test_server.py
+elif [ "$RUN_MODE" = "admin" ]; then
+    # RAG 운영 어드민 대시보드(비밀번호 보호). RAG admin 엔드포인트를 SA 토큰 + X-Admin-Secret 로 호출.
+    echo "[entrypoint] mode=admin → python /app/admin_server.py"
+    exec python /app/admin_server.py
 else
     # 기본 = RAG 독립 HTTP 서비스 — /api/rag/* 단독 서빙.
     PORT_USED="${PORT:-8080}"

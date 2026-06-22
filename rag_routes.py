@@ -117,6 +117,18 @@ class RagRoutesMixin:
             if path == '/api/rag/result':
                 return self._rag_get_result(parsed)
 
+            # 운영 어드민 집계(읽기 전용). X-Admin-Secret 로 보호(admin_routes._admin_ok).
+            if path == '/api/rag/admin/summary':
+                return self._rag_admin_summary(parsed)
+            if path == '/api/rag/admin/timeseries':
+                return self._rag_admin_timeseries(parsed)
+            if path == '/api/rag/admin/stats':
+                return self._rag_admin_stats(parsed)
+            if path == '/api/rag/admin/recent':
+                return self._rag_admin_recent(parsed)
+            if path == '/api/rag/admin/prompt':
+                return self._rag_admin_prompt(parsed)
+
             if path == '/api/rag/kb/sources':
                 if not self._require_auth():
                     return
