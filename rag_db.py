@@ -290,3 +290,154 @@ def list_review_queue(status: str = "pending", limit: int = 50) -> list:
             return [_row_to_dict(r) for r in cur.fetchall()]
     except Exception:
         return []
+
+
+# ════════════════════════════════════════
+#  웰니스 코칭 영속 (18 §7.2 · mig018) — 세션/플랜/체크인
+#  값은 라벨·bool·JSON 항목 텍스트만. 원시 측정값/진단명은 미저장(코칭은 밴드 라벨만 받음).
+# ════════════════════════════════════════
+_COACHING_SCHEMA_ENSURED = False
+
+
+def ensure_coaching_schema():
+    """코칭 운영 테이블 멱등 보장 (PG/SQLite 공용). 정본 18 §7.2 / mig018."""
+    with get_conn() as (conn, cur):
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS coaching_session (
+                   session_id       TEXT PRIMARY KEY,
+                   conversation_id  TEXT,
+                   mode             TEXT,
+                   track            TEXT,
+                   band_at_start    TEXT,
+                   consent_personal INTEGER,
+                   started_at       TEXT
+               )""")
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS coaching_plan (
+                   plan_id             TEXT PRIMARY KEY,
+                   session_id          TEXT,
+                   track               TEXT,
+                   items_json          TEXT,
+                   target_period       TEXT,
+                   band_at_creation    TEXT,
+                   safety_banner       TEXT,
+                   compliance_action   TEXT,
+                   original_items_json TEXT,
+                   created_at          TEXT
+               )""")
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS coaching_checkin (
+                   checkin_id TEXT PRIMARY KEY,
+                   plan_id    TEXT,
+                   item_key   TEXT,
+                   done       INTEGER,
+                   ts         TEXT
+               )""")
+        conn.commit()
+
+
+def _ensure_coaching_once():
+    global _COACHING_SCHEMA_ENSURED
+    if _COACHING_SCHEMA_ENSURED:
+        return
+    try:
+        ensure_coaching_schema()
+        _COACHING_SCHEMA_ENSURED = True
+    except Exception:
+        pass  # 다음 호출에서 재시도
+
+
+def create_coaching_session(*, conversation_id=None, mode="medical", track=None,
+                            band_at_start=None, consent_personal=False):
+    """코칭 세션 1건 생성 → session_id. 비식별 track_selected 이벤트 emit. 실패 시 None."""
+    _ensure_coaching_once()
+    sid = _uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"INSERT INTO coaching_session (session_id, conversation_id, mode, track, "
+                f"band_at_start, consent_personal, started_at) "
+                f"VALUES ({_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()})",
+                (sid, conversation_id, mode, track, band_at_start,
+                 1 if consent_personal else 0, now),
+            )
+            conn.commit()
+    except Exception:
+        return None
+    try:
+        import analytics_events as _ae
+        _ae.emit("coaching_track_selected", conversation_id=conversation_id,
+                 track=track, risk_level=band_at_start)
+    except Exception:
+        pass
+    return sid
+
+
+def save_coaching_plan(*, session_id, track=None, items=None, target_period=None,
+                       band=None, safety_banner=None, compliance_action="pass",
+                       original_items=None, conversation_id=None):
+    """코칭 플랜 1건 저장(items=항목 리스트 → JSON) → plan_id. plan_shown 이벤트 emit."""
+    _ensure_coaching_once()
+    pid = _uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"INSERT INTO coaching_plan (plan_id, session_id, track, items_json, "
+                f"target_period, band_at_creation, safety_banner, compliance_action, "
+                f"original_items_json, created_at) "
+                f"VALUES ({_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()})",
+                (pid, session_id, track, json.dumps(items or [], ensure_ascii=False),
+                 target_period, band, safety_banner, compliance_action,
+                 json.dumps(original_items, ensure_ascii=False) if original_items is not None else None,
+                 now),
+            )
+            conn.commit()
+    except Exception:
+        return None
+    try:
+        import analytics_events as _ae
+        _ae.emit("coaching_plan_shown", conversation_id=conversation_id,
+                 track=track, risk_level=band)
+    except Exception:
+        pass
+    return pid
+
+
+def record_coaching_checkin(*, plan_id, item_key=None, done=True, conversation_id=None):
+    """일일 체크인 1건 기록 → checkin_id. coaching_checkin 이벤트(done bool) emit."""
+    _ensure_coaching_once()
+    cid = _uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"INSERT INTO coaching_checkin (checkin_id, plan_id, item_key, done, ts) "
+                f"VALUES ({_p()}, {_p()}, {_p()}, {_p()}, {_p()})",
+                (cid, plan_id, item_key, 1 if done else 0, now),
+            )
+            conn.commit()
+    except Exception:
+        return None
+    try:
+        import analytics_events as _ae
+        _ae.emit("coaching_checkin", conversation_id=conversation_id, checkin_done=done)
+    except Exception:
+        pass
+    return cid
+
+
+def get_coaching_checkins(plan_id) -> list:
+    """플랜의 체크인 목록(시간순) → [{item_key, done, ts}]. 오류 시 빈 리스트."""
+    _ensure_coaching_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"SELECT item_key, done, ts FROM coaching_checkin "
+                f"WHERE plan_id = {_p()} ORDER BY ts",
+                (plan_id,),
+            )
+            return [_row_to_dict(r) for r in cur.fetchall()]
+    except Exception:
+        return []

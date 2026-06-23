@@ -25,10 +25,12 @@ logger = logging.getLogger(__name__)
 _LABEL_FIELDS = (
     "intent", "primary_domain", "risk_level",
     "guardrail_action", "gate_decision", "evidence_quality",
+    "track",                 # 웰니스 코칭 트랙(diet/exercise/habit) — 비식별 라벨
 )
-_COUNT_FIELDS = ("citations_count", "latency_ms")
+_COUNT_FIELDS = ("citations_count", "latency_ms", "streak")
 _BOOL_FIELDS = (
     "is_followup", "had_personal_block", "gave_referral", "refusal", "emergency",
+    "checkin_done",          # 코칭 일일 체크인 실천 여부(bool)
 )
 ALLOWED_PROPS = frozenset(_LABEL_FIELDS + _COUNT_FIELDS + _BOOL_FIELDS)
 
@@ -41,6 +43,11 @@ EVENT_NAMES = frozenset({
     "triage_clarify",        # 비의료/모호 입력 되묻기
     "thumbs_up",             # 명시 피드백 👍
     "thumbs_down",           # 명시 피드백 👎
+    # ── 웰니스 코칭 지속 루프(18 §7) — 전부 비식별 라벨/카운트/불리언만 ──
+    "coaching_track_selected",  # 트랙 선택(핸드오프 수락)
+    "coaching_plan_shown",      # 플랜 생성·노출
+    "coaching_checkin",         # 일일 체크인(done bool)
+    "coaching_completed",       # 챌린지 완주(실천율 ≥70%)
 })
 
 _MAX_LABEL_LEN = 64
