@@ -770,12 +770,20 @@ function openFinder(kind){
   var post=function(body,label){host().innerHTML='<div class="psub">'+esc(label)+'</div>';
     fetch('/facilities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(r=>r.json()).then(function(d){renderFacilities(host(),d);}).catch(function(e){host().innerHTML='<div class="psub">조회 오류</div>';});};
-  c.querySelector('#geoBtn').onclick=function(){
+  function geoGo(){
     if(!navigator.geolocation){post({kind:kind,region:'내 주변'},'위치 미지원 — 데모로');return;}
     host().innerHTML='<div class="psub">내 위치 확인 중…</div>';
     navigator.geolocation.getCurrentPosition(
       function(p){post({kind:kind,lat:p.coords.latitude,lon:p.coords.longitude,radius:2000},'내 주변에서 찾는 중…');},
-      function(e){post({kind:kind,region:(c.querySelector('#loc').value||'내 주변')},'위치 권한 없음 — 동네(데모)로');});};
+      function(e){post({kind:kind,region:(c.querySelector('#loc').value||'내 주변')},'위치 권한 없음 — 동네(데모)로');});}
+  c.querySelector('#geoBtn').onclick=function(){
+    if(localStorage.getItem('mhc_loc_consent')==='1'){geoGo();return;}
+    host().innerHTML='<div style="padding:12px;background:#FBF6EC;border-radius:10px">'
+      +'<div style="font-weight:700;margin-bottom:6px"><i class="ti ti-map-pin"></i> 위치 정보 사용 동의</div>'
+      +'<div class="psub" style="margin-bottom:10px;line-height:1.5">가까운 약국·병원을 찾기 위해 현재 위치를 사용해요. 위치는 <b>검색에만</b> 쓰고 저장하지 않아요 (위치정보법 안내 · 언제든 철회 가능).</div>'
+      +'<div style="display:flex;gap:8px"><div class="hob full" id="locYes">동의하고 찾기</div><div class="hob soft" id="locNo">취소</div></div></div>';
+    host().querySelector('#locYes').onclick=function(){localStorage.setItem('mhc_loc_consent','1');geoGo();};
+    host().querySelector('#locNo').onclick=function(){host().innerHTML='<div class="psub">동네 입력으로 찾거나, 동의 후 위치로 찾을 수 있어요.</div>';};};
   c.querySelector('#fbtn').onclick=function(){post({kind:kind,region:(c.querySelector('#loc').value||'내 주변')},'동네(데모)에서 찾는 중…');};
 }
 function renderFacilities(host,d){
