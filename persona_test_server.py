@@ -784,7 +784,8 @@ function renderFacilities(host,d){
                :'<span class="chip" style="background:rgba(224,162,62,.16);color:#9A6B16">데모 데이터</span>';
   host.innerHTML='<div style="margin-bottom:8px">'+src+'</div>'+d.items.map(function(f){
     var badge='';
-    if(typeof f.open_now!=='undefined') badge=f.open_now?'<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A">지금 영업중</span>':'<span class="chip" style="background:rgba(0,0,0,.06);color:#8A887F">영업 종료</span>';
+    if(f.open_now===true) badge='<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A">지금 영업중</span>';
+    else if(f.open_now===false) badge='<span class="chip" style="background:rgba(0,0,0,.06);color:#8A887F">영업 종료</span>';
     var dept=f.dept?' <span style="font-weight:400;color:#8A887F;font-size:12px">'+esc(f.dept)+'</span>':'';
     var loc=esc(f.area||'')+(f.addr?' · '+esc(f.addr):'')+(f.hours?' · '+esc(f.hours):'');
     return '<div style="padding:12px 0;border-bottom:1px solid #F2F0E9">'

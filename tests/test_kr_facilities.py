@@ -44,3 +44,56 @@ def test_find_real_no_key_unsupported(monkeypatch):
     monkeypatch.delenv("DATA_GO_KR_KEY", raising=False)
     assert kf.find_real("pharmacy", 37.5, 127.0)["supported"] is False
     assert kf.find_real("hospital", 37.5, 127.0)["supported"] is False
+
+
+# ── E-Gen 약국목록(좌표+요일별 영업시간) ─────────────────────
+from datetime import datetime  # noqa: E402
+
+# 실제 getParmacyListInfoInqire 구조(dutyTime{1-6}s/c + wgs84) 기반 — distance 없음(haversine 계산)
+_EGEN_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<response><header><resultCode>00</resultCode><resultMsg>OK</resultMsg></header><body><items>
+<item><dutyName>가나약국</dutyName><dutyAddr>서울 강남구 테헤란로 1</dutyAddr><dutyTel1>02-111-2222</dutyTel1>
+<dutyTime1s>0900</dutyTime1s><dutyTime1c>2200</dutyTime1c><dutyTime6s>0900</dutyTime6s><dutyTime6c>1300</dutyTime6c>
+<wgs84Lon>127.0300</wgs84Lon><wgs84Lat>37.5000</wgs84Lat></item>
+<item><dutyName>멀리약국</dutyName><dutyAddr>서울 강남구 테헤란로 99</dutyAddr><dutyTel1>02-333-4444</dutyTel1>
+<dutyTime1s>0830</dutyTime1s><dutyTime1c>1800</dutyTime1c>
+<wgs84Lon>127.0500</wgs84Lon><wgs84Lat>37.5100</wgs84Lat></item>
+</items></body></response>"""
+
+
+def test_parse_egen_list_fields():
+    items = kf.parse_egen_list(_EGEN_XML)
+    assert [i["name"] for i in items] == ["가나약국", "멀리약국"]   # 입력순(정렬은 haversine 후)
+    assert items[0]["lat"] == 37.5 and items[0]["lon"] == 127.03    # float 좌표
+    assert items[0]["_times"][1] == ("0900", "2200")
+
+
+def test_sido_full_normalizes():
+    assert kf._sido_full("서울") == "서울특별시"
+    assert kf._sido_full("경기") == "경기도"
+    assert kf._sido_full("서울특별시") == "서울특별시"
+
+
+def test_haversine_known_distance():
+    d = kf._haversine_m(37.5000, 127.0300, 37.5100, 127.0300)       # 위도 0.01° ≈ 1.11km
+    assert 1050 < d < 1170
+
+
+def test_egen_open_now_weekday_window():
+    times = {1: ("0900", "2200")}
+    assert kf.egen_open_now(times, datetime(2026, 6, 22, 10, 0)) is True    # 월 10:00
+    assert kf.egen_open_now(times, datetime(2026, 6, 22, 23, 0)) is False   # 월 23:00
+    assert kf.egen_open_now(times, datetime(2026, 6, 23, 10, 0)) is None    # 화(미등록)
+
+
+def test_egen_enrich_distance_hours_badge():
+    items = kf.parse_egen_list(_EGEN_XML)
+    user = (37.4990, 127.0300)
+    for it in items:                                                # 호출측이 거리 부여
+        it["distance_m"] = kf._haversine_m(user[0], user[1], it["lat"], it["lon"])
+    items.sort(key=lambda x: x["distance_m"])
+    e = kf._egen_enrich(items, datetime(2026, 6, 22, 10, 0), limit=2)
+    assert e[0]["name"] == "가나약국"                              # 더 가까움
+    assert e[0]["open_now"] is True                                # 월 09:00~22:00
+    assert e[0]["hours"] == "오늘(월) 09:00~22:00"
+    assert e[0]["dist_label"].endswith("m") or e[0]["dist_label"].endswith("km")
