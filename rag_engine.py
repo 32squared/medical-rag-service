@@ -1712,6 +1712,26 @@ def generate_response(
     except Exception:
         _followups = []
 
+    # ── 핸드오프(웰니스 코칭) 트리거 — 룰 기반·플래그 게이트·STOP 메타만(비차단, P1) ──
+    # 정본 18 §3-A. WELLNESS_ROUTER_ENABLED off(기본)면 None → 기존 행동 무변화.
+    _handoff = None
+    try:
+        import wellness_router as _wr
+        if _wr.is_enabled():
+            _hf_band = None
+            try:
+                import personal_llm_context as _plc2
+                _hf_band = _wr.worst_band(
+                    [l for _, l in _plc2.candidate_items(personal_findings, query)])
+            except Exception:
+                _hf_band = None
+            _handoff = _wr.detect_handoff(
+                query, full_text,
+                intent=(_classification or {}).get("intent"),
+                band=_hf_band, mode="medical")
+    except Exception as _e:
+        logger.debug("[RAGEngine] 핸드오프 트리거 스킵: %s", _e)
+
     # ── 8. STOP 이벤트 (감사·검수·analytics는 백그라운드에서 계속) ──
     yield {
         "type": "STOP",
@@ -1725,6 +1745,7 @@ def generate_response(
         "gate_decision": gate_result["decision"],
         "followups": _followups,
         "personal_injected": _personal_injected,   # 방향2 주입 밴드(관찰성 — 빈 리스트면 미주입)
+        "handoff": _handoff,                        # 핸드오프(코칭 버튼) 메타 — None이면 미노출(P1)
     }
 
 

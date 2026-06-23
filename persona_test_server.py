@@ -541,7 +541,7 @@ function sendToRag(q, clarifiers){
    try{
     const res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({persona_id:cur.id,query:q,conversation_id:conv})});
-    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';let stopped=false;let pinj=null;
+    const rd=res.body.getReader();const dec=new TextDecoder();let buf='';let stopped=false;let pinj=null;let hoff=null;
     while(true){const{value,done}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});let i;
      while((i=buf.indexOf('\n\n'))>=0){const line=buf.slice(0,i);buf=buf.slice(i+2);
       const m=line.match(/^data: (.*)$/s);if(!m)continue;let ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
@@ -552,7 +552,8 @@ function sendToRag(q, clarifiers){
         gtimer=setTimeout(()=>setSt('🔍 마무리 점검 중 — 근거·인용·안전 검증, 기록 저장…'),1500);}  // 멈추면 후처리로
       else if(ev.type==='PROGRESS'){meta=ev.display_message||meta;}
       else if(ev.type==='STOP'){stopped=true;                  // STOP 즉시 마무리(연결 종료 대기 안 함)
-        if(ev.personal_injected&&ev.personal_injected.length)pinj=ev.personal_injected;}  // 방향2 주입 밴드
+        if(ev.personal_injected&&ev.personal_injected.length)pinj=ev.personal_injected;  // 방향2 주입 밴드
+        if(ev.handoff)hoff=ev.handoff;}                        // 핸드오프(코칭 버튼) 메타
       else if(ev.type==='ERROR'){text+='\n[오류] '+(ev.message||'');ans.innerHTML='<div class="a">'+linkCites(md(text))+'</div>';}
       log.scrollTop=log.scrollHeight;}
      if(stopped){try{await rd.cancel();}catch(e){} break;}}    // STOP 받으면 읽기 중단
@@ -560,6 +561,13 @@ function sendToRag(q, clarifiers){
     if(pinj)add('<div style="margin:4px 0;padding:5px 9px;background:#eef4ff;border:1px solid #b9d0f5;'
       +'border-radius:7px;font-size:12px;color:#1f4e79">🔐 이 답변에 <b>개인맥락(방향2)</b>이 반영됨 — 주입 밴드: '
       +'<b>'+esc(pinj.join(', '))+'</b> <span class="dev">(원시 수치·진단명 0, 밴드 라벨만)</span></div>');
+    if(hoff&&hoff.show){const sft=hoff.copy==='soft';   // 핸드오프 코칭 버튼(P1 — 클릭 시 트랙 선택 stub)
+      add('<div style="margin:7px 0"><button onclick="alert(\'트랙 선택(P2 예정): 🥗 식단 · 🏃 운동 · 😴 생활습관\')" '
+       +'style="background:'+(sft?'#eaf6f1':'#0E8A6B')+';color:'+(sft?'#0b5f4a':'#fff')+';border:1px solid '
+       +(sft?'#bfe3d6':'#0E8A6B')+';border-radius:10px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer">'
+       +(sft?'🌿 ':'💪 ')+esc(hoff.label||'실천 코칭 받기')+'</button>'
+       +(hoff.banner?' <span class="dev">· 진료와 병행 권장</span>':'')+'</div>');}
+    if(hoff&&hoff.referral==='emergency')add('<div style="margin:4px 0;color:#a32d2d;font-size:12px">🚑 응급 시 즉시 119·응급실</div>');
     let mm=meta; if(citeSources.length) mm+=(mm?' · ':'')+'인용 '+citeSources.length+'개 — [n] 클릭=출처';
     if(mm)add('<div class="meta">'+esc(mm)+'</div>');
     if(!text)ans.innerHTML='<div class="a">(빈 응답 — 백엔드/검색 상태 확인)</div>';

@@ -146,6 +146,8 @@ def _stop_to_events(ev: Dict) -> List[Dict]:
         stop["followups"] = ev["followups"]   # 멀티턴 후속 질문 제안(있으면)
     if ev.get("personal_injected"):
         stop["personal_injected"] = ev["personal_injected"]   # 방향2 주입 밴드(관찰성)
+    if ev.get("handoff"):
+        stop["handoff"] = ev["handoff"]   # 핸드오프(코칭 버튼) 메타(있으면, P1)
     out.append(stop)
     return out
 
