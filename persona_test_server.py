@@ -665,6 +665,143 @@ boot();
 </script></body></html>"""
 
 
+# ── Warm Light 앱 (확정 디자인 적용 — /app) ─────────────────────────────────
+APP_PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+.ti{font-family:'tabler-icons'!important;font-style:normal}
+body{font-family:'Pretendard',sans-serif;background:#EEEBE3;color:#232220}
+.app{max-width:440px;margin:0 auto;min-height:100vh;background:#F6F4EF;display:flex;flex-direction:column;position:relative}
+.hd{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,.06);background:#F6F4EFdd;position:sticky;top:0;z-index:5;backdrop-filter:blur(6px)}
+.lg{width:30px;height:30px;border-radius:50%;background:#E1F5EE;color:#0E8A6B;display:flex;align-items:center;justify-content:center;font-size:17px}
+.hd .nm{font-size:15.5px;font-weight:600;letter-spacing:-.3px;flex:1}
+.hd select{font-size:12px;color:#5F5E58;border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:5px 7px;background:#fff;max-width:140px}
+.chat{flex:1;overflow-y:auto;padding:18px 16px 8px;display:flex;flex-direction:column;gap:12px}
+.bu{align-self:flex-end;max-width:82%;background:#0E8A6B;color:#fff;border-radius:16px;border-top-right-radius:5px;padding:10px 14px;font-size:14.5px;line-height:1.5;letter-spacing:-.2px}
+.ba{align-self:flex-start;max-width:88%;display:flex;gap:9px}
+.av{width:28px;height:28px;border-radius:50%;flex:none;background:#0E8A6B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px}
+.bx{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;border-top-left-radius:5px;padding:12px 14px;font-size:14.5px;line-height:1.62;color:#232220;letter-spacing:-.2px;box-shadow:0 4px 14px rgba(0,0,0,.04)}
+.bx b{font-weight:600}
+.cite{font-size:11px;background:rgba(14,138,107,.1);color:#0B5F4A;border-radius:4px;padding:1px 5px;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;background:rgba(14,138,107,.1);color:#0B5F4A;border-radius:20px;padding:5px 11px;margin-top:7px}
+.meta{font-size:11.5px;color:#9A988F;margin:2px 0 0 37px}
+.ho{margin:2px 0 4px 37px;display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+.hob{display:inline-flex;align-items:center;gap:7px;border-radius:11px;padding:10px 15px;font-size:13.5px;font-weight:600;cursor:pointer;border:none}
+.hob.full{background:#0E8A6B;color:#fff}
+.hob.soft{background:#EAF6F1;color:#0B5F4A;border:1px solid #bfe3d6}
+.emg{font-size:12.5px;color:#C0392B;font-weight:500;margin:2px 0 0 37px}
+.card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;padding:16px;box-shadow:0 5px 18px rgba(0,0,0,.05);align-self:stretch}
+.tlab{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#0E8A6B;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.trk{display:flex;gap:8px;flex-wrap:wrap}
+.tk{border:1px solid rgba(0,0,0,.1);border-radius:12px;padding:11px 14px;font-size:13.5px;font-weight:600;cursor:pointer;background:#fff;display:flex;align-items:center;gap:7px}
+.tk.on{border-color:#0E8A6B;color:#0E8A6B}.tk.dim{opacity:.45}
+.tk i{font-size:17px;color:#0E8A6B}
+.qh{font-size:16px;font-weight:600;letter-spacing:-.3px;margin-bottom:12px}
+.opt{display:block;width:100%;text-align:left;border:1px solid rgba(0,0,0,.1);border-radius:11px;padding:12px 14px;font-size:14px;margin:7px 0;background:#fff;cursor:pointer;color:#232220}
+.opt:hover{border-color:#0E8A6B}
+.prog{height:6px;background:rgba(0,0,0,.07);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.prog>div{height:100%;background:#0E8A6B;border-radius:4px;transition:width .25s}
+.ph{font-size:16.5px;font-weight:600;letter-spacing:-.3px}
+.psub{font-size:12.5px;color:#8A887F;margin:2px 0 10px}
+.it{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:9px 0;border-bottom:1px solid #F2F0E9}
+.it:last-child{border-bottom:none}.it i{font-size:19px;color:#C2C0B6}
+.icite{font-size:10.5px;color:#9A988F;margin:6px 0 0}
+.ban{display:flex;gap:8px;align-items:flex-start;background:rgba(224,162,62,.1);color:#B5721A;border-radius:11px;padding:11px 13px;font-size:12.5px;line-height:1.5;margin-top:12px}
+.ban i{font-size:16px;flex:none}
+.inbar{position:sticky;bottom:0;display:flex;gap:9px;align-items:center;padding:12px 16px;background:#F6F4EF;border-top:1px solid rgba(0,0,0,.06)}
+.inbar input{flex:1;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:11px 15px;font-size:14px;background:#fff;outline:none;font-family:inherit}
+.inbar input:focus{border-color:#0E8A6B}
+.snd{width:40px;height:40px;border-radius:50%;background:#0E8A6B;color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;flex:none}
+.note{font-size:11px;color:#B0AEA3;text-align:center;padding:5px}
+</style></head>
+<body><div class="app">
+<div class="hd"><div class="lg"><i class="ti ti-heart"></i></div><span class="nm">마이헬스케어</span>
+  <select id="persona"></select></div>
+<div class="chat" id="chat"></div>
+<div class="note">합성 데이터 · 의료 자문 아님 · 진단·처방 0</div>
+<div class="inbar"><input id="q" placeholder="건강에 대해 무엇이든 물어보세요" autocomplete="off">
+  <button class="snd" onclick="ask()"><i class="ti ti-arrow-up"></i></button></div>
+</div>
+<script>
+var chat=document.getElementById('chat'),qi=document.getElementById('q'),psel=document.getElementById('persona');
+var INTAKE=[{id:'eatout',q:'평소 외식·배달 빈도는?',o:['거의 매일','주 2~3회','드뭄']},
+            {id:'salty',q:'짠 음식·국물 선호도는?',o:['강함','보통','약함']},
+            {id:'period',q:'목표 기간은?',o:['2주','1개월','3개월+']}];
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function md(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
+function cites(s){return md(s).replace(/\[(\d+)\]/g,'<span class="cite">$1</span>');}
+function el(h){var d=document.createElement('div');d.innerHTML=h;chat.appendChild(d.firstChild);chat.scrollTop=chat.scrollHeight;return chat.lastChild;}
+async function boot(){try{var p=await (await fetch('/personas')).json();var arr=p.personas||p||[];
+  psel.innerHTML=arr.map(x=>'<option value="'+x.id+'">'+esc(x.name||x.id)+'</option>').join('');
+  var hi=arr.findIndex(x=>/혈압|고혈압/.test((x.name||'')+(x.tagline||'')));if(hi>0)psel.selectedIndex=hi;}catch(e){}
+  el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">안녕하세요. 건강이 궁금한 점을 물어보시면 근거와 함께 안내해 드릴게요. <b>진단·처방은 하지 않아요.</b></div></div>');}
+function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
+function send(q){
+  var ab=el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">…</div></div>');
+  var box=ab.querySelector('.bx');var text='',hoff=null,pinj=null,cc=0;
+  fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({query:q,persona_id:psel.value,conversation_id:'app-'+Date.now()})})
+  .then(res=>{var rd=res.body.getReader(),dec=new TextDecoder(),buf='';
+   (function pump(){return rd.read().then(({value,done})=>{if(done){finish();return;}
+     buf+=dec.decode(value,{stream:true});var i;
+     while((i=buf.indexOf('\n\n'))>=0){var ln=buf.slice(0,i);buf=buf.slice(i+2);
+      var m=ln.match(/^data: (.*)$/s);if(!m)return;var ev;try{ev=JSON.parse(m[1]);}catch(e){continue;}
+      if(ev.type==='INFO'&&ev.data&&ev.data.search_results)cc=ev.data.search_results.length;
+      else if(ev.type==='GENERATION'){text+=(ev.text||'');box.innerHTML=cites(text);chat.scrollTop=chat.scrollHeight;}
+      else if(ev.type==='STOP'){if(ev.handoff)hoff=ev.handoff;if(ev.personal_injected&&ev.personal_injected.length)pinj=ev.personal_injected;}
+      else if(ev.type==='ERROR'){box.innerHTML='<span style="color:#C0392B">요청 오류 — 잠시 후 다시 시도해 주세요.</span>';}}
+     return pump();});})();
+   function finish(){if(!text)box.innerHTML='(빈 응답)';
+     if(pinj)el('<div class="meta">🔐 개인맥락 반영됨 — '+esc(pinj.join(', '))+'</div>');
+     if(cc)el('<div class="meta">근거 '+cc+'개</div>');
+     if(hoff&&hoff.referral==='emergency')el('<div class="emg">🚑 응급 시 즉시 119·응급실</div>');
+     if(hoff&&hoff.show){var sft=hoff.copy==='soft';
+       var w=el('<div class="ho"></div>');
+       var b=document.createElement('button');b.className='hob '+(sft?'soft':'full');
+       b.innerHTML='<i class="ti ti-flame"></i>'+esc(hoff.label||'실천 코칭 받기');
+       b.onclick=function(){w.remove();startCoaching();};w.appendChild(b);
+       if(hoff.banner){var sp=document.createElement('div');sp.className='meta';sp.style.margin='0';sp.textContent='진료와 병행 권장';w.appendChild(sp);}}}
+  }).catch(e=>{box.innerHTML='<span style="color:#C0392B">연결 오류</span>';});}
+function startCoaching(){
+  var c=el('<div class="card"><div class="tlab"><i class="ti ti-flame"></i>실천 코칭</div>'
+    +'<div class="qh">어느 쪽을 도와드릴까요?</div><div class="trk">'
+    +'<div class="tk on" onclick="askIntake()"><i class="ti ti-salad"></i>식단</div>'
+    +'<div class="tk dim"><i class="ti ti-run"></i>운동</div>'
+    +'<div class="tk dim"><i class="ti ti-bed"></i>생활습관</div></div>'
+    +'<div class="icite" style="margin-top:8px">운동·생활습관은 준비 중이에요</div></div>');}
+var _ans={},_qi=0;
+function askIntake(){_ans={};_qi=0;renderQ();}
+function renderQ(){
+  if(_qi>=INTAKE.length){return getPlan();}
+  var it=INTAKE[_qi];var pct=Math.round(_qi/INTAKE.length*100);
+  var c=el('<div class="card"><div class="prog"><div style="width:'+pct+'%"></div></div>'
+    +'<div class="qh">'+esc(it.q)+'</div><div id="opts"></div></div>');
+  var host=c.querySelector('#opts');
+  it.o.forEach(function(o){var b=document.createElement('button');b.className='opt';b.textContent=o;
+    b.onclick=function(){_ans[it.id]=o;_qi++;renderQ();};host.appendChild(b);});}
+function getPlan(){
+  var load=el('<div class="card"><div class="qh" style="margin:0;color:#8A887F;font-size:14px">맞춤 플랜을 만들고 있어요…</div></div>');
+  fetch('/coaching/plan',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({persona_id:psel.value,intake:_ans})})
+  .then(r=>r.json()).then(p=>{load.remove();renderPlan(p);})
+  .catch(e=>{load.querySelector('.qh').textContent='플랜 생성 오류';});}
+function renderPlan(p){
+  if(p.error){el('<div class="card"><div class="qh">플랜 오류</div><div class="psub">'+esc(p.error)+'</div></div>');return;}
+  var items=(p.items||[]).map(function(it){return '<div class="it"><i class="ti ti-square"></i><span style="flex:1">'+esc(it.text)+'</span></div>';}).join('');
+  var cites=(p.items||[]).map(function(it){return esc(it.cite);}).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
+  var ban=p.banner?'<div class="ban"><i class="ti ti-alert-triangle"></i><div>'+esc(p.banner)+'</div></div>':'';
+  el('<div class="card"><div class="tlab"><i class="ti ti-checklist"></i>2주 식단 챌린지</div>'
+    +'<div class="ph">'+esc(p.header)+'</div><div class="psub">'+esc(p.tone||'')+'</div>'
+    +items+'<div class="icite">근거 · '+cites+'</div>'+ban
+    +'<div class="hob full" style="justify-content:center;margin-top:14px" onclick="alert(\'챌린지 시작! (체크인은 P2 후속)\')"><i class="ti ti-check"></i>2주 챌린지 시작하기</div></div>');}
+qi.addEventListener('keydown',function(e){if(e.key==='Enter'){ask();}});
+boot();
+</script></body></html>"""
+
+
 class Handler(BaseHTTPRequestHandler):
     rag_url = ""
     graph = "SUPERVISED_HYBRID_SEARCH"
@@ -684,6 +821,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             html = PAGE.replace("%LIVE%", "true" if self.rag_url else "false")
             return self._send(200, html, "text/html; charset=utf-8")
+        if self.path in ("/app", "/app/"):     # 확정 디자인(Warm Light) 앱
+            return self._send(200, APP_PAGE, "text/html; charset=utf-8")
         if self.path == "/personas":
             return self._send(200, json.dumps(load_personas(), ensure_ascii=False))
         self._send(404, json.dumps({"error": "not found"}))
@@ -708,6 +847,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(out, ensure_ascii=False))
         if self.path == "/chat":
             return self._proxy_chat(self._read_body())
+        if self.path == "/coaching/plan":      # 코칭 플랜(로컬 coaching_engine — 식단 트랙 P2)
+            req = self._read_body()
+            p = _persona_by_id(load_personas(), req.get("persona_id"))
+            if not p:
+                return self._send(404, json.dumps({"error": "unknown persona"}))
+            try:
+                import wellness_router as _wr, coaching_engine as _ce
+                pv = compute_preview(p, "혈압 식단 관리")
+                band = _wr.worst_band([f.get("label_user") for f in pv.get("findings", [])])
+                plan = _ce.generate_plan("diet", req.get("intake") or {}, band)
+                return self._send(200, json.dumps(plan, ensure_ascii=False))
+            except Exception as e:
+                return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
         self._send(404, json.dumps({"error": "not found"}))
 
     def _proxy_chat(self, req):
