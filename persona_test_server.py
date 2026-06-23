@@ -845,15 +845,45 @@ function getPlan(){
     body:JSON.stringify({persona_id:psel.value,track:_track,intake:_ans})})
   .then(r=>r.json()).then(p=>{load.remove();renderPlan(p);})
   .catch(e=>{load.querySelector('.qh').textContent='플랜 생성 오류';});}
+var _plan=null,_daily=[],_gami=null;
 function renderPlan(p){
   if(p.error){el('<div class="card"><div class="qh">플랜 오류</div><div class="psub">'+esc(p.error)+'</div></div>');return;}
+  _plan=p;_daily=[];
+  var tl={diet:'식단',exercise:'운동',habit:'생활습관'}[_track]||'';
   var items=(p.items||[]).map(function(it){return '<div class="it"><i class="ti ti-square"></i><span style="flex:1">'+esc(it.text)+'</span></div>';}).join('');
   var cites=(p.items||[]).map(function(it){return esc(it.cite);}).filter((v,i,a)=>a.indexOf(v)===i).join(' · ');
   var ban=p.banner?'<div class="ban"><i class="ti ti-alert-triangle"></i><div>'+esc(p.banner)+'</div></div>':'';
-  el('<div class="card"><div class="tlab"><i class="ti ti-checklist"></i>2주 식단 챌린지</div>'
+  el('<div class="card"><div class="tlab"><i class="ti ti-checklist"></i>2주 '+tl+' 챌린지</div>'
     +'<div class="ph">'+esc(p.header)+'</div><div class="psub">'+esc(p.tone||'')+'</div>'
     +items+'<div class="icite">근거 · '+cites+'</div>'+ban
-    +'<div class="hob full" style="justify-content:center;margin-top:14px" onclick="alert(\'챌린지 시작! (체크인은 P2 후속)\')"><i class="ti ti-check"></i>2주 챌린지 시작하기</div></div>');}
+    +'<div class="hob full" style="justify-content:center;margin-top:14px" onclick="startChallenge()"><i class="ti ti-check"></i>2주 챌린지 시작하기</div></div>');}
+function startChallenge(){
+  var p=_plan;
+  var acts=(p.items||[]).map(function(it){return '<div data-done="0" onclick="toggleAct(this)" style="display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;border-bottom:1px solid #F4F2EC"><i class="ti ti-circle" style="color:#0E8A6B"></i><span style="flex:1;font-size:14px">'+esc(it.text)+'</span></div>';}).join('');
+  var c=el('<div class="card"><div class="tlab"><i class="ti ti-flame"></i>오늘의 실천 · 지속 루프</div>'
+    +'<div class="psub" style="margin-bottom:6px">매일 실천하고 체크인하면 스트릭이 쌓여요</div>'+acts
+    +'<div class="hob full" style="justify-content:center;margin-top:12px" onclick="checkinToday()"><i class="ti ti-calendar-check"></i>오늘 체크인 완료</div>'
+    +'<div id="gami" style="margin-top:14px"></div>'
+    +'<div class="psub" style="margin-top:10px"><a href="javascript:void(0)" onclick="demoFill()" style="color:#0E8A6B;font-weight:600">데모: 지난 6일 채우기</a> · 기록은 이 세션에만(영속 미연동)</div></div>');
+  _gami=c.querySelector('#gami');refreshGami();}
+function toggleAct(e){var on=e.getAttribute('data-done')==='1';e.setAttribute('data-done',on?'0':'1');
+  e.querySelector('i').className=on?'ti ti-circle':'ti ti-circle-check-filled';
+  var sp=e.querySelector('span');sp.style.textDecoration=on?'none':'line-through';sp.style.color=on?'':'#A8A599';}
+function checkinToday(){_daily.push(true);refreshGami();}
+function demoFill(){_daily=[true,true,true,true,true,true].concat(_daily);refreshGami();}
+function refreshGami(){if(!_gami)return;var days=(_plan&&_plan.plan_days)||14;
+  fetch('/coaching/summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily_done:_daily,plan_days:days})})
+  .then(r=>r.json()).then(function(s){renderGami(s);}).catch(function(e){});}
+function renderGami(s){
+  var bd=(s.badges||[]).map(function(b){return '<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A;margin:2px 3px 0 0">🏅 '+esc(b)+'</span>';}).join('');
+  var pct=Math.min(100,Math.round((s.adherence||0)/70*100));
+  var comp=s.completed?'<div class="ban" style="background:rgba(14,138,107,.1);border-color:rgba(14,138,107,.35);color:#0B5F4A;margin-top:10px"><i class="ti ti-trophy"></i><div>첫 완주 달성! 꾸준함이 멋져요 🎉</div></div>':'';
+  _gami.innerHTML='<div style="display:flex;gap:8px;text-align:center">'
+    +'<div style="flex:1;background:#FBF4E8;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#E0822E">🔥'+s.streak+'</div><div class="psub">연속일</div></div>'
+    +'<div style="flex:1;background:#EEF6F2;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#0E8A6B">'+s.points+'</div><div class="psub">포인트</div></div>'
+    +'<div style="flex:1;background:#F1EEFA;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#6A53B0">Lv.'+s.level+'</div><div class="psub">레벨</div></div></div>'
+    +'<div style="margin-top:10px"><div class="psub">완주까지 '+(s.adherence||0)+'% / 70%</div><div class="prog" style="margin-top:4px"><div style="width:'+pct+'%"></div></div></div>'
+    +(bd?'<div style="margin-top:10px">'+bd+'</div>':'')+comp;}
 qi.addEventListener('keydown',function(e){if(e.key==='Enter'){ask();}});
 boot();
 </script></body></html>"""
