@@ -41,6 +41,14 @@ def _t(el: ET.Element, tag: str) -> str:
     return (c.text or "").strip() if c is not None and c.text else ""
 
 
+def _kakao_map(name, lat=None, lon=None) -> str:
+    """카카오맵 링크 — 좌표 있으면 정확한 위치(link/map, 마커), 없으면 검색(link/search)."""
+    nm = urllib.parse.quote(str(name or ""))
+    if lat and lon:
+        return f"https://map.kakao.com/link/map/{nm},{lat},{lon}"
+    return f"https://map.kakao.com/link/search/{nm}"
+
+
 def parse_pharmacies(xml_str: str) -> List[Dict]:
     """HIRA XML → 거리순(가까운 순) 약국 목록(순수, 네트워크 없음)."""
     root = ET.fromstring(xml_str)
@@ -74,7 +82,7 @@ def _enrich(items: List[Dict], limit: int) -> List[Dict]:
         d["dist_label"] = f"{m}m" if m < 1000 else f"{m / 1000:.1f}km"
         d["hours"] = None
         d["hours_note"] = _HOURS_NOTE
-        d["map_url"] = "https://map.kakao.com/?q=" + urllib.parse.quote(o["name"])
+        d["map_url"] = _kakao_map(o["name"], o.get("lat"), o.get("lon"))
         d["tel_url"] = "tel:" + (o["tel"] or "").replace("-", "")
         res.append(d)
     return res
@@ -175,7 +183,7 @@ def _egen_enrich(items: List[Dict], now_kst: datetime, limit: int) -> List[Dict]
                       if pair and pair[0] and pair[1] else None)
         if d["open_now"] is None:
             d["hours_note"] = "영업시간 정보 확인 필요"
-        d["map_url"] = "https://map.kakao.com/?q=" + urllib.parse.quote(o["name"])
+        d["map_url"] = _kakao_map(o["name"], o.get("lat"), o.get("lon"))
         d["tel_url"] = "tel:" + (o["tel"] or "").replace("-", "")
         res.append(d)
     return res

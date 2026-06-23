@@ -7,6 +7,7 @@ data.go.kr 서비스키) 연동 — `find(...)` 구조는 동일, _SAMPLE 만 AP
 """
 from __future__ import annotations
 
+import urllib.parse
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -57,7 +58,7 @@ def find(kind: str, now: datetime, region: Optional[str] = None, limit: int = 4)
         d["open_now"] = open_now(f, now)
         d["dist_label"] = _dist_label(f["dist_m"])
         d["hours"] = f"{f['open']}~{f['close']} ({f['days']})"
-        d["map_url"] = "https://map.kakao.com/?q=" + f["name"]   # 공개 지도 검색(중립)
+        d["map_url"] = "https://map.kakao.com/link/search/" + urllib.parse.quote(f["name"])   # 공개 지도 검색(중립)
         d["tel_url"] = "tel:" + f["tel"].replace("-", "")
         out.append(d)
     out.sort(key=lambda x: (not x["open_now"], x["dist_m"]))     # 영업중 우선, 가까운 순
