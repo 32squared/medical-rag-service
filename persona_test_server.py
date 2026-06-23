@@ -878,12 +878,13 @@ function renderGami(s){
   var bd=(s.badges||[]).map(function(b){return '<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A;margin:2px 3px 0 0">🏅 '+esc(b)+'</span>';}).join('');
   var pct=Math.min(100,Math.round((s.adherence||0)/70*100));
   var comp=s.completed?'<div class="ban" style="background:rgba(14,138,107,.1);border-color:rgba(14,138,107,.35);color:#0B5F4A;margin-top:10px"><i class="ti ti-trophy"></i><div>첫 완주 달성! 꾸준함이 멋져요 🎉</div></div>':'';
+  var coach=(s.coach&&s.coach.message&&!s.completed)?'<div style="margin-top:10px;padding:10px 12px;background:#F2F8F5;border-radius:10px;font-size:13.5px;color:#0B5F4A;line-height:1.45"><i class="ti ti-message-heart"></i> '+esc(s.coach.message)+'</div>':'';
   _gami.innerHTML='<div style="display:flex;gap:8px;text-align:center">'
     +'<div style="flex:1;background:#FBF4E8;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#E0822E">🔥'+s.streak+'</div><div class="psub">연속일</div></div>'
     +'<div style="flex:1;background:#EEF6F2;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#0E8A6B">'+s.points+'</div><div class="psub">포인트</div></div>'
     +'<div style="flex:1;background:#F1EEFA;border-radius:12px;padding:10px 4px"><div style="font-size:21px;font-weight:800;color:#6A53B0">Lv.'+s.level+'</div><div class="psub">레벨</div></div></div>'
     +'<div style="margin-top:10px"><div class="psub">완주까지 '+(s.adherence||0)+'% / 70%</div><div class="prog" style="margin-top:4px"><div style="width:'+pct+'%"></div></div></div>'
-    +(bd?'<div style="margin-top:10px">'+bd+'</div>':'')+comp;}
+    +(bd?'<div style="margin-top:10px">'+bd+'</div>':'')+coach+comp;}
 qi.addEventListener('keydown',function(e){if(e.key==='Enter'){ask();}});
 boot();
 </script></body></html>"""
@@ -963,13 +964,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(out, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
-        if self.path == "/coaching/summary":        # 게이미피케이션 요약(체크인 일별 done)
+        if self.path == "/coaching/summary":        # 게이미피케이션 요약 + 적응형 코칭 메시지
             req = self._read_body()
             try:
                 import coaching_gamification as _g
+                import coaching_adaptive as _ca
                 dd = [bool(x) for x in (req.get("daily_done") or [])]
-                return self._send(200, json.dumps(_g.summary(dd, int(req.get("plan_days") or 14)),
-                                                  ensure_ascii=False))
+                days = int(req.get("plan_days") or 14)
+                s = _g.summary(dd, days)
+                dsl = 0                                   # 최근 연속 미실천일(이탈 신호)
+                for d in reversed(dd):
+                    if d:
+                        break
+                    dsl += 1
+                s["coach"] = _ca.coach(s["adherence"], s["streak"],
+                                       days_since_last=dsl, completed=s["completed"])
+                return self._send(200, json.dumps(s, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
         if self.path == "/facilities":               # 가까운 병원·약국(거리·영업시간) §5.8
