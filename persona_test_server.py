@@ -716,10 +716,13 @@ body{font-family:'Pretendard',sans-serif;background:#EEEBE3;color:#232220}
 .inbar input:focus{border-color:#0E8A6B}
 .snd{width:40px;height:40px;border-radius:50%;background:#0E8A6B;color:#fff;border:none;display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;flex:none}
 .note{font-size:11px;color:#B0AEA3;text-align:center;padding:5px}
+.pchip{padding:6px 11px;border-radius:16px;background:#F2F0E9;font-size:13px;cursor:pointer;border:1px solid transparent;user-select:none}
+.pchip.on{background:rgba(14,138,107,.12);color:#0B5F4A;border-color:rgba(14,138,107,.3);font-weight:600}
+.icobtn{width:34px;height:34px;border-radius:10px;border:1px solid rgba(0,0,0,.1);background:#fff;cursor:pointer;color:#0E8A6B;display:flex;align-items:center;justify-content:center;flex:none}
 </style></head>
 <body><div class="app">
 <div class="hd"><div class="lg"><i class="ti ti-heart"></i></div><span class="nm">마이헬스케어</span>
-  <select id="persona"></select></div>
+  <select id="persona"></select><button class="icobtn" onclick="openProfile()" title="내 정보"><i class="ti ti-user-cog"></i></button></div>
 <div class="chat" id="chat"></div>
 <div class="note">합성 데이터 · 의료 자문 아님 · 진단·처방 0</div>
 <div class="inbar"><input id="q" placeholder="건강에 대해 무엇이든 물어보세요" autocomplete="off">
@@ -748,7 +751,7 @@ async function boot(){try{var p=await (await fetch('/personas')).json();var arr=
   psel.onchange=afterPersona;afterPersona();}
 function afterPersona(){chat.innerHTML='';
   el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">안녕하세요. 안 물어보셔도 <b>오늘 챙길 것</b>을 먼저 알려드릴게요. 무엇이든 물어보셔도 좋아요. <b>진단·처방은 하지 않아요.</b></div></div>');
-  loadAnticipatory();}
+  loadAnticipatory();showProfileSuggest();}
 function loadAnticipatory(){fetch('/coaching/anticipatory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona_id:psel.value})}).then(r=>r.json()).then(a=>{
   if(a.top){var t=a.top,emg=(t.referral==='emergency'),col=emg?'#C0392B':'#B5721A';
    var c=el('<div class="card"></div>');
@@ -803,6 +806,37 @@ function renderFacilities(host,d){
       +'<a href="'+f.map_url+'" target="_blank" rel="noopener" class="chip" style="text-decoration:none"><i class="ti ti-map-2"></i>지도</a> '
       +'<a href="'+f.tel_url+'" class="chip" style="text-decoration:none;margin-left:5px"><i class="ti ti-phone"></i>전화</a></div>';
   }).join('')+'<div class="psub" style="margin-top:9px;line-height:1.5">'+esc(d.notice||'')+'</div>';}
+function loadProfile(){try{return JSON.parse(localStorage.getItem('mhc_profile')||'{}');}catch(e){return {};}}
+function saveProfile(p){try{localStorage.setItem('mhc_profile',JSON.stringify(p));}catch(e){}}
+function openProfile(){
+  var pf=loadProfile();
+  var ages=['','20대 미만','20대','30대','40대','50대','60대','70대 이상'],sexes=['선택안함','남','여'];
+  var topics=['혈압','혈당','콜레스테롤','체중','수면','운동','식단','스트레스'],conds=['고혈압','당뇨','고지혈증','비만'];
+  function opt(a,s){return a.map(function(x){return '<option'+(x===s?' selected':'')+'>'+(x||'연령대')+'</option>';}).join('');}
+  function chip(a,s,g){return a.map(function(x){return '<span class="pchip'+((s||[]).indexOf(x)>=0?' on':'')+'" data-v="'+x+'" data-g="'+g+'">'+x+'</span>';}).join('');}
+  var c=el('<div class="card"><div class="tlab"><i class="ti ti-user-heart"></i>내 건강 정보</div>'
+    +'<div class="psub" style="margin-bottom:8px">입력하면 나에게 맞는 상세 질문을 추천해드려요. 진단·처방은 하지 않아요.</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px"><select id="pfAge" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(0,0,0,.12);font-family:inherit">'+opt(ages,pf.age_band||'')+'</select>'
+    +'<select id="pfSex" style="flex:1;padding:9px;border-radius:9px;border:1px solid rgba(0,0,0,.12);font-family:inherit">'+opt(sexes,pf.sex||'선택안함')+'</select></div>'
+    +'<div class="psub" style="margin:6px 0 4px">관심 건강 주제</div><div style="display:flex;flex-wrap:wrap;gap:6px">'+chip(topics,pf.topics,'t')+'</div>'
+    +'<label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:13px;cursor:pointer"><input type="checkbox" id="pfC"'+(pf.sensitive_consent?' checked':'')+'> 기저질환 입력에 동의 <span class="psub">(민감정보 · 동의 시에만 사용)</span></label>'
+    +'<div id="pfCW" style="display:'+(pf.sensitive_consent?'block':'none')+'"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">'+chip(conds,pf.conditions,'c')+'</div></div>'
+    +'<div class="hob full" style="justify-content:center;margin-top:14px" id="pfSave"><i class="ti ti-device-floppy"></i>저장하고 추천 받기</div>'
+    +'<div id="pfOut" style="margin-top:12px"></div></div>');
+  c.querySelectorAll('.pchip').forEach(function(ch){ch.onclick=function(){ch.classList.toggle('on');};});
+  c.querySelector('#pfC').onchange=function(){c.querySelector('#pfCW').style.display=this.checked?'block':'none';};
+  c.querySelector('#pfSave').onclick=function(){
+    var pick=function(g){return [].slice.call(c.querySelectorAll('.pchip.on[data-g="'+g+'"]')).map(function(x){return x.getAttribute('data-v');});};
+    var con=c.querySelector('#pfC').checked;
+    var prof={age_band:c.querySelector('#pfAge').value,sex:c.querySelector('#pfSex').value,topics:pick('t'),sensitive_consent:con,conditions:con?pick('c'):[]};
+    saveProfile(prof);var out=c.querySelector('#pfOut');out.innerHTML='<div class="psub">추천 질문을 준비하고 있어요…</div>';
+    fetch('/profile/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(prof)}).then(r=>r.json()).then(function(d){renderSuggest(out,d);}).catch(function(e){out.innerHTML='';});};}
+function renderSuggest(host,d){
+  var sum=d.summary?'<div class="psub" style="margin-bottom:8px"><i class="ti ti-user-check"></i> 내 정보: '+esc(d.summary)+'</div>':'';
+  host.innerHTML=sum+'<div class="psub" style="margin-bottom:6px">나에게 맞는 상세 질문 — 눌러서 물어보세요</div><div id="sgw" style="display:flex;flex-wrap:wrap;gap:6px"></div>';
+  var w=host.querySelector('#sgw');(d.questions||[]).forEach(function(q){var s=document.createElement('span');s.className='chip';s.style.cursor='pointer';s.textContent=q;s.onclick=function(){qi.value=q;ask();};w.appendChild(s);});}
+function showProfileSuggest(){var pf=loadProfile();var has=(pf.topics&&pf.topics.length)||(pf.conditions&&pf.conditions.length);if(!has)return;
+  fetch('/profile/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pf)}).then(r=>r.json()).then(function(d){var c=el('<div class="card"></div>');renderSuggest(c,d);}).catch(function(e){});}
 function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
 function send(q){
   var ab=el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">…</div></div>');
@@ -995,6 +1029,16 @@ class Handler(BaseHTTPRequestHandler):
                 s["coach"] = _ca.coach(s["adherence"], s["streak"],
                                        days_since_last=dsl, completed=s["completed"])
                 return self._send(200, json.dumps(s, ensure_ascii=False))
+            except Exception as e:
+                return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
+        if self.path == "/profile/suggest":          # 프로필 → 상세 질문 추천(정보 탐색)
+            req = self._read_body()
+            try:
+                import suggested_questions as _sq
+                conds = req.get("conditions") if req.get("sensitive_consent") else None
+                out = {"questions": _sq.suggest(req.get("topics"), conds),
+                       "summary": _sq.profile_summary(req)}
+                return self._send(200, json.dumps(out, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
         if self.path == "/facilities":               # 가까운 병원·약국(거리·영업시간) §5.8
