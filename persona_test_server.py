@@ -754,10 +754,32 @@ function loadAnticipatory(){fetch('/coaching/anticipatory',{method:'POST',header
    var c=el('<div class="card"></div>');
    c.style.borderColor=emg?'rgba(192,57,43,.3)':'rgba(224,162,62,.3)';c.style.background=emg?'rgba(192,57,43,.06)':'rgba(224,162,62,.1)';
    c.innerHTML='<div class="tlab" style="color:'+col+'"><i class="ti '+(emg?'ti-urgent':'ti-alert-triangle')+'"></i>지금 챙기세요</div><div class="ph">'+esc(t.text)+'</div>'+(t.note?'<div class="psub">'+esc(t.note)+'</div>':'');
-   if(a.referral&&a.referral.links){a.referral.links.forEach(function(l){var b=document.createElement('div');b.className='hob soft';b.style.marginTop='8px';b.innerHTML='<i class="ti ti-map-pin"></i>'+esc(l.name);b.onclick=function(){openL(l.url);};c.appendChild(b);});}}
+   if(a.referral){var fb=document.createElement('div');fb.style.cssText='display:flex;gap:8px;margin-top:10px';
+     [['hospital','가까운 병원 찾기'],['pharmacy','가까운 약국 찾기']].forEach(function(p){var b=document.createElement('div');b.className='hob soft';b.innerHTML='<i class="ti ti-map-pin"></i>'+p[1];b.onclick=(function(k){return function(){openFinder(k);};})(p[0]);fb.appendChild(b);});c.appendChild(fb);}}
   if(a.questions&&a.questions.length){var w=el('<div style="margin:0 0 4px 37px"></div>');a.questions.forEach(function(x){var ch=document.createElement('span');ch.className='chip';ch.style.cursor='pointer';ch.style.marginRight='6px';ch.textContent=x;ch.onclick=function(){qi.value=x;ask();};w.appendChild(ch);});}
  }).catch(function(e){});}
 function openL(u){try{window.open(u,'_blank');}catch(e){}}
+function openFinder(kind){
+  var c=el('<div class="card"></div>');
+  c.innerHTML='<div class="tlab"><i class="ti ti-map-pin"></i>'+(kind==='hospital'?'가까운 병원':'가까운 약국')+' 찾기</div>'
+   +'<div style="display:flex;gap:8px;margin-bottom:6px"><input id="loc" style="flex:1;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit" value="역삼동" placeholder="동네·주소 입력"><div class="hob full" id="fbtn">찾기</div></div><div id="flist"></div>';
+  var run=function(){var region=(c.querySelector('#loc').value||'내 주변');var host=c.querySelector('#flist');
+    host.innerHTML='<div class="psub">'+esc(region)+' 주변에서 찾는 중…</div>';
+    fetch('/facilities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:kind,region:region})})
+    .then(r=>r.json()).then(function(d){renderFacilities(host,d);}).catch(function(e){host.innerHTML='<div class="psub">조회 오류</div>';});};
+  c.querySelector('#fbtn').onclick=run;run();}
+function renderFacilities(host,d){
+  if(d.error||!d.items||!d.items.length){host.innerHTML='<div class="psub">결과가 없어요</div>';return;}
+  host.innerHTML=d.items.map(function(f){
+    var open=f.open_now?'<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A">지금 영업중</span>'
+                       :'<span class="chip" style="background:rgba(0,0,0,.06);color:#8A887F">영업 종료</span>';
+    var dept=f.dept?' <span style="font-weight:400;color:#8A887F;font-size:12px">'+esc(f.dept)+'</span>':'';
+    return '<div style="padding:12px 0;border-bottom:1px solid #F2F0E9">'
+      +'<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">'+esc(f.name)+dept+'</b>'+open+'</div>'
+      +'<div class="psub" style="margin:4px 0 8px"><b style="color:#0E8A6B">'+esc(f.dist_label)+'</b> · '+esc(f.area)+' · '+esc(f.hours)+'</div>'
+      +'<a href="'+f.map_url+'" target="_blank" rel="noopener" class="chip" style="text-decoration:none"><i class="ti ti-map-2"></i>지도</a> '
+      +'<a href="'+f.tel_url+'" class="chip" style="text-decoration:none;margin-left:5px"><i class="ti ti-phone"></i>전화</a></div>';
+  }).join('')+'<div class="psub" style="margin-top:9px;line-height:1.5">'+esc(d.notice)+'</div>';}
 function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
 function send(q){
   var ab=el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">…</div></div>');
@@ -903,6 +925,14 @@ class Handler(BaseHTTPRequestHandler):
                 dd = [bool(x) for x in (req.get("daily_done") or [])]
                 return self._send(200, json.dumps(_g.summary(dd, int(req.get("plan_days") or 14)),
                                                   ensure_ascii=False))
+            except Exception as e:
+                return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
+        if self.path == "/facilities":               # 가까운 병원·약국(거리·영업시간·영업중) §5.8
+            req = self._read_body()
+            try:
+                import facility_finder as _ff
+                out = _ff.find_demo(req.get("kind") or "hospital", region=req.get("region"))
+                return self._send(200, json.dumps(out, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
         self._send(404, json.dumps({"error": "not found"}))
