@@ -857,20 +857,27 @@ function renderPlan(p){
     +'<div class="ph">'+esc(p.header)+'</div><div class="psub">'+esc(p.tone||'')+'</div>'
     +items+'<div class="icite">근거 · '+cites+'</div>'+ban
     +'<div class="hob full" style="justify-content:center;margin-top:14px" onclick="startChallenge()"><i class="ti ti-check"></i>2주 챌린지 시작하기</div></div>');}
+var _lastCk='',_ciBtn=null;
+function ckey(){return 'mhc_ck_'+(psel.value||'')+'_'+(_track||'');}
+function loadCk(){try{return JSON.parse(localStorage.getItem(ckey())||'{}');}catch(e){return {};}}
+function saveCk(){try{localStorage.setItem(ckey(),JSON.stringify({daily:_daily,date:_lastCk}));}catch(e){}}
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function markCk(){if(_ciBtn&&_lastCk===todayStr()){_ciBtn.innerHTML='<i class="ti ti-circle-check-filled"></i>오늘 체크인 완료 ✓';_ciBtn.style.opacity='.6';}}
 function startChallenge(){
-  var p=_plan;
+  var p=_plan,sv=loadCk();_daily=sv.daily||[];_lastCk=sv.date||'';
   var acts=(p.items||[]).map(function(it){return '<div data-done="0" onclick="toggleAct(this)" style="display:flex;align-items:center;gap:8px;padding:9px 0;cursor:pointer;border-bottom:1px solid #F4F2EC"><i class="ti ti-circle" style="color:#0E8A6B"></i><span style="flex:1;font-size:14px">'+esc(it.text)+'</span></div>';}).join('');
+  var resumed=(_daily.filter(Boolean).length)?'<div class="psub" style="margin-bottom:6px;color:#0B5F4A"><i class="ti ti-history"></i> 이어가기 — 지금까지 '+_daily.filter(Boolean).length+'일 실천했어요</div>':'';
   var c=el('<div class="card"><div class="tlab"><i class="ti ti-flame"></i>오늘의 실천 · 지속 루프</div>'
-    +'<div class="psub" style="margin-bottom:6px">매일 실천하고 체크인하면 스트릭이 쌓여요</div>'+acts
-    +'<div class="hob full" style="justify-content:center;margin-top:12px" onclick="checkinToday()"><i class="ti ti-calendar-check"></i>오늘 체크인 완료</div>'
+    +resumed+'<div class="psub" style="margin-bottom:6px">매일 실천하고 체크인하면 스트릭이 쌓여요</div>'+acts
+    +'<div class="hob full" id="ciBtn" style="justify-content:center;margin-top:12px" onclick="checkinToday()"><i class="ti ti-calendar-check"></i>오늘 체크인 완료</div>'
     +'<div id="gami" style="margin-top:14px"></div>'
-    +'<div class="psub" style="margin-top:10px"><a href="javascript:void(0)" onclick="demoFill()" style="color:#0E8A6B;font-weight:600">데모: 지난 6일 채우기</a> · 기록은 이 세션에만(영속 미연동)</div></div>');
-  _gami=c.querySelector('#gami');refreshGami();}
+    +'<div class="psub" style="margin-top:10px"><a href="javascript:void(0)" onclick="demoFill()" style="color:#0E8A6B;font-weight:600">데모: 지난 6일 채우기</a> · 이 기기에 저장돼요(localStorage)</div></div>');
+  _gami=c.querySelector('#gami');_ciBtn=c.querySelector('#ciBtn');markCk();refreshGami();}
 function toggleAct(e){var on=e.getAttribute('data-done')==='1';e.setAttribute('data-done',on?'0':'1');
   e.querySelector('i').className=on?'ti ti-circle':'ti ti-circle-check-filled';
   var sp=e.querySelector('span');sp.style.textDecoration=on?'none':'line-through';sp.style.color=on?'':'#A8A599';}
-function checkinToday(){_daily.push(true);refreshGami();}
-function demoFill(){_daily=[true,true,true,true,true,true].concat(_daily);refreshGami();}
+function checkinToday(){if(_lastCk===todayStr())return;_daily.push(true);_lastCk=todayStr();saveCk();markCk();refreshGami();}
+function demoFill(){_daily=[true,true,true,true,true,true].concat(_daily);saveCk();refreshGami();}
 function refreshGami(){if(!_gami)return;var days=(_plan&&_plan.plan_days)||14;
   fetch('/coaching/summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily_done:_daily,plan_days:days})})
   .then(r=>r.json()).then(function(s){renderGami(s);}).catch(function(e){});}
