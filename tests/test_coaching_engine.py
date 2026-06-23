@@ -47,4 +47,37 @@ def test_generated_plan_passes_backstop():
 
 def test_unsupported_track_raises():
     with pytest.raises(ValueError):
-        ce.generate_plan("exercise", {}, band=None)
+        ce.generate_plan("running", {}, band=None)
+
+
+def test_supported_tracks():
+    assert set(ce.supported_tracks()) == {"diet", "exercise", "habit"}
+
+
+def test_exercise_plan_and_clearance_on_warning():
+    p = ce.generate_plan("exercise", {"now": "거의 안 함", "activity": "걷기", "goal": "활동량 늘리기"}, band="경고")
+    assert p["track"] == "exercise"
+    assert len(p["items"]) <= 2                       # 경고 → soft 캡
+    assert "운동 전" in p["banner"] and "clearance" in p["banner"]   # 위험군 clearance
+    assert "활동" in p["header"]
+    assert all(it["cite"] for it in p["items"])
+
+
+def test_habit_plan_by_focus():
+    p = ce.generate_plan("habit", {"focus": "수면", "reg": "불규칙", "period": "2주"}, band="안정")
+    assert p["track"] == "habit"
+    assert any("취침" in it["text"] or "화면" in it["text"] for it in p["items"])
+    assert p["banner"] is None
+
+
+def test_intake_all_tracks():
+    for t in ("diet", "exercise", "habit"):
+        assert len(ce.get_intake(t)) == 3
+
+
+def test_all_tracks_pass_backstop():
+    for t in ("diet", "exercise", "habit"):
+        for band in (None, "주의", "경고"):
+            p = ce.generate_plan(t, {}, band=band)
+            text = p["header"] + " " + " ".join(i["text"] for i in p["items"])
+            assert cc.scan_efficacy(text) == [] and cc.scan_prescription(text) == []
