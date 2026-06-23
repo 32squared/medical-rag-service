@@ -727,9 +727,17 @@ body{font-family:'Pretendard',sans-serif;background:#EEEBE3;color:#232220}
 </div>
 <script>
 var chat=document.getElementById('chat'),qi=document.getElementById('q'),psel=document.getElementById('persona');
-var INTAKE=[{id:'eatout',q:'평소 외식·배달 빈도는?',o:['거의 매일','주 2~3회','드뭄']},
-            {id:'salty',q:'짠 음식·국물 선호도는?',o:['강함','보통','약함']},
-            {id:'period',q:'목표 기간은?',o:['2주','1개월','3개월+']}];
+var _track='diet';
+var INTAKE_BY_TRACK={
+ diet:[{id:'eatout',q:'평소 외식·배달 빈도는?',o:['거의 매일','주 2~3회','드뭄']},
+       {id:'salty',q:'짠 음식·국물 선호도는?',o:['강함','보통','약함']},
+       {id:'period',q:'목표 기간은?',o:['2주','1개월','3개월+']}],
+ exercise:[{id:'now',q:'지금 운동 습관은?',o:['거의 안 함','가끔','주 3회+']},
+       {id:'activity',q:'주로 가능한 활동은?',o:['걷기','홈트','헬스·유산소']},
+       {id:'goal',q:'목표는?',o:['활동량 늘리기','체중','체력']}],
+ habit:[{id:'focus',q:'가장 개선하고 싶은 것은?',o:['수면','스트레스','금연·절주']},
+       {id:'reg',q:'요즘 생활 리듬은?',o:['불규칙','보통','규칙적']},
+       {id:'period',q:'목표 기간은?',o:['2주','1개월']}]};
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function md(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
 function cites(s){return md(s).replace(/\[(\d+)\]/g,'<span class="cite">$1</span>');}
@@ -737,7 +745,19 @@ function el(h){var d=document.createElement('div');d.innerHTML=h;chat.appendChil
 async function boot(){try{var p=await (await fetch('/personas')).json();var arr=p.personas||p||[];
   psel.innerHTML=arr.map(x=>'<option value="'+x.id+'">'+esc(x.name||x.id)+'</option>').join('');
   var hi=arr.findIndex(x=>/혈압|고혈압/.test((x.name||'')+(x.tagline||'')));if(hi>0)psel.selectedIndex=hi;}catch(e){}
-  el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">안녕하세요. 건강이 궁금한 점을 물어보시면 근거와 함께 안내해 드릴게요. <b>진단·처방은 하지 않아요.</b></div></div>');}
+  psel.onchange=afterPersona;afterPersona();}
+function afterPersona(){chat.innerHTML='';
+  el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">안녕하세요. 안 물어보셔도 <b>오늘 챙길 것</b>을 먼저 알려드릴게요. 무엇이든 물어보셔도 좋아요. <b>진단·처방은 하지 않아요.</b></div></div>');
+  loadAnticipatory();}
+function loadAnticipatory(){fetch('/coaching/anticipatory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona_id:psel.value})}).then(r=>r.json()).then(a=>{
+  if(a.top){var t=a.top,emg=(t.referral==='emergency'),col=emg?'#C0392B':'#B5721A';
+   var c=el('<div class="card"></div>');
+   c.style.borderColor=emg?'rgba(192,57,43,.3)':'rgba(224,162,62,.3)';c.style.background=emg?'rgba(192,57,43,.06)':'rgba(224,162,62,.1)';
+   c.innerHTML='<div class="tlab" style="color:'+col+'"><i class="ti '+(emg?'ti-urgent':'ti-alert-triangle')+'"></i>지금 챙기세요</div><div class="ph">'+esc(t.text)+'</div>'+(t.note?'<div class="psub">'+esc(t.note)+'</div>':'');
+   if(a.referral&&a.referral.links){a.referral.links.forEach(function(l){var b=document.createElement('div');b.className='hob soft';b.style.marginTop='8px';b.innerHTML='<i class="ti ti-map-pin"></i>'+esc(l.name);b.onclick=function(){openL(l.url);};c.appendChild(b);});}}
+  if(a.questions&&a.questions.length){var w=el('<div style="margin:0 0 4px 37px"></div>');a.questions.forEach(function(x){var ch=document.createElement('span');ch.className='chip';ch.style.cursor='pointer';ch.style.marginRight='6px';ch.textContent=x;ch.onclick=function(){qi.value=x;ask();};w.appendChild(ch);});}
+ }).catch(function(e){});}
+function openL(u){try{window.open(u,'_blank');}catch(e){}}
 function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
 function send(q){
   var ab=el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">…</div></div>');
@@ -766,17 +786,17 @@ function send(q){
        if(hoff.banner){var sp=document.createElement('div');sp.className='meta';sp.style.margin='0';sp.textContent='진료와 병행 권장';w.appendChild(sp);}}}
   }).catch(e=>{box.innerHTML='<span style="color:#C0392B">연결 오류</span>';});}
 function startCoaching(){
-  var c=el('<div class="card"><div class="tlab"><i class="ti ti-flame"></i>실천 코칭</div>'
+  el('<div class="card"><div class="tlab"><i class="ti ti-flame"></i>실천 코칭</div>'
     +'<div class="qh">어느 쪽을 도와드릴까요?</div><div class="trk">'
-    +'<div class="tk on" onclick="askIntake()"><i class="ti ti-salad"></i>식단</div>'
-    +'<div class="tk dim"><i class="ti ti-run"></i>운동</div>'
-    +'<div class="tk dim"><i class="ti ti-bed"></i>생활습관</div></div>'
-    +'<div class="icite" style="margin-top:8px">운동·생활습관은 준비 중이에요</div></div>');}
+    +'<div class="tk on" onclick="selectTrack(\'diet\')"><i class="ti ti-salad"></i>식단</div>'
+    +'<div class="tk" onclick="selectTrack(\'exercise\')"><i class="ti ti-run"></i>운동</div>'
+    +'<div class="tk" onclick="selectTrack(\'habit\')"><i class="ti ti-bed"></i>생활습관</div></div></div>');}
+function selectTrack(t){_track=t;askIntake();}
 var _ans={},_qi=0;
 function askIntake(){_ans={};_qi=0;renderQ();}
-function renderQ(){
-  if(_qi>=INTAKE.length){return getPlan();}
-  var it=INTAKE[_qi];var pct=Math.round(_qi/INTAKE.length*100);
+function renderQ(){var Q=INTAKE_BY_TRACK[_track]||INTAKE_BY_TRACK.diet;
+  if(_qi>=Q.length){return getPlan();}
+  var it=Q[_qi];var pct=Math.round(_qi/Q.length*100);
   var c=el('<div class="card"><div class="prog"><div style="width:'+pct+'%"></div></div>'
     +'<div class="qh">'+esc(it.q)+'</div><div id="opts"></div></div>');
   var host=c.querySelector('#opts');
@@ -785,7 +805,7 @@ function renderQ(){
 function getPlan(){
   var load=el('<div class="card"><div class="qh" style="margin:0;color:#8A887F;font-size:14px">맞춤 플랜을 만들고 있어요…</div></div>');
   fetch('/coaching/plan',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({persona_id:psel.value,intake:_ans})})
+    body:JSON.stringify({persona_id:psel.value,track:_track,intake:_ans})})
   .then(r=>r.json()).then(p=>{load.remove();renderPlan(p);})
   .catch(e=>{load.querySelector('.qh').textContent='플랜 생성 오류';});}
 function renderPlan(p){
@@ -847,17 +867,42 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(out, ensure_ascii=False))
         if self.path == "/chat":
             return self._proxy_chat(self._read_body())
-        if self.path == "/coaching/plan":      # 코칭 플랜(로컬 coaching_engine — 식단 트랙 P2)
+        if self.path == "/coaching/plan":      # 코칭 플랜(로컬 coaching_engine — 식단/운동/습관)
             req = self._read_body()
             p = _persona_by_id(load_personas(), req.get("persona_id"))
             if not p:
                 return self._send(404, json.dumps({"error": "unknown persona"}))
             try:
                 import wellness_router as _wr, coaching_engine as _ce
-                pv = compute_preview(p, "혈압 식단 관리")
+                pv = compute_preview(p, "혈압 건강 관리")
                 band = _wr.worst_band([f.get("label_user") for f in pv.get("findings", [])])
-                plan = _ce.generate_plan("diet", req.get("intake") or {}, band)
+                plan = _ce.generate_plan(req.get("track") or "diet", req.get("intake") or {}, band)
                 return self._send(200, json.dumps(plan, ensure_ascii=False))
+            except Exception as e:
+                return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
+        if self.path == "/coaching/anticipatory":   # 선제 '오늘 챙길 것' + 예상질문 + referral
+            req = self._read_body()
+            p = _persona_by_id(load_personas(), req.get("persona_id"))
+            if not p:
+                return self._send(404, json.dumps({"error": "unknown persona"}))
+            try:
+                import wellness_router as _wr, anticipatory_engine as _ae, referral as _rf
+                pv = compute_preview(p, "혈압 건강")
+                band = _wr.worst_band([f.get("label_user") for f in pv.get("findings", [])])
+                sig = {"band": band, "warning_days": 3 if band in ("주의", "경고") else 0}
+                top = _ae.top(sig)
+                ref = _rf.referral(band=band) if (top and top.get("referral")) else None
+                out = {"band": band, "top": top, "questions": _ae.anticipated_questions(sig), "referral": ref}
+                return self._send(200, json.dumps(out, ensure_ascii=False))
+            except Exception as e:
+                return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
+        if self.path == "/coaching/summary":        # 게이미피케이션 요약(체크인 일별 done)
+            req = self._read_body()
+            try:
+                import coaching_gamification as _g
+                dd = [bool(x) for x in (req.get("daily_done") or [])]
+                return self._send(200, json.dumps(_g.summary(dd, int(req.get("plan_days") or 14)),
+                                                  ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
         self._send(404, json.dumps({"error": "not found"}))
