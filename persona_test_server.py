@@ -761,25 +761,39 @@ function loadAnticipatory(){fetch('/coaching/anticipatory',{method:'POST',header
 function openL(u){try{window.open(u,'_blank');}catch(e){}}
 function openFinder(kind){
   var c=el('<div class="card"></div>');
-  c.innerHTML='<div class="tlab"><i class="ti ti-map-pin"></i>'+(kind==='hospital'?'가까운 병원':'가까운 약국')+' 찾기</div>'
-   +'<div style="display:flex;gap:8px;margin-bottom:6px"><input id="loc" style="flex:1;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit" value="역삼동" placeholder="동네·주소 입력"><div class="hob full" id="fbtn">찾기</div></div><div id="flist"></div>';
-  var run=function(){var region=(c.querySelector('#loc').value||'내 주변');var host=c.querySelector('#flist');
-    host.innerHTML='<div class="psub">'+esc(region)+' 주변에서 찾는 중…</div>';
-    fetch('/facilities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:kind,region:region})})
-    .then(r=>r.json()).then(function(d){renderFacilities(host,d);}).catch(function(e){host.innerHTML='<div class="psub">조회 오류</div>';});};
-  c.querySelector('#fbtn').onclick=run;run();}
+  var title=(kind==='hospital'?'가까운 병원':'가까운 약국')+' 찾기';
+  c.innerHTML='<div class="tlab"><i class="ti ti-map-pin"></i>'+title+'</div>'
+   +'<div class="hob full" id="geoBtn" style="margin-bottom:6px"><i class="ti ti-current-location"></i>내 위치로 찾기</div>'
+   +'<div style="display:flex;gap:8px;margin-bottom:6px"><input id="loc" style="flex:1;border:1px solid rgba(0,0,0,.1);border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit" value="역삼동" placeholder="또는 동네 입력(데모)"><div class="hob soft" id="fbtn">동네로</div></div>'
+   +'<div class="psub" style="margin-bottom:8px"><i class="ti ti-lock"></i> 위치는 검색에만 쓰고 저장하지 않아요</div><div id="flist"></div>';
+  var host=function(){return c.querySelector('#flist');};
+  var post=function(body,label){host().innerHTML='<div class="psub">'+esc(label)+'</div>';
+    fetch('/facilities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(function(d){renderFacilities(host(),d);}).catch(function(e){host().innerHTML='<div class="psub">조회 오류</div>';});};
+  c.querySelector('#geoBtn').onclick=function(){
+    if(!navigator.geolocation){post({kind:kind,region:'내 주변'},'위치 미지원 — 데모로');return;}
+    host().innerHTML='<div class="psub">내 위치 확인 중…</div>';
+    navigator.geolocation.getCurrentPosition(
+      function(p){post({kind:kind,lat:p.coords.latitude,lon:p.coords.longitude,radius:2000},'내 주변에서 찾는 중…');},
+      function(e){post({kind:kind,region:(c.querySelector('#loc').value||'내 주변')},'위치 권한 없음 — 동네(데모)로');});};
+  c.querySelector('#fbtn').onclick=function(){post({kind:kind,region:(c.querySelector('#loc').value||'내 주변')},'동네(데모)에서 찾는 중…');};
+}
 function renderFacilities(host,d){
   if(d.error||!d.items||!d.items.length){host.innerHTML='<div class="psub">결과가 없어요</div>';return;}
-  host.innerHTML=d.items.map(function(f){
-    var open=f.open_now?'<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A">지금 영업중</span>'
-                       :'<span class="chip" style="background:rgba(0,0,0,.06);color:#8A887F">영업 종료</span>';
+  var src=d.real?'<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A"><i class="ti ti-circle-check-filled"></i> 실데이터·'+esc(d.source||'')+'</span>'
+               :'<span class="chip" style="background:rgba(224,162,62,.16);color:#9A6B16">데모 데이터</span>';
+  host.innerHTML='<div style="margin-bottom:8px">'+src+'</div>'+d.items.map(function(f){
+    var badge='';
+    if(typeof f.open_now!=='undefined') badge=f.open_now?'<span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A">지금 영업중</span>':'<span class="chip" style="background:rgba(0,0,0,.06);color:#8A887F">영업 종료</span>';
     var dept=f.dept?' <span style="font-weight:400;color:#8A887F;font-size:12px">'+esc(f.dept)+'</span>':'';
+    var loc=esc(f.area||'')+(f.addr?' · '+esc(f.addr):'')+(f.hours?' · '+esc(f.hours):'');
     return '<div style="padding:12px 0;border-bottom:1px solid #F2F0E9">'
-      +'<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">'+esc(f.name)+dept+'</b>'+open+'</div>'
-      +'<div class="psub" style="margin:4px 0 8px"><b style="color:#0E8A6B">'+esc(f.dist_label)+'</b> · '+esc(f.area)+' · '+esc(f.hours)+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px"><b style="flex:1;font-size:14.5px">'+esc(f.name)+dept+'</b>'+badge+'</div>'
+      +'<div class="psub" style="margin:4px 0 6px"><b style="color:#0E8A6B">'+esc(f.dist_label||'')+'</b> · '+loc+'</div>'
+      +(f.hours_note?'<div class="psub" style="margin:0 0 8px;color:#B0833A"><i class="ti ti-clock-question"></i> '+esc(f.hours_note)+'</div>':'')
       +'<a href="'+f.map_url+'" target="_blank" rel="noopener" class="chip" style="text-decoration:none"><i class="ti ti-map-2"></i>지도</a> '
       +'<a href="'+f.tel_url+'" class="chip" style="text-decoration:none;margin-left:5px"><i class="ti ti-phone"></i>전화</a></div>';
-  }).join('')+'<div class="psub" style="margin-top:9px;line-height:1.5">'+esc(d.notice)+'</div>';}
+  }).join('')+'<div class="psub" style="margin-top:9px;line-height:1.5">'+esc(d.notice||'')+'</div>';}
 function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
 function send(q){
   var ab=el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">…</div></div>');
@@ -927,11 +941,23 @@ class Handler(BaseHTTPRequestHandler):
                                                   ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
-        if self.path == "/facilities":               # 가까운 병원·약국(거리·영업시간·영업중) §5.8
+        if self.path == "/facilities":               # 가까운 병원·약국(거리·영업시간) §5.8
             req = self._read_body()
+            kind = req.get("kind") or "pharmacy"
+            lat, lon = req.get("lat"), req.get("lon")
             try:
+                if lat is not None and lon is not None:   # 좌표 → 심평원(HIRA) 실데이터
+                    try:
+                        import kr_facilities as _kr
+                        real = _kr.find_real(kind, lat, lon, radius=int(req.get("radius") or 2000))
+                        if real.get("supported"):
+                            real["real"] = True
+                            return self._send(200, json.dumps(real, ensure_ascii=False))
+                    except Exception:
+                        pass                               # 실패 → 데모 폴백
                 import facility_finder as _ff
-                out = _ff.find_demo(req.get("kind") or "hospital", region=req.get("region"))
+                out = _ff.find_demo(kind, region=req.get("region"))
+                out["real"] = False
                 return self._send(200, json.dumps(out, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
