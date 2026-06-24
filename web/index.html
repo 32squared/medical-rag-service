@@ -55,6 +55,19 @@
   .msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
   .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;
     background:rgba(224,162,62,.15);color:#9A6B16;margin-bottom:4px}
+  .citelink{color:var(--teal);font-weight:700;text-decoration:none;font-size:.92em;padding:0 1px}
+  .citelink:hover{text-decoration:underline}
+  .sources{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+  .srctitle{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
+  .srcrow{display:block;font-size:12.5px;color:var(--ink);text-decoration:none;padding:4px 0;line-height:1.4}
+  .srcrow:hover{color:var(--teal)} .srcrow .ext{color:var(--teal);font-weight:700}
+  .iv{background:#FFFDF7;border-color:#EFE3C8}
+  .ivintro{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.5}
+  .ivq{font-size:15px;margin-bottom:10px}
+  .ivopts{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:99px;padding:8px 13px;
+    font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .chip:hover{background:rgba(14,138,107,.08)} .chip.ghost{border-color:var(--line);color:var(--muted)}
   .composer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);
     background:var(--surface);position:sticky;bottom:0}
   .composer input{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;
@@ -197,26 +210,53 @@ function Onboarding({ onDone }) {
   </div>`;
 }
 
+// 답변 본문의 [n] 마커 → 클릭형 출처 링크(citations[n-1].url)
+function renderAnswer(text, cites) {
+  return String(text || '').split(/(\[\d+\])/g).map((p, i) => {
+    const m = p.match(/^\[(\d+)\]$/);
+    if (!m) return p;
+    const c = cites && cites[+m[1] - 1];
+    return (c && c.url)
+      ? html`<a key=${i} class="citelink" href=${c.url} target="_blank" rel="noopener" title=${c.source}>${p}</a>`
+      : html`<span key=${i} class="citelink">${p}</span>`;
+  });
+}
+
 // ── 홈(채팅) ──────────────────────────────────────────────────
 function Home({ go }) {
   const [msgs, setMsgs] = useState([{ ai: true, text: '안녕하세요, 마이헬스케어입니다. 건강에 대해 궁금한 점을 물어보세요.' }]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [iv, setIv] = useState(null);     // 상황 되묻기(문진): {base, questions, idx, answers, intro}
   const endRef = useRef(null);
-  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, iv]);
 
-  async function send() {
-    const q = text.trim(); if (!q || busy) return;
-    setText(''); setMsgs(m => [...m, { me: true, text: q }]); setBusy(true);
+  async function send(q) {
+    q = (q != null ? q : text).trim(); if (!q || busy) return;
+    setText(''); setIv(null);
+    setMsgs(m => [...m, { me: true, text: q }]); setBusy(true);
     try {
       const r = await api('/chat', { method: 'POST', body: { message: q } });
       if (r.status === 403) { setMsgs(m => [...m, { ai: true, text: '개인정보 이용 동의가 필요합니다. 설정에서 확인해주세요.' }]); return; }
       const d = await r.json();
       const rag = d.rag || {};
-      const answer = rag.answer || rag.echo || JSON.stringify(rag);
-      setMsgs(m => [...m, { ai: true, text: answer, personalize: d.personalization }]);
+      const answer = rag.answer || rag.echo || (rag.error ? ('답변을 불러오지 못했습니다 (' + rag.error + ')') : JSON.stringify(rag));
+      setMsgs(m => [...m, { ai: true, text: answer, citations: rag.citations || [], personalize: d.personalization }]);
+      const c = d.clarifiers;
+      if (c && c.questions && c.questions.length)
+        setIv({ base: q, questions: c.questions, idx: 0, answers: [], intro: c.intro });
     } catch { setMsgs(m => [...m, { ai: true, text: '일시적인 오류가 발생했습니다.' }]); }
     finally { setBusy(false); }
+  }
+
+  function answerIv(opt) {
+    setIv(cur => {
+      if (!cur) return null;
+      const answers = cur.answers.concat(opt);
+      if (cur.idx + 1 < cur.questions.length) return { ...cur, idx: cur.idx + 1, answers };
+      setTimeout(() => send(cur.base + ' / 문진: ' + answers.join(', ')), 0);  // 종합 → 정밀 재안내
+      return null;
+    });
   }
 
   return html`<${Fragment}>
@@ -226,13 +266,29 @@ function Home({ go }) {
     </div>
     <div class="grow chat">
       ${msgs.map((m, i) => html`<div class=${'msg ' + (m.me ? 'me' : 'ai')} key=${i}>
-        ${m.personalize ? html`<div class="badge">맞춤 안내</div>` : ''}${m.text}</div>`)}
+        ${m.personalize ? html`<div class="badge">맞춤 안내</div>` : ''}
+        ${m.me ? m.text : renderAnswer(m.text, m.citations)}
+        ${(!m.me && m.citations && m.citations.length) ? html`<div class="sources">
+          <div class="srctitle">출처 ${m.citations.length}</div>
+          ${m.citations.map(c => html`<a class="srcrow" key=${c.n} href=${c.url || '#'}
+              target=${c.url ? '_blank' : undefined} rel="noopener">
+            <b>[${c.n}]</b> ${c.source}${c.title ? (' — ' + c.title) : ''}${c.url ? html` <span class="ext">↗</span>` : ''}</a>`)}
+        </div>` : ''}
+      </div>`)}
+      ${iv ? html`<div class="msg ai iv">
+        <div class="ivintro">🩺 ${iv.intro || '더 정확히 좁혀 드릴까요? 답해 주시면 위 답변을 상황에 맞게 다시 안내드려요.'}</div>
+        <div class="ivq"><b>(${iv.idx + 1}/${iv.questions.length})</b> ${iv.questions[iv.idx].q}</div>
+        <div class="ivopts">
+          ${iv.questions[iv.idx].options.map(o => html`<button class="chip" key=${o} onClick=${() => answerIv(o)}>${o}</button>`)}
+          <button class="chip ghost" onClick=${() => setIv(null)}>괜찮아요</button>
+        </div>
+      </div>` : ''}
       <div ref=${endRef}></div>
     </div>
     <div class="composer">
       <input value=${text} placeholder="증상이나 건강 질문을 입력하세요"
         onInput=${e => setText(e.target.value)} onKeyDown=${e => e.key === 'Enter' && send()} />
-      <button class="btn" style="width:auto;padding:13px 18px" disabled=${busy} onClick=${send}>전송</button>
+      <button class="btn" style="width:auto;padding:13px 18px" disabled=${busy} onClick=${() => send()}>전송</button>
     </div>
   </${Fragment}>`;
 }

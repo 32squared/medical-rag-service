@@ -76,3 +76,4 @@ class ChatReq(BaseModel):
 class ChatResp(BaseModel):
     personalization: bool
     rag: dict
+    clarifiers: Optional[dict] = None   # 상황 되묻기(문진) — followups.clarify

@@ -48,9 +48,14 @@ def _headers(user_id: Optional[str] = None, user_name: Optional[str] = None) -> 
 
 
 def parse_sse_answer(raw: str) -> Dict:
-    """RAG SSE 텍스트 → {answer, [citations·handoff·personal_injected…], [error]} (순수)."""
+    """RAG SSE 텍스트 → {answer, [citations·handoff·personal_injected…], [error]} (순수).
+
+    인용 출처는 **INFO 이벤트의 data.search_results**로 온다(STOP 아님). 답변 본문의
+    [n] 마커가 citations[n-1] 에 대응 → 프론트가 클릭형 출처 링크로 렌더.
+    """
     parts = []
     meta: Dict = {}
+    citations = []
     err = None
     for block in (raw or "").split("\n\n"):
         line = block.strip()
@@ -63,13 +68,26 @@ def parse_sse_answer(raw: str) -> Dict:
         t = ev.get("type")
         if t == "GENERATION":
             parts.append(ev.get("text") or "")
+        elif t == "INFO":
+            srs = (ev.get("data") or {}).get("search_results")
+            if srs:
+                citations = srs                 # 최신 검색결과로 갱신
         elif t == "STOP":
-            for k in ("citations", "handoff", "personal_injected", "disclaimers", "action"):
+            for k in ("handoff", "personal_injected", "disclaimers", "action"):
                 if k in ev:
                     meta[k] = ev[k]
         elif t == "ERROR":
             err = ev.get("message") or "rag_error"
     out: Dict = {"answer": "".join(parts).strip()}
+    if citations:
+        out["citations"] = [
+            {"n": i + 1,
+             "source": c.get("source") or c.get("title") or "출처",
+             "title": c.get("title") or "",
+             "url": c.get("url") or "",
+             "snippet": (c.get("snippet") or "")[:160]}
+            for i, c in enumerate(citations)
+        ]
     out.update(meta)
     if err and not out["answer"]:
         out["error"] = err

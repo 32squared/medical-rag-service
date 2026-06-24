@@ -2,15 +2,24 @@
 import json
 
 
-def test_parse_sse_joins_generation_and_meta():
+def test_parse_sse_citations_from_info_and_meta():
     from bff import rag_client as rc
-    raw = ('data: {"type":"GENERATION","text":"두통은 "}\n\n'
-           'data: {"type":"GENERATION","text":"여러 원인이 있습니다."}\n\n'
-           'data: {"type":"STOP","citations":[{"title":"KDCA"}],"action":"answer"}\n\n')
+    raw = ('data: {"type":"INFO","data":{"search_results":[{"source":"질병관리청","title":"두통","url":"https://h.kr/1"}]}}\n\n'
+           'data: {"type":"GENERATION","text":"두통은 "}\n\n'
+           'data: {"type":"GENERATION","text":"여러 원인이 있습니다 [1]."}\n\n'
+           'data: {"type":"STOP","action":"answer"}\n\n')
     out = rc.parse_sse_answer(raw)
-    assert out["answer"] == "두통은 여러 원인이 있습니다."
-    assert out["citations"] == [{"title": "KDCA"}]
+    assert out["answer"] == "두통은 여러 원인이 있습니다 [1]."
+    assert out["citations"][0]["n"] == 1                         # INFO.search_results → 인용
+    assert out["citations"][0]["source"] == "질병관리청"
+    assert out["citations"][0]["url"] == "https://h.kr/1"
     assert out["action"] == "answer"
+
+
+def test_parse_sse_no_citations_key_when_absent():
+    from bff import rag_client as rc
+    out = rc.parse_sse_answer('data: {"type":"GENERATION","text":"x"}\n\ndata: {"type":"STOP"}\n\n')
+    assert "citations" not in out
 
 
 def test_parse_sse_error_only():
@@ -34,9 +43,10 @@ def test_chat_builds_payload_and_consumes_sse(monkeypatch):
     import bff.rag_client as rc
     monkeypatch.setattr(rc, "RAG_URL", "http://rag.local")
     monkeypatch.setattr(rc, "RAG_GRAPH", "SUPERVISED_HYBRID_SEARCH")
-    sse = (b'data: {"type":"GENERATION","text":"hello "}\n\n'
-           b'data: {"type":"GENERATION","text":"world"}\n\n'
-           b'data: {"type":"STOP","citations":[{"title":"KDCA"}]}\n\n')
+    sse = (b'data: {"type":"INFO","data":{"search_results":[{"source":"KDCA","url":"https://k.kr"}]}}\n\n'
+           b'data: {"type":"GENERATION","text":"hello "}\n\n'
+           b'data: {"type":"GENERATION","text":"world [1]"}\n\n'
+           b'data: {"type":"STOP"}\n\n')
     captured = {}
 
     class FakeResp:
@@ -50,8 +60,8 @@ def test_chat_builds_payload_and_consumes_sse(monkeypatch):
 
     monkeypatch.setattr(rc.urllib.request, "urlopen", fake_urlopen)
     out = rc.chat("질문있어요", conversation_id="c1", personalization=True)
-    assert out["answer"] == "hello world"
-    assert out["citations"] == [{"title": "KDCA"}]
+    assert out["answer"] == "hello world [1]"
+    assert out["citations"][0]["source"] == "KDCA"
     assert "SUPERVISED_HYBRID_SEARCH" in captured["url"]
     assert captured["body"]["query"] == "질문있어요"
     assert captured["body"]["conversation_strid"] == "c1"

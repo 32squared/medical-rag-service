@@ -226,7 +226,15 @@ def create_app() -> FastAPI:
             req.message, conversation_id=req.conversation_id,
             personalization=personalize, cross_border_ack=cross_border_ack,
             user_id=sub["subject_id"])
-        return {"personalization": personalize, "rag": rag}
+        # 상황 되묻기(문진) — 순수 followups.clarify. 이미 문진 답을 실은 질의면 재문진 안 함.
+        clarifiers = None
+        if "문진:" not in req.message:
+            try:
+                import followups
+                clarifiers = followups.clarify(req.message)
+            except Exception:
+                clarifiers = None
+        return {"personalization": personalize, "rag": rag, "clarifiers": clarifiers}
 
     @app.get("/home")
     def home(sub: dict = Depends(get_subject)):
