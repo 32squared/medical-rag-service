@@ -334,6 +334,19 @@ def ensure_coaching_schema():
                    ts         TEXT
                )""")
         conn.commit()
+    # analytics_events 코칭 차원(mig019) 멱등 보강 — 러너 미적용 대비, 각 ALTER 독립 트랜잭션
+    # (PG는 실패 statement가 트랜잭션을 오염시키므로 분리). 이미 있으면 무시.
+    for ddl in (
+        "ALTER TABLE analytics_events ADD COLUMN track TEXT",
+        "ALTER TABLE analytics_events ADD COLUMN checkin_done INTEGER",
+        "ALTER TABLE analytics_events ADD COLUMN streak INTEGER",
+    ):
+        try:
+            with get_conn() as (conn, cur):
+                cur.execute(ddl)
+                conn.commit()
+        except Exception:
+            pass
 
 
 def _ensure_coaching_once():

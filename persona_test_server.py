@@ -364,6 +364,20 @@ def _headers(rag_url: str) -> dict:
     return h
 
 
+def _rag_persist(path: str, payload: dict, timeout: int = 8):
+    """뷰어→RAG 비식별 영속 호출(SA 토큰). 실패는 비치명(None) — 데모는 계속 동작."""
+    try:
+        url = Handler.rag_url + path
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        for k, v in _headers(Handler.rag_url).items():
+            req.add_header(k, v)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return None
+
+
 # ── HTML ─────────────────────────────────────────────────────
 PAGE = r"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <title>페르소나 개인화 테스트</title>
@@ -918,7 +932,8 @@ function startChallenge(){
 function toggleAct(e){var on=e.getAttribute('data-done')==='1';e.setAttribute('data-done',on?'0':'1');
   e.querySelector('i').className=on?'ti ti-circle':'ti ti-circle-check-filled';
   var sp=e.querySelector('span');sp.style.textDecoration=on?'none':'line-through';sp.style.color=on?'':'#A8A599';}
-function checkinToday(){if(_lastCk===todayStr())return;_daily.push(true);_lastCk=todayStr();saveCk();markCk();refreshGami();}
+function checkinToday(){if(_lastCk===todayStr())return;_daily.push(true);_lastCk=todayStr();saveCk();markCk();refreshGami();
+  if(_plan&&_plan.plan_id){try{fetch('/coaching/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan_id:_plan.plan_id,done:true})});}catch(e){}}}
 function demoFill(){_daily=[true,true,true,true,true,true].concat(_daily);saveCk();refreshGami();}
 function refreshGami(){if(!_gami)return;var days=(_plan&&_plan.plan_days)||14;
   fetch('/coaching/summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily_done:_daily,plan_days:days})})
@@ -993,7 +1008,24 @@ class Handler(BaseHTTPRequestHandler):
                 import wellness_router as _wr, coaching_engine as _ce
                 pv = compute_preview(p, "혈압 건강 관리")
                 band = _wr.worst_band([f.get("label_user") for f in pv.get("findings", [])])
-                plan = _ce.generate_plan(req.get("track") or "diet", req.get("intake") or {}, band)
+                track = req.get("track") or "diet"
+                plan = _ce.generate_plan(track, req.get("intake") or {}, band)
+                try:                                  # 서버 영속(비식별, 비치명) → plan_id 동봉
+                    sess = _rag_persist("/api/rag/coaching/session",
+                                        {"track": track, "band": band, "mode": "medical"})
+                    sid = (sess or {}).get("session_id")
+                    if sid:
+                        items = [{"text": it.get("text"), "key": it.get("key")}
+                                 for it in plan.get("items", [])]
+                        pr = _rag_persist("/api/rag/coaching/plan",
+                                          {"session_id": sid, "track": track, "items": items,
+                                           "band": band, "banner": plan.get("banner"),
+                                           "compliance_action": plan.get("compliance_action", "pass")})
+                        if pr and pr.get("plan_id"):
+                            plan["plan_id"] = pr["plan_id"]
+                            plan["session_id"] = sid
+                except Exception:
+                    pass
                 return self._send(200, json.dumps(plan, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
@@ -1031,6 +1063,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(s, ensure_ascii=False))
             except Exception as e:
                 return self._send(200, json.dumps({"error": str(e)}, ensure_ascii=False))
+        if self.path == "/coaching/checkin":         # 체크인 서버 영속(plan_id) — RAG 전달, 비치명
+            req = self._read_body()
+            pid = req.get("plan_id")
+            if not pid:
+                return self._send(200, json.dumps({"persisted": False}, ensure_ascii=False))
+            out = _rag_persist("/api/rag/coaching/checkin",
+                               {"plan_id": pid, "done": bool(req.get("done", True)),
+                                "item_key": req.get("item_key")})
+            return self._send(200, json.dumps(out or {"persisted": False}, ensure_ascii=False))
         if self.path == "/profile/suggest":          # 프로필 → 상세 질문 추천(정보 탐색)
             req = self._read_body()
             try:
