@@ -28,8 +28,18 @@ def _id_token(audience: str) -> Optional[str]:
         return None
 
 
-def _headers() -> Dict[str, str]:
-    h = {"Content-Type": "application/json"}
+def _headers(user_id: Optional[str] = None, user_name: Optional[str] = None) -> Dict[str, str]:
+    from urllib.parse import quote
+    # X-User-* = RAG resolve_user(신뢰헤더). SA Bearer 는 Cloud Run IAM(run.invoke)용 — 별개.
+    h = {
+        "Content-Type": "application/json",
+        "X-User-Id": user_id or "bff-user",
+        "X-User-Name": quote(user_name or "마이헬스케어 사용자"),
+        "X-User-Role": "user",
+    }
+    secret = os.environ.get("RAG_TRUST_SECRET")
+    if secret:
+        h["X-Rag-Trust"] = secret
     if ".run.app" in RAG_URL:               # 클라우드 대상이면 IAM 토큰
         tok = _id_token(RAG_URL)
         if tok:
@@ -68,6 +78,7 @@ def parse_sse_answer(raw: str) -> Dict:
 
 def chat(message: str, *, conversation_id: Optional[str] = None,
          personalization: bool = False, cross_border_ack: bool = False,
+         user_id: Optional[str] = None, user_name: Optional[str] = None,
          timeout: int = 120) -> Dict:
     """RAG 의료 채팅 호출(SSE 소비). 동의 게이트 결과를 헤더 + personal_consent 로 전달."""
     if not RAG_URL:
@@ -80,7 +91,7 @@ def chat(message: str, *, conversation_id: Optional[str] = None,
         "agent_input_field_to_value": {},      # P0: 개인 신호 비주입(PHR=P2)
         "personal_consent": bool(personalization),
     }, ensure_ascii=False).encode("utf-8")
-    headers = _headers()
+    headers = _headers(user_id=user_id, user_name=user_name)
     headers["X-Personalization"] = "on" if personalization else "off"
     headers["X-Cross-Border-Ack"] = "1" if cross_border_ack else "0"
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")

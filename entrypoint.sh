@@ -19,6 +19,12 @@ elif [ "$RUN_MODE" = "admin" ]; then
     # RAG 운영 어드민 대시보드(비밀번호 보호). RAG admin 엔드포인트를 SA 토큰 + X-Admin-Secret 로 호출.
     echo "[entrypoint] mode=admin → python /app/admin_server.py"
     exec python /app/admin_server.py
+elif [ "$RUN_MODE" = "bff" ]; then
+    # P0 BFF(FastAPI) — 인증·동의게이트·RAG 프록시 + web/ SPA 동시 서빙(/app).
+    # RAG 호출은 메타데이터 SA 토큰(RAG_URL audience). 동의/계정 영속은 DATABASE_URL(PG).
+    PORT_USED="${PORT:-8080}"
+    echo "[entrypoint] mode=bff → uvicorn bff.app:app :${PORT_USED}"
+    exec uvicorn bff.app:app --host 0.0.0.0 --port "${PORT_USED}"
 else
     # 기본 = RAG 독립 HTTP 서비스 — /api/rag/* 단독 서빙.
     PORT_USED="${PORT:-8080}"

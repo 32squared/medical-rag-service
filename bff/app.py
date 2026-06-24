@@ -80,6 +80,25 @@ def create_app() -> FastAPI:
     _validate_runtime_config()
     app = FastAPI(title="마이헬스케어 BFF", version="0.1.0")
 
+    # CORS — 명시 allow-list 만(와일드카드 금지). 프론트(다른 오리진) 연동용, 기본 off.
+    origins = [o.strip() for o in os.environ.get("BFF_CORS_ORIGINS", "").split(",") if o.strip()]
+    if origins:
+        from fastapi.middleware.cors import CORSMiddleware
+        app.add_middleware(
+            CORSMiddleware, allow_origins=origins, allow_credentials=True,
+            allow_methods=["*"], allow_headers=["*"],
+        )
+
+    # 프론트(web/) 같은 오리진 서빙 → CORS 불필요(BFF 가 SPA+API 동시 호스팅).
+    # SPA 는 /app/, API 는 루트(/auth·/consent…). web/ 디렉토리 있을 때만 마운트.
+    try:
+        _web = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
+        if os.path.isdir(_web):
+            from fastapi.staticfiles import StaticFiles
+            app.mount("/app", StaticFiles(directory=_web, html=True), name="web")
+    except Exception:
+        pass
+
     @app.get("/healthz")
     def healthz():
         return {"status": "ok"}
@@ -205,7 +224,8 @@ def create_app() -> FastAPI:
         cross_border_ack = bool(req.cross_border) and ("cross_border" in granted)
         rag = rag_client.chat(
             req.message, conversation_id=req.conversation_id,
-            personalization=personalize, cross_border_ack=cross_border_ack)
+            personalization=personalize, cross_border_ack=cross_border_ack,
+            user_id=sub["subject_id"])
         return {"personalization": personalize, "rag": rag}
 
     @app.get("/home")
