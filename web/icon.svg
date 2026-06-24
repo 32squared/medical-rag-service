@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="마이헬스케어">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E8A6B"/>
+      <stop offset="1" stop-color="#15A982"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="44" fill="url(#g)"/>
+  <rect x="84" y="48" width="24" height="96" rx="12" fill="#fff"/>
+  <rect x="48" y="84" width="96" height="24" rx="12" fill="#fff"/>
+</svg>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0E8A6B" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>마이헬스케어</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root{
+    --bg:#F6F4EF; --surface:#FFFFFF; --teal:#0E8A6B; --teal-d:#0B6E52;
+    --amber:#E0A23E; --red:#C8553D; --ink:#2B2B2B; --muted:#6B6B6B; --line:#E7E3DA;
+    --radius:16px; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(20,40,30,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  #root{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  .pad{padding:20px}
+  .grow{flex:1}
+  h1{font-size:22px;margin:0 0 6px} h2{font-size:17px;margin:0 0 10px}
+  .muted{color:var(--muted);font-size:14px;line-height:1.55}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+  .dot{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#15A982);
+    display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow)}
+  .btn{appearance:none;border:0;border-radius:12px;padding:14px 16px;font-size:16px;font-weight:700;
+    width:100%;cursor:pointer;background:var(--teal);color:#fff;transition:.15s}
+  .btn:active{transform:translateY(1px)} .btn:disabled{opacity:.5;cursor:default}
+  .btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}
+  .btn.warn{background:transparent;color:var(--red);border:1px solid var(--red)}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;
+    border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .req{font-size:11px;color:var(--teal);font-weight:700;background:rgba(14,138,107,.1);
+    padding:2px 7px;border-radius:99px;margin-left:6px}
+  .sw{position:relative;width:46px;height:28px;border-radius:99px;background:var(--line);
+    transition:.2s;cursor:pointer;flex:none}
+  .sw.on{background:var(--teal)} .sw.lock{opacity:.6;cursor:default}
+  .sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+    transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .sw.on i{left:21px}
+  .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;
+    border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5}
+  .icobtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;
+    font-size:13px;cursor:pointer;color:var(--ink)}
+  .chat{display:flex;flex-direction:column;gap:10px;padding:16px 20px 0}
+  .msg{max-width:84%;padding:11px 14px;border-radius:14px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+  .msg.me{align-self:flex-end;background:var(--teal);color:#fff;border-bottom-right-radius:5px}
+  .msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;
+    background:rgba(224,162,62,.15);color:#9A6B16;margin-bottom:4px}
+  .composer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);
+    background:var(--surface);position:sticky;bottom:0}
+  .composer input{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;
+    font-family:inherit;outline:none}
+  .stepdots{display:flex;gap:6px;margin-bottom:18px}
+  .stepdots b{width:24px;height:5px;border-radius:99px;background:var(--line)}
+  .stepdots b.on{background:var(--teal)}
+  .note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+  .err{color:var(--red);font-size:13px;margin-top:8px}
+  .center{display:flex;flex-direction:column;justify-content:center;min-height:100vh}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "preact": "https://esm.sh/preact@10.19.3",
+    "preact/hooks": "https://esm.sh/preact@10.19.3/hooks?external=preact",
+    "htm": "https://esm.sh/htm@3.1.1"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module">
+import { h, render, Fragment } from 'preact';
+import { useState, useEffect, useRef } from 'preact/hooks';
+import htm from 'htm';
+const html = htm.bind(h);
+
+// ── BFF 클라이언트 ────────────────────────────────────────────
+const BFF = (localStorage.getItem('mhc_bff') || '').replace(/\/$/, '');
+const TK = 'mhc_tokens';
+const getTok = () => { try { return JSON.parse(localStorage.getItem(TK) || 'null'); } catch { return null; } };
+const setTok = (t) => t ? localStorage.setItem(TK, JSON.stringify(t)) : localStorage.removeItem(TK);
+
+async function refresh() {
+  const t = getTok();
+  if (!t || !t.refresh_token) return false;
+  const r = await fetch(BFF + '/auth/refresh', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: t.session_id, refresh_token: t.refresh_token }),
+  });
+  if (!r.ok) { setTok(null); return false; }
+  const d = await r.json();
+  setTok({ ...t, access_token: d.access_token, refresh_token: d.refresh_token });
+  return true;
+}
+
+async function api(path, { method = 'GET', body, auth = true, retry = true } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  const t = getTok();
+  if (auth && t) headers['Authorization'] = 'Bearer ' + t.access_token;
+  const res = await fetch(BFF + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  if (res.status === 401 && auth && retry && await refresh())
+    return api(path, { method, body, auth, retry: false });
+  return res;
+}
+
+// 안정적 데모 본인인증 식별자(같은 기기=같은 계정)
+function deviceIdentity() {
+  let v = localStorage.getItem('mhc_devid');
+  if (!v) { v = 'mhc-' + Math.random().toString(36).slice(2, 11); localStorage.setItem('mhc_devid', v); }
+  return v;
+}
+
+const ITEM_DESC = {
+  personal_info: '서비스 이용을 위한 기본 개인정보',
+  sensitive_info: '맞춤 안내를 위한 건강·검진 정보(민감)',
+  cross_border: '국외 LLM 이용 시 개인정보 국외이전',
+  location: '가까운 병원·약국 찾기(위치)',
+  push: '코칭 리마인더 등 알림(정보통신망법)',
+  phr_link: '공단 건강검진 연동',
+};
+
+// ── 토글 ──────────────────────────────────────────────────────
+function Toggle({ on, lock, onClick }) {
+  return html`<div class=${'sw' + (on ? ' on' : '') + (lock ? ' lock' : '')}
+    onClick=${lock ? null : onClick}><i></i></div>`;
+}
+
+// ── 온보딩 ────────────────────────────────────────────────────
+function Onboarding({ onDone }) {
+  const [step, setStep] = useState(0);
+  const [items, setItems] = useState([]);
+  const [sel, setSel] = useState({ personal_info: true });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    api('/consent/items', { auth: false }).then(r => r.json())
+      .then(d => setItems(d.items || [])).catch(() => setErr('서버에 연결할 수 없습니다.'));
+  }, []);
+
+  const toggle = (k) => setSel(s => ({ ...s, [k]: !s[k] }));
+
+  async function finish() {
+    setBusy(true); setErr('');
+    try {
+      const s = await (await api('/auth/pass/start', { auth: false, method: 'POST', body: {} })).json();
+      const cb = await api('/auth/pass/callback', {
+        auth: false, method: 'POST', body: { tx_id: s.tx_id, mock_identity: deviceIdentity() },
+      });
+      if (!cb.ok) throw new Error('본인인증 실패');
+      setTok(await cb.json());
+      for (const it of items)
+        if (sel[it.item_key])
+          await api('/consent', { method: 'POST', body: { item_key: it.item_key, action: 'grant', source: 'onboarding' } });
+      onDone();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  }
+
+  if (step === 0) return html`<div class="pad center">
+    <div class="brand" style="font-size:26px"><span class="dot">+</span> 마이헬스케어</div>
+    <p class="muted" style="margin-top:14px">의료법을 지키며 믿을 수 있는 건강 정보를 안내하고,
+      매일의 건강 습관을 함께 만들어가는 코칭까지. 시작해볼까요?</p>
+    <div style="height:24px"></div>
+    <button class="btn" onClick=${() => setStep(1)}>시작하기</button>
+    <p class="note">테스트용 프로토타입 · 합성 데이터 · 의료자문 아님</p>
+  </div>`;
+
+  return html`<div class="pad">
+    <div class="stepdots"><b class="on"></b><b class="on"></b></div>
+    <h1>이용 동의</h1>
+    <p class="muted">필수 항목에 동의하면 시작할 수 있어요. 선택 항목은 언제든 설정에서 바꿀 수 있습니다.</p>
+    <div style="height:14px"></div>
+    <div class="card">
+      ${items.map(it => html`<div class="row" key=${it.item_key}>
+        <div style="flex:1">
+          <div style="font-weight:600">${it.title}${it.required ? html`<span class="req">필수</span>` : ''}</div>
+          <div class="muted" style="font-size:12.5px">${ITEM_DESC[it.item_key] || ''}</div>
+        </div>
+        <${Toggle} on=${it.required || !!sel[it.item_key]} lock=${it.required} onClick=${() => toggle(it.item_key)} />
+      </div>`)}
+    </div>
+    ${err && html`<div class="err">${err}</div>`}
+    <div style="height:16px"></div>
+    <button class="btn" disabled=${busy || !items.length} onClick=${finish}>
+      ${busy ? '처리 중…' : '동의하고 본인인증(PASS)'}</button>
+    <p class="note">본인인증은 데모(mock)입니다. CI/DI 는 해시로만 저장되며 원문은 보관하지 않습니다.</p>
+  </div>`;
+}
+
+// ── 홈(채팅) ──────────────────────────────────────────────────
+function Home({ go }) {
+  const [msgs, setMsgs] = useState([{ ai: true, text: '안녕하세요, 마이헬스케어입니다. 건강에 대해 궁금한 점을 물어보세요.' }]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+
+  async function send() {
+    const q = text.trim(); if (!q || busy) return;
+    setText(''); setMsgs(m => [...m, { me: true, text: q }]); setBusy(true);
+    try {
+      const r = await api('/chat', { method: 'POST', body: { message: q } });
+      if (r.status === 403) { setMsgs(m => [...m, { ai: true, text: '개인정보 이용 동의가 필요합니다. 설정에서 확인해주세요.' }]); return; }
+      const d = await r.json();
+      const rag = d.rag || {};
+      const answer = rag.answer || rag.echo || JSON.stringify(rag);
+      setMsgs(m => [...m, { ai: true, text: answer, personalize: d.personalization }]);
+    } catch { setMsgs(m => [...m, { ai: true, text: '일시적인 오류가 발생했습니다.' }]); }
+    finally { setBusy(false); }
+  }
+
+  return html`<${Fragment}>
+    <div class="hdr">
+      <div class="brand"><span class="dot">+</span> 마이헬스케어</div>
+      <button class="icobtn" onClick=${() => go('settings')}>내 정보</button>
+    </div>
+    <div class="grow chat">
+      ${msgs.map((m, i) => html`<div class=${'msg ' + (m.me ? 'me' : 'ai')} key=${i}>
+        ${m.personalize ? html`<div class="badge">맞춤 안내</div>` : ''}${m.text}</div>`)}
+      <div ref=${endRef}></div>
+    </div>
+    <div class="composer">
+      <input value=${text} placeholder="증상이나 건강 질문을 입력하세요"
+        onInput=${e => setText(e.target.value)} onKeyDown=${e => e.key === 'Enter' && send()} />
+      <button class="btn" style="width:auto;padding:13px 18px" disabled=${busy} onClick=${send}>전송</button>
+    </div>
+  </${Fragment}>`;
+}
+
+// ── 설정(동의 관리·로그아웃·탈퇴) ─────────────────────────────
+function Settings({ go }) {
+  const [me, setMe] = useState(null);
+  const [busy, setBusy] = useState('');
+  const load = () => api('/me').then(r => r.ok ? r.json() : null).then(setMe);
+  useEffect(() => { load(); }, []);
+
+  async function toggle(it) {
+    if (it.required) return;
+    setBusy(it.item_key);
+    await api('/consent', { method: 'POST', body: { item_key: it.item_key, action: it.granted ? 'revoke' : 'grant', source: 'settings' } });
+    await load(); setBusy('');
+  }
+  async function logout() { await api('/auth/logout', { method: 'POST' }); setTok(null); go('onboarding'); }
+  async function withdraw() {
+    if (!confirm('회원 탈퇴하시겠어요? 동의가 모두 해제됩니다.')) return;
+    await api('/me', { method: 'DELETE' }); setTok(null); go('onboarding');
+  }
+
+  if (!me) return html`<div class="pad center"><p class="muted">불러오는 중…</p></div>`;
+  return html`<${Fragment}>
+    <div class="hdr">
+      <button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
+      <div class="brand" style="font-size:16px">내 정보 · 동의 관리</div><span style="width:48px"></span>
+    </div>
+    <div class="pad">
+      <div class="card">
+        ${me.consent.map(it => html`<div class="row" key=${it.item_key}>
+          <div style="flex:1"><div style="font-weight:600">${it.title}${it.required ? html`<span class="req">필수</span>` : ''}</div>
+            <div class="muted" style="font-size:12.5px">${ITEM_DESC[it.item_key] || ''}</div></div>
+          <${Toggle} on=${it.granted} lock=${it.required || busy === it.item_key} onClick=${() => toggle(it)} />
+        </div>`)}
+      </div>
+      <p class="note">동의 철회는 즉시 반영됩니다. 개인화 안내는 민감정보 동의가 있을 때만 제공됩니다.</p>
+      <div style="height:18px"></div>
+      <button class="btn ghost" onClick=${logout}>로그아웃</button>
+      <div style="height:10px"></div>
+      <button class="btn warn" onClick=${withdraw}>회원 탈퇴</button>
+    </div>
+  </${Fragment}>`;
+}
+
+// ── 앱 루트 ───────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState('loading');
+  useEffect(() => {
+    if (!getTok()) { setScreen('onboarding'); return; }
+    api('/me').then(r => setScreen(r.ok ? 'home' : 'onboarding'));
+  }, []);
+  if (screen === 'loading') return html`<div class="pad center"><p class="muted">불러오는 중…</p></div>`;
+  if (screen === 'onboarding') return html`<${Onboarding} onDone=${() => setScreen('home')} />`;
+  if (screen === 'settings') return html`<${Settings} go=${setScreen} />`;
+  return html`<${Home} go=${setScreen} />`;
+}
+
+render(html`<${App} />`, document.getElementById('root'));
+if ('serviceWorker' in navigator)
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
