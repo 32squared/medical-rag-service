@@ -957,7 +957,15 @@ function startChallenge(){
     +'<div class="hob full" id="ciBtn" style="justify-content:center;margin-top:12px" onclick="checkinToday()"><i class="ti ti-calendar-check"></i>오늘 체크인 완료</div>'
     +'<div id="gami" style="margin-top:14px"></div>'
     +'<div class="psub" style="margin-top:10px"><a href="javascript:void(0)" onclick="demoFill()" style="color:#0E8A6B;font-weight:600">데모: 지난 6일 채우기</a> · 이 기기에 저장돼요(localStorage)</div></div>');
-  _gami=c.querySelector('#gami');_ciBtn=c.querySelector('#ciBtn');markCk();refreshGami();}
+  _gami=c.querySelector('#gami');_ciBtn=c.querySelector('#ciBtn');markCk();refreshGami();addReminder(c);}
+function addReminder(c){
+  var cons;try{cons=JSON.parse(localStorage.getItem('mhc_consent')||'{}');}catch(e){cons={};}
+  if(!cons.push)return;   // 푸시 동의(정보통신망법) 있을 때만
+  var rm;try{rm=JSON.parse(localStorage.getItem('mhc_reminder')||'{}');}catch(e){rm={};}
+  var rr=document.createElement('div');rr.style.cssText='margin-top:12px;padding:11px 12px;background:#FBF6EC;border-radius:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap';
+  rr.innerHTML='<i class="ti ti-bell"></i><span style="flex:1;font-size:13.5px">체크인 리마인더</span><input type="time" id="rmT" value="'+(rm.time||'21:00')+'" style="border:1px solid rgba(0,0,0,.12);border-radius:8px;padding:5px 8px"><div class="chip" id="rmBtn" style="cursor:pointer">'+(rm.on?'켜짐 ✓':'켜기')+'</div>';
+  var g=c.querySelector('#gami');g.parentNode.insertBefore(rr,g);
+  rr.querySelector('#rmBtn').onclick=function(){var t=rr.querySelector('#rmT').value;rm={time:t,on:!rm.on};try{localStorage.setItem('mhc_reminder',JSON.stringify(rm));}catch(e){}rr.querySelector('#rmBtn').textContent=rm.on?'켜짐 ✓':'켜기';};}
 function toggleAct(e){var on=e.getAttribute('data-done')==='1';e.setAttribute('data-done',on?'0':'1');
   e.querySelector('i').className=on?'ti ti-circle':'ti ti-circle-check-filled';
   var sp=e.querySelector('span');sp.style.textDecoration=on?'none':'line-through';sp.style.color=on?'':'#A8A599';}
