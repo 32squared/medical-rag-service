@@ -52,6 +52,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from dbcommon import get_conn, _p, _ph, _now, _use_postgres
+from kb_url_normalize import normalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -379,6 +380,12 @@ def ingest_document(
         raise ValueError("content_md는 비어 있을 수 없습니다")
     if not source_id or not source_id.strip():
         raise ValueError("source_id는 비어 있을 수 없습니다")
+
+    # source_url 정규화 — 세션/트래킹 파라미터 제거 후 canonical 형태로.
+    # 멱등성 검사(아래)와 저장에 동일 canonical 을 사용 → jsessionid·utm 등
+    # 트래킹 변형만 다른 동일 문서가 중복 row 로 적재되는 것을 방지.
+    if source_url:
+        source_url = normalize_url(source_url)
 
     evidence_level = metadata.get("evidence_level", "B")
     keywords_json = json.dumps(topic_keywords or [], ensure_ascii=False)
