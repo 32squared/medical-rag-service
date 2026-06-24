@@ -26,6 +26,7 @@ _LABEL_FIELDS = (
     "intent", "primary_domain", "risk_level",
     "guardrail_action", "gate_decision", "evidence_quality",
     "track",                 # 웰니스 코칭 트랙(diet/exercise/habit) — 비식별 라벨
+    "consent_item",          # 동의 항목 키(personal_info 등) — 비식별 라벨(P0 BFF)
 )
 _COUNT_FIELDS = ("citations_count", "latency_ms", "streak")
 _BOOL_FIELDS = (
@@ -48,6 +49,9 @@ EVENT_NAMES = frozenset({
     "coaching_plan_shown",      # 플랜 생성·노출
     "coaching_checkin",         # 일일 체크인(done bool)
     "coaching_completed",       # 챌린지 완주(실천율 ≥70%)
+    # ── P0 BFF 동의원장(23 §2) — 비식별 라벨(consent_item)만 ──
+    "consent_granted",          # 동의 grant
+    "consent_revoked",          # 동의 revoke(철회)
 })
 
 _MAX_LABEL_LEN = 64

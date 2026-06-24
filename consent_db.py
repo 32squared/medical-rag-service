@@ -66,6 +66,14 @@ def ensure_consent_schema() -> None:
             """CREATE INDEX IF NOT EXISTS idx_consent_record_subject
                    ON consent_record(subject_id, item_key, created_at)""")
         conn.commit()
+    # analytics_events 동의 차원(mig022) 멱등 보강 — 러너 미적용 대비, 독립 트랜잭션
+    # (PG는 실패 statement가 트랜잭션을 오염시키므로 분리). 이미 있으면 무시.
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute("ALTER TABLE analytics_events ADD COLUMN consent_item TEXT")
+            conn.commit()
+    except Exception:
+        pass
 
 
 def _ensure_once() -> None:
