@@ -762,9 +762,36 @@ function el(h){var d=document.createElement('div');d.innerHTML=h;chat.appendChil
 async function boot(){try{var p=await (await fetch('/personas')).json();var arr=p.personas||p||[];
   psel.innerHTML=arr.map(x=>'<option value="'+x.id+'">'+esc(x.name||x.id)+'</option>').join('');
   var hi=arr.findIndex(x=>/혈압|고혈압/.test((x.name||'')+(x.tagline||'')));if(hi>0)psel.selectedIndex=hi;}catch(e){}
-  psel.onchange=afterPersona;afterPersona();}
+  psel.onchange=afterPersona;
+  if(localStorage.getItem('mhc_onboarded')){afterPersona();}else{showOnboarding();}}
+function consentRow(id,label,tag,checked){
+  var tc=tag==='필수'?'rgba(192,57,43,.1);color:#C0392B':'rgba(0,0,0,.06);color:#8A887F';
+  return '<label style="display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #F4F2EC;cursor:pointer"><input type="checkbox" id="'+id+'"'+(checked?' checked':'')+'><span style="flex:1;font-size:14px">'+label+'</span><span class="chip" style="background:'+tc+'">'+tag+'</span></label>';}
+function showOnboarding(){chat.innerHTML='';
+  el('<div class="card" style="text-align:center;padding:26px 18px"><div style="font-size:42px;margin-bottom:6px">💚</div><div style="font-size:21px;font-weight:800;margin-bottom:6px">마이헬스케어</div><div class="psub" style="line-height:1.55">묻기 전에 챙길 것을 먼저 알려주는 건강 정보 도우미예요.<br><b>진단·처방은 하지 않아요.</b></div></div>');
+  var co=el('<div class="card"><div class="tlab"><i class="ti ti-shield-check"></i>시작 전 동의</div>'
+    +'<div class="psub" style="margin-bottom:8px">필요한 항목에 동의해 주세요. 동의는 \'내 정보\'에서 언제든 바꿀 수 있어요.</div>'
+    +consentRow('c_terms','서비스 이용·개인정보 처리','필수',true)
+    +consentRow('c_sensitive','민감정보(건강상태) 활용','선택',false)
+    +consentRow('c_loc','위치 정보(가까운 약국 찾기)','선택',false)
+    +consentRow('c_push','푸시 알림(체크인 리마인더)','선택',false)
+    +'<div class="hob full" id="obStart" style="justify-content:center;margin-top:14px"><i class="ti ti-arrow-right"></i>동의하고 시작</div></div>');
+  co.querySelector('#obStart').onclick=function(){
+    if(!co.querySelector('#c_terms').checked){alert('서비스 이용·개인정보 처리 동의는 필수예요.');return;}
+    var cons={terms:true,sensitive:co.querySelector('#c_sensitive').checked,loc:co.querySelector('#c_loc').checked,push:co.querySelector('#c_push').checked};
+    try{localStorage.setItem('mhc_consent',JSON.stringify(cons));if(cons.loc)localStorage.setItem('mhc_loc_consent','1');}catch(e){}
+    showPhrStep();};}
+function showPhrStep(){chat.innerHTML='';
+  el('<div class="card" style="text-align:center;padding:20px"><div style="font-size:34px">🩺</div><div style="font-size:17px;font-weight:800;margin-top:4px">건강 데이터 연동</div></div>');
+  var pc=el('<div class="card"><div class="psub" style="margin-bottom:10px;line-height:1.55">건강검진·웨어러블 데이터를 연동하면 <b>묻기 전에 챙길 것</b>을 더 정확히 알려드려요. (선택 · 민감정보 동의 범위에서만 사용)</div>'
+    +'<div class="hob full" id="phrYes" style="justify-content:center"><i class="ti ti-plug-connected"></i>연동하기</div>'
+    +'<div class="hob soft" id="phrNo" style="justify-content:center;margin-top:8px">나중에 할게요</div></div>');
+  pc.querySelector('#phrYes').onclick=function(){try{localStorage.setItem('mhc_phr','1');}catch(e){}finishOnboarding();};
+  pc.querySelector('#phrNo').onclick=finishOnboarding;}
+function finishOnboarding(){try{localStorage.setItem('mhc_onboarded','1');}catch(e){}afterPersona();}
 function afterPersona(){chat.innerHTML='';
   el('<div class="ba"><div class="av"><i class="ti ti-sparkles"></i></div><div class="bx">안녕하세요. 안 물어보셔도 <b>오늘 챙길 것</b>을 먼저 알려드릴게요. 무엇이든 물어보셔도 좋아요. <b>진단·처방은 하지 않아요.</b></div></div>');
+  if(localStorage.getItem('mhc_phr')){el('<div style="margin:-2px 0 6px 37px"><span class="chip" style="background:rgba(14,138,107,.12);color:#0B5F4A"><i class="ti ti-circle-check-filled"></i> 건강 데이터 연동됨</span></div>');}
   loadAnticipatory();showProfileSuggest();}
 function loadAnticipatory(){fetch('/coaching/anticipatory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({persona_id:psel.value})}).then(r=>r.json()).then(a=>{
   if(a.top){var t=a.top,emg=(t.referral==='emergency'),col=emg?'#C0392B':'#B5721A';
@@ -836,7 +863,9 @@ function openProfile(){
     +'<label style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;font-size:13px;cursor:pointer"><input type="checkbox" id="pfC"'+(pf.sensitive_consent?' checked':'')+'> 기저질환 입력에 동의 <span class="psub">(민감정보 · 동의 시에만 사용)</span></label>'
     +'<div id="pfCW" style="display:'+(pf.sensitive_consent?'block':'none')+'"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">'+chip(conds,pf.conditions,'c')+'</div></div>'
     +'<div class="hob full" style="justify-content:center;margin-top:14px" id="pfSave"><i class="ti ti-device-floppy"></i>저장하고 추천 받기</div>'
+    +'<div class="hob soft" id="pfReset" style="justify-content:center;margin-top:8px"><i class="ti ti-adjustments"></i>동의·연동 다시 설정</div>'
     +'<div id="pfOut" style="margin-top:12px"></div></div>');
+  c.querySelector('#pfReset').onclick=function(){try{localStorage.removeItem('mhc_onboarded');}catch(e){}showOnboarding();};
   c.querySelectorAll('.pchip').forEach(function(ch){ch.onclick=function(){ch.classList.toggle('on');};});
   c.querySelector('#pfC').onchange=function(){c.querySelector('#pfCW').style.display=this.checked?'block':'none';};
   c.querySelector('#pfSave').onclick=function(){
