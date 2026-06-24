@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import logging
 import os
 import hmac
 import hashlib
@@ -18,6 +19,9 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 
 from dbcommon import get_conn, _p
+from app_env import is_prod
+
+logger = logging.getLogger(__name__)
 
 _SCHEMA_ENSURED = False
 _DEFAULT_REFRESH_TTL = 30 * 24 * 3600   # 30일
@@ -41,6 +45,10 @@ def hash_ci(ci_raw: str, key: Optional[str] = None) -> str:
     raw = ci_raw.encode("utf-8")
     if k:
         return hmac.new(k.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    # 무키 폴백 — 고정 식별자 CI 에 무염 SHA256 은 상관/복원 위험.
+    if is_prod():
+        raise RuntimeError("ACCOUNT_CI_HMAC_KEY required in production (no keyless CI hashing)")
+    logger.warning("CI HMAC key absent — SHA256 fallback (DEV ONLY, do not use in prod)")
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -118,16 +126,33 @@ def get_account(account_id) -> Optional[Dict]:
 
 
 def withdraw_account(account_id) -> bool:
-    """탈퇴 — status=withdrawn + 모든 세션 철회. 동의원장 등 이력은 보존."""
+    """탈퇴 — 모든 세션 철회 + status=withdrawn. 동의원장 이력은 보존.
+    세션 철회 성공 여부를 반환(False면 호출측이 5xx 로 표면화 — 철회 실패가
+    조용히 'withdrawn 인데 세션 활성' 상태로 남지 않게)."""
     _ensure_once()
     try:
+        revoked = revoke_all_sessions(account_id)        # 먼저 철회
         with get_conn() as (conn, cur):
             cur.execute(
                 f"UPDATE account SET status = {_p()}, withdrawn_at = {_p()} WHERE id = {_p()}",
                 ("withdrawn", _iso(_now()), account_id),
             )
             conn.commit()
-        revoke_all_sessions(account_id)
+        return bool(revoked)
+    except Exception:
+        return False
+
+
+def reactivate_account(account_id) -> bool:
+    """탈퇴 계정 재활성(재가입). 호출측이 재동의를 강제해야 함(이전 동의 철회)."""
+    _ensure_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"UPDATE account SET status = {_p()}, withdrawn_at = {_p()} WHERE id = {_p()}",
+                ("active", None, account_id),
+            )
+            conn.commit()
         return True
     except Exception:
         return False
@@ -173,6 +198,24 @@ def get_active_session(session_id, now: Optional[datetime] = None) -> Optional[D
     if (d.get("expires_at") or "") <= now_iso:   # 만료
         return None
     return d
+
+
+def rotate_session_refresh(session_id, old_hash, new_hash) -> bool:
+    """refresh 회전 — 현재 refresh_hash 가 old 일 때만 new 로 교체(단일 라이터).
+    성공 시 True. 제시된 refresh 가 현재값과 불일치(이미 회전됨=재사용)면 0행 → False."""
+    _ensure_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"UPDATE auth_session SET refresh_hash = {_p()} "
+                f"WHERE id = {_p()} AND refresh_hash = {_p()} AND revoked_at IS NULL",
+                (new_hash, session_id, old_hash),
+            )
+            updated = cur.rowcount
+            conn.commit()
+        return updated == 1
+    except Exception:
+        return False
 
 
 def revoke_session(session_id) -> bool:

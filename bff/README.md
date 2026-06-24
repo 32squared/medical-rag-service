@@ -16,12 +16,16 @@ uvicorn bff.app:app --host 0.0.0.0 --port 8080
 
 | 변수 | 용도 | 기본/주의 |
 |---|---|---|
-| `BFF_TOKEN_SECRET` | access 토큰 HMAC 서명키 | **프로덕션 필수**(미설정 시 dev 기본키=비보안) |
-| `ACCOUNT_CI_HMAC_KEY` | CI/DI 해시 HMAC 키 | **프로덕션 필수**(미설정 시 SHA256 폴백=상관위험) |
+| `APP_ENV` | 환경(`prod`/`dev`) | `prod` 이면 아래 보안설정 **fail-closed**(누락/기본값이면 부팅·서명·해시 거부) |
+| `BFF_TOKEN_SECRET` | access 토큰 HMAC 서명키 | prod 필수(미설정/dev기본키 → prod에서 RuntimeError) |
+| `ACCOUNT_CI_HMAC_KEY` | CI/DI 해시 HMAC 키 | prod 필수(미설정 → prod에서 RuntimeError, dev는 SHA256 폴백+경고) |
+| `PASS_PROVIDER` | 본인인증 provider | `mock`(P0). prod에서 mock 은 `ALLOW_MOCK_AUTH=1` 없으면 차단 |
+| `ALLOW_MOCK_AUTH` | prod mock 허용 플래그 | 설정 시에만 prod mock 인증 허용(스테이징용) |
 | `RAG_URL` | RAG 서비스 베이스 URL | `.run.app` 이면 SA 메타데이터 토큰 자동첨부 |
 | `RAG_GRAPH` | RAG 대화 그래프명 | `medical_rag` |
-| `PASS_PROVIDER` | 본인인증 provider | `mock`(P0). 실연동 시 어댑터 교체 |
 | `DB_PATH` / `DATABASE_URL` | SQLite / PostgreSQL | dbcommon 공용 |
+
+**보안(감사 반영)**: prod fail-closed 설정검증(부팅 시) · access 토큰은 live 세션+active 계정 필수(탈퇴/로그아웃 즉시 무효) · refresh **1회용 회전**(재사용 차단) · 탈퇴 재로그인=재동의 강제 · 국외이전 ack 는 **동의원장 기준**(클라 flag 단독 불가) · 빈 CI 거부.
 
 ## 엔드포인트
 

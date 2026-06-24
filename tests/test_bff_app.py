@@ -148,17 +148,62 @@ def test_consent_history_append_only(bff):
     assert [r["action"] for r in h] == ["grant", "revoke"]
 
 
-def test_refresh_issues_working_access(bff):
+def test_refresh_rotates_and_old_token_dies(bff):
     client, _ = bff
     tok = _login(client)
     rr = client.post("/auth/refresh",
                      json={"session_id": tok["session_id"], "refresh_token": tok["refresh_token"]})
     assert rr.status_code == 200
-    new_access = rr.json()["access_token"]
-    assert client.get("/me", headers={"Authorization": f"Bearer {new_access}"}).status_code == 200
+    body = rr.json()
+    assert body["access_token"]
+    assert body["refresh_token"] and body["refresh_token"] != tok["refresh_token"]   # 회전됨
+    assert client.get("/me", headers={"Authorization": f"Bearer {body['access_token']}"}).status_code == 200
+    # 이전 refresh 재사용 차단(1회용)
+    assert client.post("/auth/refresh",
+                       json={"session_id": tok["session_id"], "refresh_token": tok["refresh_token"]}).status_code == 401
+    # 새 refresh 는 작동
+    assert client.post("/auth/refresh",
+                       json={"session_id": tok["session_id"], "refresh_token": body["refresh_token"]}).status_code == 200
     # 잘못된 refresh 는 거부
     assert client.post("/auth/refresh",
                        json={"session_id": tok["session_id"], "refresh_token": "wrong"}).status_code == 401
+
+
+def test_chat_cross_border_ack_gated_by_consent(bff):
+    client, _ = bff
+    tok = _login(client)
+    for item in ("personal_info", "sensitive_info"):
+        client.post("/consent", headers=_auth(tok), json={"item_key": item, "action": "grant"})
+    # cross_border 동의 없음 → 클라가 cross_border=true 보내도 ack False(국외경로 신호 차단)
+    r = client.post("/chat", headers=_auth(tok), json={"message": "x", "cross_border": True})
+    assert r.json()["rag"]["kw"]["cross_border_ack"] is False
+    client.post("/consent", headers=_auth(tok), json={"item_key": "cross_border", "action": "grant"})
+    r = client.post("/chat", headers=_auth(tok), json={"message": "x", "cross_border": True})
+    assert r.json()["rag"]["kw"]["cross_border_ack"] is True
+
+
+def test_relogin_after_withdraw_requires_reconsent(bff):
+    client, _ = bff
+    tok = _login(client, identity="p1")
+    for item in ("personal_info", "sensitive_info"):
+        client.post("/consent", headers=_auth(tok), json={"item_key": item, "action": "grant"})
+    assert client.post("/chat", headers=_auth(tok), json={"message": "x"}).json()["personalization"] is True
+    assert client.delete("/me", headers=_auth(tok)).status_code == 200
+    # 재로그인(같은 신원) → 계정 재활성이되 이전 동의 철회(재동의 필요)
+    tok2 = _login(client, identity="p1")
+    assert tok2["subject_id"] == tok["subject_id"]
+    me = client.get("/me", headers=_auth(tok2)).json()
+    assert me["status"] == "active"
+    assert "personal_info" in me["missing_required"]                    # 동의 초기화됨
+    assert client.post("/chat", headers=_auth(tok2), json={"message": "x"}).status_code == 403
+
+
+def test_blank_ci_rejected(bff, monkeypatch):
+    client, _ = bff
+    import bff.pass_adapter as pa
+    monkeypatch.setattr(pa, "verify", lambda tx_id, **kw: {"ci": "  ", "di": "x"})
+    tx = client.post("/auth/pass/start", json={}).json()["tx_id"]
+    assert client.post("/auth/pass/callback", json={"tx_id": tx}).status_code == 400
 
 
 def test_withdraw_revokes_sessions(bff):

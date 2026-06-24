@@ -36,6 +36,7 @@ class RefreshReq(BaseModel):
 
 class AccessResp(BaseModel):
     access_token: str
+    refresh_token: str   # 회전된 새 refresh(이전 토큰은 무효)
 
 
 class ConsentItemView(BaseModel):

@@ -54,6 +54,17 @@ def test_resolve_current_latest_wins():
     assert cdb.granted_items(recs) == {"personal_info"}
 
 
+def test_resolve_current_revoke_wins_tie():
+    import consent_db as cdb
+    # 동시각(같은 created_at) grant/revoke → 안전측(revoke) 우선, 행순서 비의존
+    recs = [
+        {"item_key": "sensitive_info", "action": "grant",  "created_at": "2026-06-01T00:00:00"},
+        {"item_key": "sensitive_info", "action": "revoke", "created_at": "2026-06-01T00:00:00"},
+    ]
+    assert cdb.resolve_current(recs)["sensitive_info"]["action"] == "revoke"
+    assert cdb.resolve_current(list(reversed(recs)))["sensitive_info"]["action"] == "revoke"
+
+
 def test_personalization_gate():
     import consent_db as cdb
     base = [{"item_key": "personal_info", "action": "grant", "created_at": "t1"}]

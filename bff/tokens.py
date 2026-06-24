@@ -14,11 +14,19 @@ import os
 import time
 from typing import Dict, Optional
 
+from app_env import is_prod
+
 _DEV_SECRET = "dev-insecure-secret-change-me"
 
 
 def _secret() -> bytes:
-    return os.environ.get("BFF_TOKEN_SECRET", _DEV_SECRET).encode("utf-8")
+    """HMAC 서명키. 프로덕션에서 키 누락/기본키면 fail-closed(서명·검증 불가 → 인증 차단)."""
+    s = os.environ.get("BFF_TOKEN_SECRET")
+    if not s or s == _DEV_SECRET:
+        if is_prod():
+            raise RuntimeError("BFF_TOKEN_SECRET required in production (no insecure default)")
+        s = _DEV_SECRET
+    return s.encode("utf-8")
 
 
 def _b64e(b: bytes) -> str:

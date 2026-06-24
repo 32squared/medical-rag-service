@@ -89,11 +89,16 @@ def _ensure_once() -> None:
 
 # ── 순수 판정 (DB 불필요, 테스트 가능) ───────────────────────
 def resolve_current(records: List[Dict]) -> Dict[str, Dict]:
-    """레코드 목록 → item_key별 최신 레코드. created_at 최대(동률 시 나중 삽입) 기준."""
+    """레코드 목록 → item_key별 최신 레코드. created_at 최대 기준.
+    동시각 동률(같은 created_at)은 **안전측(revoke) 우선** — DB 행순서에 의존하지
+    않고 '철회 즉시 반영' 불변을 보장(PG의 tie 재정렬에도 grant 가 revoke 를 덮지 않음)."""
     latest: Dict[str, Dict] = {}
     for r in records:
         k = r["item_key"]
-        if k not in latest or r["created_at"] >= latest[k]["created_at"]:
+        cur = latest.get(k)
+        if cur is None or r["created_at"] > cur["created_at"]:
+            latest[k] = r
+        elif r["created_at"] == cur["created_at"] and r.get("action") == REVOKE:
             latest[k] = r
     return latest
 
