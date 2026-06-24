@@ -136,6 +136,8 @@ class RagRoutesMixin:
                 return self._rag_admin_recent(parsed)
             if path == '/api/rag/admin/prompt':
                 return self._rag_admin_prompt(parsed)
+            if path == '/api/rag/admin/coaching':
+                return self._rag_admin_coaching(parsed)
 
             if path == '/api/rag/kb/sources':
                 if not self._require_auth():

@@ -116,6 +116,7 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
  <div class=sec><h2>액션별 응답속도 <span class=sub>(avg · p50 · p95)</span></h2><div id=byact></div></div>
  <div class=sec><h2>구간별 (일자 · KST)</h2><div id=ts></div></div>
  <div class=sec><h2>대화 통계</h2><div id=stats></div></div>
+ <div class=sec><h2>웰니스 코칭 퍼널 <span class=sub>(비식별 이벤트)</span></h2><div id=coach></div></div>
 </div>
 <div id=tab-recent class=tab style=display:none>
  <div class=sec><h2>최근 쿼리 (원문) <span class=sub>— 행을 클릭하면 답변 전체</span></h2><div id=recent></div></div>
@@ -133,10 +134,10 @@ async function j(p){const r=await fetch(p);if(!r.ok)throw new Error(p+' '+r.stat
 async function load(){
  const d=$('days').value; $('note').textContent='불러오는 중…';
  try{
-  const [s,ts,st,rc,pr]=await Promise.all([
+  const [s,ts,st,rc,pr,co]=await Promise.all([
    j('/api/admin/summary?days='+d),j('/api/admin/timeseries?days='+d),
-   j('/api/admin/stats?days='+d),j('/api/admin/recent?limit=50'),j('/api/admin/prompt')]);
-  renderCards(s);renderByAct(s.by_action);renderTs(ts);renderStats(st);renderRecent(rc);renderPrompt(pr);
+   j('/api/admin/stats?days='+d),j('/api/admin/recent?limit=50'),j('/api/admin/prompt'),j('/api/admin/coaching?days='+d)]);
+  renderCards(s);renderByAct(s.by_action);renderTs(ts);renderStats(st);renderRecent(rc);renderPrompt(pr);renderCoach(co);
   $('note').textContent='단가 가정 $'+s.price_in_usd_per_m+'/$'+s.price_out_usd_per_m+' per 1M · 환율 '+n(s.fx_krw)+'원';
  }catch(e){$('note').textContent='오류: '+e.message}
 }
@@ -169,6 +170,12 @@ function bars(title,arr){
 }
 function renderStats(d){
  $('stats').innerHTML=bars('근거 품질(evidence_quality)',d.evidence_quality)+bars('게이트 결정(gate_decision)',d.gate_decision)+bars('가드레일 액션(guardrail_action)',d.guardrail_action);
+}
+function renderCoach(d){
+ if(!d||!d.funnel){$('coach').innerHTML='<div class=sub>데이터 없음</div>';return}
+ let h=bars('퍼널(트랙선택→플랜→체크인→실천→완주)',d.funnel);
+ if(d.by_track&&d.by_track.length)h+=bars('트랙별 플랜',d.by_track);
+ $('coach').innerHTML=h;
 }
 function renderRecent(d){
  let h='<table><tr><th>시각(KST)</th><th>질의</th><th>토큰</th><th>속도</th><th>가드레일</th><th>근거</th></tr>';

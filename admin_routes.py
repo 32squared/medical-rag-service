@@ -199,6 +199,42 @@ class AdminRoutesMixin:
             return self._send_error(500, f"통계 실패: {type(e).__name__}: {e}")
         return self._send_json(200, out)
 
+    # ── 웰니스 코칭 퍼널(비식별 analytics_events 집계) ──────────
+    def _rag_admin_coaching(self, parsed):
+        if not self._admin_ok():
+            return self._send_error(403, "admin secret 필요")
+        days = self._admin_days(parsed)
+        cutoff = self._admin_cutoff(days)
+        from dbcommon import get_conn, _p
+
+        def cnt(cur, name, extra=""):
+            cur.execute(
+                f"SELECT count(*) AS c FROM analytics_events "
+                f"WHERE created_at >= {_p()} AND event_name = {_p()}{extra}",
+                (cutoff, name))
+            r = cur.fetchone()
+            return _i(r["c"]) if r else 0
+        try:
+            with get_conn() as (conn, cur):
+                funnel = [
+                    {"label": "트랙 선택", "count": cnt(cur, "coaching_track_selected")},
+                    {"label": "플랜 생성", "count": cnt(cur, "coaching_plan_shown")},
+                    {"label": "체크인", "count": cnt(cur, "coaching_checkin")},
+                    {"label": "실천 체크인", "count": cnt(cur, "coaching_checkin", " AND checkin_done = 1")},
+                    {"label": "완주", "count": cnt(cur, "coaching_completed")},
+                ]
+                cur.execute(
+                    f"""SELECT track AS label, count(*) AS cnt FROM analytics_events
+                        WHERE created_at >= {_p()} AND event_name = {_p()} AND track IS NOT NULL
+                        GROUP BY track ORDER BY count(*) DESC""",
+                    (cutoff, "coaching_plan_shown"))
+                by_track = [{"label": (r["label"] or "(없음)"), "count": _i(r["cnt"])}
+                            for r in cur.fetchall()]
+                out = {"days": days, "funnel": funnel, "by_track": by_track}
+        except Exception as e:
+            return self._send_error(500, f"코칭 통계 실패: {type(e).__name__}: {e}")
+        return self._send_json(200, out)
+
     # ── 최근 쿼리(감사, 원문 포함) ────────────────────────────
     def _rag_admin_recent(self, parsed):
         if not self._admin_ok():
