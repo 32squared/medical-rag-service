@@ -1372,6 +1372,7 @@ def collect_all(
           'inserted': int,
           'skipped_dup': int,
           'skipped_violation': int,
+          'skipped_quality': int,
           'errors': [str]
         }
     """
@@ -1386,6 +1387,7 @@ def collect_all(
         "inserted": 0,
         "skipped_dup": 0,
         "skipped_violation": 0,
+        "skipped_quality": 0,
         "errors": [],
     }
 
@@ -1491,11 +1493,20 @@ def collect_all(
 
     # ── ingest 단계 ──────────────────────────────────────────
     from kb_ingest import ingest_document
+    from kb_content_filter import assess_content
 
     for item in all_items:
         title = item.get("title", "")
         content_md = item.get("content_md", "")
         source_id = item.get("_source_id", "")
+
+        # 콘텐츠 품질 게이트 — 언어차단·저밀도 URL(포털메인·링크모음·시설목록)
+        # ·본문밀도·링크팜 스킵 (shortlist 정제 규칙)
+        _q = assess_content(item.get("source_url", ""), content_md)
+        if not _q["ok"]:
+            logger.info("[Collect] 저품질 SKIP (%s): %s", _q["reason"], title)
+            stats["skipped_quality"] += 1
+            continue
 
         # 위반패턴 사전검사 (source_id 전달 → 공공 출처는 KB 콘텐츠 컨텍스트 적용)
         violations = precheck_violations(content_md, source_id=source_id)
@@ -1551,10 +1562,10 @@ def collect_all(
 
     logger.info(
         "[Collect] 완료 — fetched=%d inserted=%d skipped_dup=%d "
-        "skipped_violation=%d errors=%d",
+        "skipped_violation=%d skipped_quality=%d errors=%d",
         stats["fetched"], stats["inserted"],
         stats["skipped_dup"], stats["skipped_violation"],
-        len(stats["errors"]),
+        stats["skipped_quality"], len(stats["errors"]),
     )
     return stats
 
@@ -1758,6 +1769,7 @@ def _cli_main():
         print(f"INSERT: {stats['inserted']}건")
         print(f"중복 스킵: {stats['skipped_dup']}건")
         print(f"위반 스킵: {stats['skipped_violation']}건")
+        print(f"저품질 스킵: {stats['skipped_quality']}건")
         print(f"오류: {len(stats['errors'])}건")
         if stats["errors"]:
             for err in stats["errors"][:10]:
