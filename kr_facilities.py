@@ -20,6 +20,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 HIRA_PHARMACY = "http://apis.data.go.kr/B551182/pharmacyInfoService/getParmacyBasisList"
+# 심평원 병원정보(위치기반) — 거리·종별·주소·전화·WGS84. 진료시간은 미포함(상세조회 별도).
+HIRA_HOSPITAL = "http://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList"
 # E-Gen(국립중앙의료원) 약국 목록 — 구별 약국 + dutyTime(요일별 영업시간) + WGS84 좌표
 EGEN_PHARMACY_LIST = "http://apis.data.go.kr/B552657/ErmctInsttInfoInqireService/getParmacyListInfoInqire"
 _WD_KO = {1: "월", 2: "화", 3: "수", 4: "목", 5: "금", 6: "토", 7: "일"}
@@ -103,6 +105,53 @@ def nearby_pharmacies(lat, lon, radius: int = 2000, limit: int = 8) -> Optional[
     with urllib.request.urlopen(req, timeout=10) as r:
         xml_str = r.read().decode("utf-8")
     return _enrich(parse_pharmacies(xml_str), limit)
+
+
+# ── 심평원 병원(위치기반) — 거리·종별, 진료시간 미포함(전화 확인) ──────────
+def parse_hospitals(xml_str: str) -> List[Dict]:
+    """HIRA 병원 XML → 거리순 병원(종별 dept 포함). 순수."""
+    root = ET.fromstring(xml_str)
+    if (root.findtext("./header/resultCode") or "00") != "00":
+        return []
+    out: List[Dict] = []
+    for it in root.findall("./body/items/item"):
+        try:
+            dist = float(_t(it, "distance"))
+        except ValueError:
+            continue
+        out.append({
+            "name": _t(it, "yadmNm"), "addr": _t(it, "addr"), "tel": _t(it, "telno"),
+            "distance_m": dist, "lat": _t(it, "YPos"), "lon": _t(it, "XPos"),
+            "area": _t(it, "emdongNm") or _t(it, "sgguCdNm"),
+            "dept": _t(it, "clCdNm"),    # 종별(상급종합/종합병원/병원/의원/요양병원…)
+        })
+    out.sort(key=lambda x: x["distance_m"])
+    return out
+
+
+def nearby_hospitals(lat, lon, radius: int = 2000, limit: int = 8) -> Optional[List[Dict]]:
+    """좌표 주변 병원(거리순·종별). 진료시간 미제공(전화 확인). 키 없으면 None."""
+    if not api_key():
+        return None
+    q = urllib.parse.urlencode({
+        "serviceKey": api_key(), "pageNo": 1, "numOfRows": max(limit * 3, 30),
+        "xPos": lon, "yPos": lat, "radius": int(radius),
+    })
+    req = urllib.request.Request(HIRA_HOSPITAL + "?" + q,
+                                 headers={"User-Agent": "Mozilla/5.0", "Accept": "*/*"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        xml_str = r.read().decode("utf-8")
+    res = []
+    for o in parse_hospitals(xml_str)[:limit]:
+        m = int(round(o["distance_m"]))
+        d = dict(o)
+        d["dist_label"] = f"{m}m" if m < 1000 else f"{m / 1000:.1f}km"
+        d["hours"] = None
+        d["hours_note"] = "진료시간은 전화 확인"
+        d["map_url"] = _kakao_map(o["name"], o.get("lat"), o.get("lon"))
+        d["tel_url"] = "tel:" + (o["tel"] or "").replace("-", "")
+        res.append(d)
+    return res
 
 
 # ── E-Gen(국립중앙의료원) 약국 — 거리 + 영업시간(dutyTime) ──────────────
@@ -217,8 +266,20 @@ def egen_nearby_pharmacies(lat, lon, limit: int = 8) -> Optional[List[Dict]]:
 
 
 def find_real(kind: str, lat, lon, radius: int = 2000) -> Dict:
-    """실데이터 약국. E-Gen 우선(거리+영업시간) → 실패 시 HIRA(거리만) → 키 없으면 미지원."""
-    if kind != "pharmacy" or not api_key():
+    """실데이터 시설. 약국=E-Gen(거리+영업시간)→HIRA(거리), 병원=HIRA(거리·종별). 키 없으면 미지원."""
+    if not api_key():
+        return {"supported": False}
+    if kind == "hospital":                      # 심평원 병원(거리·종별, 진료시간 전화확인)
+        try:
+            items = nearby_hospitals(lat, lon, radius=radius)
+            if items:
+                return {"supported": True, "kind": "hospital", "real": True,
+                        "source": "심평원(HIRA) 병원정보", "items": items,
+                        "notice": "심평원 실데이터 · 거리순 중립 안내(특정 병원 추천 아님) · 진료시간은 병원별 상이 — 전화 확인 권장"}
+        except Exception:
+            pass                                # 미인가(전파대기)/오류 → 데모 폴백
+        return {"supported": False}
+    if kind != "pharmacy":
         return {"supported": False}
     try:                                        # 1) E-Gen — 거리 + 지금영업중
         eg = egen_nearby_pharmacies(lat, lon, limit=8)

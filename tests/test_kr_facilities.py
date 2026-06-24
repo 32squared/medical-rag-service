@@ -86,6 +86,21 @@ def test_egen_open_now_weekday_window():
     assert kf.egen_open_now(times, datetime(2026, 6, 23, 10, 0)) is None    # 화(미등록)
 
 
+_HOSP_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<response><header><resultCode>00</resultCode></header><body><items>
+<item><yadmNm>역삼종합병원</yadmNm><clCdNm>종합병원</clCdNm><addr>서울 강남구 테헤란로 5</addr><telno>02-100-2000</telno><distance>320</distance><XPos>127.034</XPos><YPos>37.500</YPos><emdongNm>역삼동</emdongNm></item>
+<item><yadmNm>멀리병원</yadmNm><clCdNm>병원</clCdNm><addr>서울 강남구 선릉로 9</addr><telno>02-200-3000</telno><distance>1400</distance><XPos>127.05</XPos><YPos>37.51</YPos><emdongNm>대치동</emdongNm></item>
+</items></body></response>"""
+
+
+def test_parse_hospitals_sorts_and_dept():
+    its = kf.parse_hospitals(_HOSP_XML)
+    assert [i["name"] for i in its] == ["역삼종합병원", "멀리병원"]    # 거리순
+    assert its[0]["distance_m"] == 320.0 and its[0]["dept"] == "종합병원"
+    assert its[0]["tel"] == "02-100-2000"
+    assert its[0]["lat"] == "37.500" and its[0]["lon"] == "127.034"
+
+
 def test_egen_enrich_distance_hours_badge():
     items = kf.parse_egen_list(_EGEN_XML)
     user = (37.4990, 127.0300)
