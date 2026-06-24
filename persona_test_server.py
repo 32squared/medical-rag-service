@@ -876,9 +876,11 @@ function openProfile(){
     fetch('/profile/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(prof)}).then(r=>r.json()).then(function(d){renderSuggest(out,d);}).catch(function(e){out.innerHTML='';});};}
 function renderSuggest(host,d){
   var sum=d.summary?'<div class="psub" style="margin-bottom:8px"><i class="ti ti-user-check"></i> 내 정보: '+esc(d.summary)+'</div>':'';
-  host.innerHTML=sum+'<div class="psub" style="margin-bottom:6px">나에게 맞는 상세 질문 — 눌러서 물어보세요</div><div id="sgw" style="display:flex;flex-wrap:wrap;gap:6px"></div>';
+  var lbl=d.summary?'나에게 맞는 상세 질문 — 눌러서 물어보세요':'이런 걸 물어볼 수 있어요';
+  host.innerHTML=sum+'<div class="psub" style="margin-bottom:6px">'+lbl+'</div><div id="sgw" style="display:flex;flex-wrap:wrap;gap:6px"></div>';
   var w=host.querySelector('#sgw');(d.questions||[]).forEach(function(q){var s=document.createElement('span');s.className='chip';s.style.cursor='pointer';s.textContent=q;s.onclick=function(){qi.value=q;ask();};w.appendChild(s);});}
-function showProfileSuggest(){var pf=loadProfile();var has=(pf.topics&&pf.topics.length)||(pf.conditions&&pf.conditions.length);if(!has)return;
+function showProfileSuggest(){var pf=loadProfile();var has=(pf.topics&&pf.topics.length)||(pf.conditions&&pf.conditions.length);
+  if(!has){var c=el('<div class="card"></div>');renderSuggest(c,{summary:'',questions:['혈압 관리에 좋은 식사가 궁금해요','잠을 더 잘 자는 생활습관이 궁금해요','건강하게 체중을 관리하는 식단이 궁금해요']});return;}
   fetch('/profile/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pf)}).then(r=>r.json()).then(function(d){var c=el('<div class="card"></div>');renderSuggest(c,d);}).catch(function(e){});}
 function ask(){var q=qi.value.trim();if(!q)return;qi.value='';el('<div class="bu">'+esc(q)+'</div>');send(q);}
 function send(q){
