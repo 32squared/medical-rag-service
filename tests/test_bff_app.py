@@ -41,14 +41,17 @@ def bff(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", db_file)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("BFF_TOKEN_SECRET", "test-secret")
+    monkeypatch.delenv("DATA_GO_KR_KEY", raising=False)   # 시설=데모(네트워크 호출 금지)
     import dbcommon as db_mod
     monkeypatch.setattr(db_mod, "DB_PATH", db_file)
     monkeypatch.setattr(db_mod, "_use_postgres", False)
     _apply_sqlite_migrations(db_file)
     import consent_db
     import account_db
+    import rag_db
     monkeypatch.setattr(consent_db, "_SCHEMA_ENSURED", False)
     monkeypatch.setattr(account_db, "_SCHEMA_ENSURED", False)
+    monkeypatch.setattr(rag_db, "_COACHING_SCHEMA_ENSURED", False)
     import bff.rag_client as rc
     monkeypatch.setattr(rc, "chat", lambda message, **kw: {"echo": message, "kw": kw})
     from fastapi.testclient import TestClient
@@ -212,6 +215,52 @@ def test_withdraw_revokes_sessions(bff):
     client.post("/consent", headers=_auth(tok), json={"item_key": "personal_info", "action": "grant"})
     assert client.delete("/me", headers=_auth(tok)).status_code == 200
     assert client.post("/chat", headers=_auth(tok), json={"message": "x"}).status_code == 401
+
+
+def test_coaching_config_lists_tracks(bff):
+    client, _ = bff
+    cfg = client.get("/coaching/config").json()
+    keys = {t["key"] for t in cfg["tracks"]}
+    assert {"diet", "exercise", "habit"} <= keys
+    assert len(next(t for t in cfg["tracks"] if t["key"] == "diet")["intake"]) >= 1
+
+
+def test_coaching_plan_persists_and_reloads(bff):
+    client, _ = bff
+    tok = _login(client)
+    assert client.get("/coaching", headers=_auth(tok)).json()["plan"] is None       # 처음엔 없음
+    r = client.post("/coaching/plan", headers=_auth(tok),
+                    json={"track": "diet", "intake": {"eatout": "거의 매일", "salty": "강함", "period": "2주"}})
+    assert r.status_code == 200
+    pid = r.json()["plan_id"]
+    assert pid and r.json()["items"]
+    got = client.get("/coaching", headers=_auth(tok)).json()                          # 재조회=재로그인 복원
+    assert got["plan"] and got["plan"]["plan_id"] == pid
+    key = got["plan"]["items"][0]["key"]
+    assert client.post("/coaching/checkin", headers=_auth(tok),
+                       json={"plan_id": pid, "item_key": key, "done": True}).status_code == 200
+    after = client.get("/coaching", headers=_auth(tok)).json()                        # 체크인 영속
+    assert after["stats"]["done"] >= 1
+    assert next(i for i in after["plan"]["items"] if i["key"] == key)["done_today"] is True
+
+
+def test_coaching_isolated_per_subject(bff):
+    client, _ = bff
+    a = _login(client, identity="coach-a")
+    client.post("/coaching/plan", headers=_auth(a),
+                json={"track": "habit", "intake": {"focus": "수면", "reg": "불규칙", "period": "2주"}})
+    assert client.get("/coaching", headers=_auth(a)).json()["plan"] is not None
+    b = _login(client, identity="coach-b")
+    assert client.get("/coaching", headers=_auth(b)).json()["plan"] is None           # 계정별 분리
+
+
+def test_facilities_returns_items(bff):
+    client, _ = bff
+    tok = _login(client)
+    d = client.post("/facilities", headers=_auth(tok),
+                    json={"lat": 37.5, "lon": 127.04, "kind": "pharmacy"}).json()
+    assert d["kind"] == "pharmacy" and isinstance(d["items"], list) and len(d["items"]) >= 1
+    assert "name" in d["items"][0]
 
 
 def test_consent_items_public(bff):

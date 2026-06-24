@@ -78,7 +78,44 @@ def ensure_account_schema() -> None:
         cur.execute(
             """CREATE INDEX IF NOT EXISTS idx_auth_session_subject
                    ON auth_session(subject_id)""")
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS subject_profile (
+                   subject_id TEXT PRIMARY KEY,
+                   persona_id TEXT,
+                   updated_at TEXT
+               )""")
         conn.commit()
+
+
+def set_persona(subject_id, persona_id) -> bool:
+    """주체의 선택 페르소나 upsert(개인별 영속 — 재로그인 복원)."""
+    _ensure_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(f"SELECT subject_id FROM subject_profile WHERE subject_id = {_p()}", (subject_id,))
+            if cur.fetchone():
+                cur.execute(
+                    f"UPDATE subject_profile SET persona_id = {_p()}, updated_at = {_p()} WHERE subject_id = {_p()}",
+                    (persona_id, _iso(_now()), subject_id))
+            else:
+                cur.execute(
+                    f"INSERT INTO subject_profile (subject_id, persona_id, updated_at) VALUES ({_p()}, {_p()}, {_p()})",
+                    (subject_id, persona_id, _iso(_now())))
+            conn.commit()
+        return True
+    except Exception:
+        return False
+
+
+def get_persona(subject_id) -> Optional[str]:
+    _ensure_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(f"SELECT persona_id FROM subject_profile WHERE subject_id = {_p()}", (subject_id,))
+            row = cur.fetchone()
+            return dict(row)["persona_id"] if row else None
+    except Exception:
+        return None
 
 
 def _ensure_once() -> None:

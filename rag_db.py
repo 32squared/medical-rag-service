@@ -454,3 +454,22 @@ def get_coaching_checkins(plan_id) -> list:
             return [_row_to_dict(r) for r in cur.fetchall()]
     except Exception:
         return []
+
+
+def get_latest_coaching_plan(conversation_id) -> dict:
+    """주체(conversation_id=subject_id)의 가장 최근 코칭 플랜 → dict(items_json 포함) 또는 None.
+    BFF 가 conversation_id 에 계정 id 를 넣어 **개인별 영속**(재로그인 복원)에 사용."""
+    _ensure_coaching_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"SELECT p.plan_id, p.track, p.items_json, p.target_period, "
+                f"p.band_at_creation, p.safety_banner, p.created_at "
+                f"FROM coaching_plan p JOIN coaching_session s ON p.session_id = s.session_id "
+                f"WHERE s.conversation_id = {_p()} ORDER BY p.created_at DESC LIMIT 1",
+                (conversation_id,),
+            )
+            row = cur.fetchone()
+            return _row_to_dict(row) if row else None
+    except Exception:
+        return None

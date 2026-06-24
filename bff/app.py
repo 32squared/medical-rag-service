@@ -20,11 +20,15 @@ from .models import (
     AccessResp,
     ChatReq,
     ChatResp,
+    CoachingCheckinReq,
+    CoachingPlanReq,
     ConsentReq,
+    FacilitiesReq,
     MeResp,
     PassCallbackReq,
     PassStartReq,
     PassStartResp,
+    PersonaReq,
     RefreshReq,
     TokenResp,
 )
@@ -38,6 +42,80 @@ def _emit_consent(action: str, item_key: str) -> None:
                 consent_item=item_key)
     except Exception:
         pass
+
+
+def _today_kst() -> str:
+    from datetime import datetime, timezone, timedelta
+    return (datetime.now(timezone.utc) + timedelta(hours=9)).strftime("%Y-%m-%d")
+
+
+def _kst_date(iso: str) -> str:
+    """UTC ISO 타임스탬프 → KST(UTC+9) 날짜(YYYY-MM-DD). checkin ts(UTC)와 오늘(KST) 정합."""
+    from datetime import datetime, timezone, timedelta
+    try:
+        dt = datetime.fromisoformat((iso or "").replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+    except Exception:
+        return (iso or "")[:10]
+
+
+def _streak_from_dates(done_dates: set) -> int:
+    """오늘부터 거꾸로 연속된 실천 일수(KST)."""
+    from datetime import datetime, timedelta
+    if not done_dates:
+        return 0
+    cur = datetime.strptime(_today_kst(), "%Y-%m-%d")
+    s = 0
+    while cur.strftime("%Y-%m-%d") in done_dates:
+        s += 1
+        cur = cur - timedelta(days=1)
+    return s
+
+
+# ── 페르소나(데모 합성 PHR — 개인화 체험) ─────────────────────
+_PERSONAS = None
+
+
+def _load_personas():
+    global _PERSONAS
+    if _PERSONAS is None:
+        import json as _j
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "test_personas", "personas.json")
+        try:
+            with open(path, encoding="utf-8") as f:
+                _PERSONAS = _j.load(f).get("personas", [])
+        except Exception:
+            _PERSONAS = []
+    return _PERSONAS
+
+
+def _persona(pid):
+    return next((p for p in _load_personas() if p.get("id") == pid), None) if pid else None
+
+
+def _persona_agent_input(persona):
+    import json as _j
+    vitals = (persona or {}).get("vitals") or []
+    return {"Vital Signs": _j.dumps(vitals, ensure_ascii=False) if vitals else "",
+            "Air Quality Score": (persona or {}).get("air_quality") or "",
+            "PHR": (persona or {}).get("phr") or "{}"}
+
+
+def _persona_band(persona):
+    try:
+        import vital_rules as vr
+        import wellness_router as wr
+        vitals = (persona or {}).get("vitals") or []
+        if not vitals:
+            return None
+        raw = vr.run(vitals[-1], locale=persona.get("locale", "KR"),
+                     population=persona.get("population", "adult"),
+                     context=persona.get("context", "clinic"))
+        return wr.worst_band([f.get("label_user") for f in raw])
+    except Exception:
+        return None
 
 
 def get_subject(authorization: Optional[str] = Header(None)) -> dict:
@@ -217,15 +295,18 @@ def create_app() -> FastAPI:
         granted = consent_db.granted_items(records)
         if "personal_info" not in granted:
             raise HTTPException(status_code=403, detail="personal_info_consent_required")
-        personalize = consent_db.personalization_allowed(
-            records, cross_border_needed=req.cross_border)
+        import account_db
+        persona = _persona(account_db.get_persona(sub["subject_id"]))
+        # 개인화 플래그=동의 기준(페르소나 선택 시 sensitive 자동동의). 신호는 agent_input(페르소나)로 전달.
+        personalize = consent_db.personalization_allowed(records, cross_border_needed=req.cross_border)
         # 국외이전 ack 는 **원장 기준**으로만 1 — 클라이언트 flag 만으로 국외경로 신호를
         # 보내지 않음(cross_border 동의 없으면 ack=0, 원문 국외 라우팅 차단).
         cross_border_ack = bool(req.cross_border) and ("cross_border" in granted)
         rag = rag_client.chat(
             req.message, conversation_id=req.conversation_id,
             personalization=personalize, cross_border_ack=cross_border_ack,
-            user_id=sub["subject_id"])
+            user_id=sub["subject_id"],
+            agent_input=_persona_agent_input(persona) if persona else None)
         # 상황 되묻기(문진) — 순수 followups.clarify. 이미 문진 답을 실은 질의면 재문진 안 함.
         clarifiers = None
         if "문진:" not in req.message:
@@ -242,6 +323,119 @@ def create_app() -> FastAPI:
         if "personal_info" not in consent_db.granted_items(records):
             raise HTTPException(status_code=403, detail="personal_info_consent_required")
         return {"cards": [], "personalization": consent_db.personalization_allowed(records)}
+
+    # ── 코칭(개인별 영속 — conversation_id=subject_id 로 재로그인 복원) ──
+    @app.get("/coaching/config")
+    def coaching_config():
+        import coaching_engine as ce
+        return {"tracks": [{"key": t, "intake": ce.get_intake(t)} for t in ce.supported_tracks()]}
+
+    @app.get("/coaching")
+    def coaching_get(sub: dict = Depends(get_subject)):
+        import json as _json
+        import rag_db
+        sid = sub["subject_id"]
+        plan = rag_db.get_latest_coaching_plan(sid)
+        if not plan:
+            return {"plan": None, "stats": {"done": 0, "streak": 0}}
+        try:
+            items = _json.loads(plan.get("items_json") or "[]")
+        except Exception:
+            items = []
+        done_all = [c for c in rag_db.get_coaching_checkins(plan["plan_id"]) if int(c.get("done") or 0)]
+        done_dates = {_kst_date(c.get("ts")) for c in done_all}
+        today = _today_kst()
+        done_today = {c.get("item_key") for c in done_all if _kst_date(c.get("ts")) == today}
+        for it in items:
+            it["done_today"] = it.get("key") in done_today
+        return {"plan": {"plan_id": plan["plan_id"], "track": plan.get("track"),
+                         "items": items, "period": plan.get("target_period"),
+                         "banner": plan.get("safety_banner")},
+                "stats": {"done": len(done_all), "streak": _streak_from_dates(done_dates)}}
+
+    @app.post("/coaching/plan")
+    def coaching_plan(req: CoachingPlanReq, sub: dict = Depends(get_subject)):
+        import coaching_engine as ce
+        import rag_db
+        import account_db
+        sid = sub["subject_id"]
+        band = _persona_band(_persona(account_db.get_persona(sid)))   # 페르소나 밴드 → 배너·캡
+        try:
+            plan = ce.generate_plan(req.track, req.intake or {}, band=band)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="unknown_track")
+        session_id = rag_db.create_coaching_session(
+            conversation_id=sid, mode="wellness:" + req.track, track=req.track, band_at_start=band)
+        plan_id = rag_db.save_coaching_plan(
+            session_id=session_id, track=req.track, items=plan["items"],
+            target_period=plan["period"], band=plan.get("band"),
+            safety_banner=plan.get("banner"),
+            compliance_action=plan.get("compliance_action", "pass"), conversation_id=sid)
+        if not plan_id:
+            raise HTTPException(status_code=500, detail="plan_save_error")
+        return {"plan_id": plan_id, "track": req.track, "header": plan["header"],
+                "items": plan["items"], "period": plan["period"], "banner": plan.get("banner")}
+
+    @app.post("/coaching/checkin")
+    def coaching_checkin(req: CoachingCheckinReq, sub: dict = Depends(get_subject)):
+        import rag_db
+        rid = rag_db.record_coaching_checkin(
+            plan_id=req.plan_id, item_key=req.item_key, done=req.done,
+            conversation_id=sub["subject_id"])
+        if not rid:
+            raise HTTPException(status_code=500, detail="checkin_error")
+        return {"ok": True}
+
+    # ── 시설 찾기(실데이터: DATA_GO_KR_KEY 있으면 실, 없으면 데모) ──
+    @app.post("/facilities")
+    def facilities(req: FacilitiesReq, sub: dict = Depends(get_subject)):
+        kind = req.kind if req.kind in ("pharmacy", "hospital") else "pharmacy"
+        res = {"supported": False}
+        try:
+            import kr_facilities as kf
+            res = kf.find_real(kind, req.lat, req.lon)
+        except Exception:
+            res = {"supported": False}
+        if res.get("supported"):
+            return {"real": bool(res.get("real", True)), "kind": kind,
+                    "items": res.get("items", []), "source": res.get("source"),
+                    "notice": res.get("notice")}
+        try:                                    # 데모 폴백(키 미설정/미인가)
+            import facility_finder as ff
+            demo = ff.find_demo(kind, "서울")
+            return {"real": False, "kind": kind, "items": demo.get("items", []),
+                    "notice": "데모 데이터(실데이터 키 미설정/위치 권한 필요)"}
+        except Exception:
+            return {"real": False, "kind": kind, "items": [],
+                    "notice": "데이터를 불러오지 못했습니다"}
+
+    # ── 페르소나(데모 개인화 체험) ───────────────────────────
+    @app.get("/personas")
+    def personas_list():
+        return {"personas": [{"id": p.get("id"), "name": p.get("name"), "emoji": p.get("emoji", ""),
+                              "profile": p.get("profile", ""), "tags": p.get("tags", []),
+                              "samples": (p.get("sample_queries") or [])[:2]} for p in _load_personas()]}
+
+    @app.post("/persona/select")
+    def persona_select(req: PersonaReq, sub: dict = Depends(get_subject)):
+        p = _persona(req.persona_id)
+        if not p:
+            raise HTTPException(status_code=404, detail="unknown_persona")
+        import account_db
+        account_db.set_persona(sub["subject_id"], req.persona_id)
+        # 페르소나 선택 = 합성 건강프로필로 개인화 체험 동의 → 민감정보 grant(데모)
+        consent_db.record_consent(sub["subject_id"], "sensitive_info", "grant", source="persona_select")
+        return {"ok": True, "persona_id": req.persona_id, "name": p.get("name"), "band": _persona_band(p)}
+
+    @app.get("/persona")
+    def persona_get(sub: dict = Depends(get_subject)):
+        import account_db
+        p = _persona(account_db.get_persona(sub["subject_id"]))
+        if not p:
+            return {"persona": None}
+        return {"persona": {"id": p.get("id"), "name": p.get("name"), "emoji": p.get("emoji", ""),
+                            "profile": p.get("profile", ""), "band": _persona_band(p),
+                            "samples": (p.get("sample_queries") or [])}}
 
     return app
 

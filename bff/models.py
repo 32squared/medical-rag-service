@@ -77,3 +77,24 @@ class ChatResp(BaseModel):
     personalization: bool
     rag: dict
     clarifiers: Optional[dict] = None   # 상황 되묻기(문진) — followups.clarify
+
+
+class CoachingPlanReq(BaseModel):
+    track: str                          # diet | exercise | habit
+    intake: Optional[dict] = None       # 문진 답변
+
+
+class CoachingCheckinReq(BaseModel):
+    plan_id: str
+    item_key: Optional[str] = None
+    done: bool = True
+
+
+class FacilitiesReq(BaseModel):
+    lat: float
+    lon: float
+    kind: str = "pharmacy"              # pharmacy | hospital
+
+
+class PersonaReq(BaseModel):
+    persona_id: str

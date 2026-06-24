@@ -68,6 +68,27 @@
   .chip{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:99px;padding:8px 13px;
     font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
   .chip:hover{background:rgba(14,138,107,.08)} .chip.ghost{border-color:var(--line);color:var(--muted)}
+  .streak{font-size:12.5px;color:var(--teal);font-weight:700}
+  .banner{background:#FFF6E6;border:1px solid #F0DDB0;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#8A5A12;margin-bottom:10px;line-height:1.5}
+  .ckrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .ckrow:last-child{border-bottom:0}
+  .ckbtn{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;flex:none;font-family:inherit}
+  .ckbtn.done{background:var(--teal);color:#fff;opacity:.85}
+  .trackgrid{display:flex;gap:10px;margin-top:6px}
+  .trackcard{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 8px;text-align:center;cursor:pointer;box-shadow:var(--shadow);font-family:inherit;color:var(--ink)}
+  .trackcard:hover{border-color:var(--teal)}
+  .chip.sel{background:var(--teal);color:#fff;border-color:var(--teal)}
+  .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+  .segb{flex:1;border:0;background:#fff;padding:11px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);font-family:inherit}
+  .segb.on{background:var(--teal);color:#fff}
+  .faccard{margin-top:10px;padding:13px}
+  .badge.open{background:rgba(14,138,107,.12);color:var(--teal)}
+  .badge.closed{background:rgba(0,0,0,.06);color:var(--muted)}
+  .personacard{display:block;width:100%;text-align:left;padding:14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .personacard:hover{border-color:var(--teal)} .personacard:disabled{opacity:.6}
+  .psbar{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 4px;font-size:13px}
+  .psbar>span{font-weight:700;color:var(--teal)}
+  .pschips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .composer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);
     background:var(--surface);position:sticky;bottom:0}
   .composer input{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;
@@ -228,8 +249,10 @@ function Home({ go }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [iv, setIv] = useState(null);     // 상황 되묻기(문진): {base, questions, idx, answers, intro}
+  const [persona, setPersona] = useState(null);
   const endRef = useRef(null);
   useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, iv]);
+  useEffect(() => { api('/persona').then(r => r.json()).then(d => setPersona(d.persona)).catch(() => {}); }, []);
 
   async function send(q) {
     q = (q != null ? q : text).trim(); if (!q || busy) return;
@@ -262,7 +285,11 @@ function Home({ go }) {
   return html`<${Fragment}>
     <div class="hdr">
       <div class="brand"><span class="dot">+</span> 마이헬스케어</div>
-      <button class="icobtn" onClick=${() => go('settings')}>내 정보</button>
+      <div style="display:flex;gap:6px">
+        <button class="icobtn" onClick=${() => go('coaching')}>💪 코칭</button>
+        <button class="icobtn" onClick=${() => go('finder')}>📍 찾기</button>
+        <button class="icobtn" onClick=${() => go('settings')}>내 정보</button>
+      </div>
     </div>
     <div class="grow chat">
       ${msgs.map((m, i) => html`<div class=${'msg ' + (m.me ? 'me' : 'ai')} key=${i}>
@@ -275,6 +302,10 @@ function Home({ go }) {
             <b>[${c.n}]</b> ${c.source}${c.title ? (' — ' + c.title) : ''}${c.url ? html` <span class="ext">↗</span>` : ''}</a>`)}
         </div>` : ''}
       </div>`)}
+      ${persona && msgs.length <= 1 ? html`<div class="psbar">
+        <span>${persona.emoji} ${persona.name}${persona.band ? (' · 혈압 ' + persona.band) : ''}</span>
+        <div class="pschips">${(persona.samples || []).slice(0, 3).map(q => html`<button class="chip" key=${q} onClick=${() => send(q)}>${q}</button>`)}</div>
+      </div>` : ''}
       ${iv ? html`<div class="msg ai iv">
         <div class="ivintro">🩺 ${iv.intro || '더 정확히 좁혀 드릴까요? 답해 주시면 위 답변을 상황에 맞게 다시 안내드려요.'}</div>
         <div class="ivq"><b>(${iv.idx + 1}/${iv.questions.length})</b> ${iv.questions[iv.idx].q}</div>
@@ -335,16 +366,176 @@ function Settings({ go }) {
   </${Fragment}>`;
 }
 
+const TRACK_LABEL = { diet: '🥗 식단', exercise: '🏃 운동', habit: '🌙 습관' };
+
+// ── 코칭(개인별 영속) ─────────────────────────────────────────
+function Coaching({ go }) {
+  const [state, setState] = useState(null);   // {plan, stats}
+  const [cfg, setCfg] = useState(null);
+  const [track, setTrack] = useState(null);
+  const [intake, setIntake] = useState({});
+  const [busy, setBusy] = useState(false);
+  const load = () => api('/coaching').then(r => r.json()).then(setState);
+  useEffect(() => { load(); api('/coaching/config').then(r => r.json()).then(setCfg).catch(() => {}); }, []);
+
+  async function makePlan() {
+    setBusy(true);
+    try { await api('/coaching/plan', { method: 'POST', body: { track, intake } }); } catch {}
+    setTrack(null); setIntake({}); await load(); setBusy(false);
+  }
+  async function checkin(it) {
+    await api('/coaching/checkin', { method: 'POST', body: { plan_id: state.plan.plan_id, item_key: it.key, done: true } });
+    await load();
+  }
+
+  const trackPicker = () => track
+    ? (() => {
+        const t = cfg && cfg.tracks.find(x => x.key === track);
+        const qs = (t && t.intake) || [];
+        const ready = qs.every(q => intake[q.id]);
+        return html`<div class="card">
+          <div style="font-weight:700;margin-bottom:10px">${TRACK_LABEL[track]} 시작 — 몇 가지만 알려주세요</div>
+          ${qs.map(q => html`<div key=${q.id} style="margin-bottom:12px">
+            <div style="font-size:14px;margin-bottom:6px">${q.q}</div>
+            <div class="ivopts">${q.options.map(o => html`<button class=${'chip' + (intake[q.id] === o ? ' sel' : '')}
+              key=${o} onClick=${() => setIntake(s => ({ ...s, [q.id]: o }))}>${o}</button>`)}</div>
+          </div>`)}
+          <button class="btn" disabled=${!ready || busy} onClick=${makePlan}>${busy ? '생성 중…' : '플랜 만들기'}</button>
+          <div style="height:8px"></div>
+          <button class="btn ghost" onClick=${() => { setTrack(null); setIntake({}); }}>취소</button>
+        </div>`;
+      })()
+    : html`<div class="trackgrid">
+        ${['diet', 'exercise', 'habit'].map(t => html`<button class="trackcard" key=${t} onClick=${() => setTrack(t)}>
+          <div style="font-size:26px">${TRACK_LABEL[t].split(' ')[0]}</div>
+          <div style="font-weight:700;margin-top:4px">${TRACK_LABEL[t].split(' ')[1]}</div></button>`)}
+      </div>`;
+
+  return html`<${Fragment}>
+    <div class="hdr"><button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
+      <div class="brand" style="font-size:16px">건강 코칭</div><span style="width:48px"></span></div>
+    <div class="pad grow" style="overflow:auto">
+      ${!state ? html`<p class="muted">불러오는 중…</p>`
+        : state.plan ? html`
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div style="font-weight:700">${TRACK_LABEL[state.plan.track] || state.plan.track} · ${state.plan.period || ''}</div>
+              <div class="streak">🔥 ${state.stats.streak}일 · ✓ ${state.stats.done}</div>
+            </div>
+            ${state.plan.banner ? html`<div class="banner">${state.plan.banner}</div>` : ''}
+            ${state.plan.items.map(it => html`<div class="ckrow" key=${it.key}>
+              <div style="flex:1"><div>${it.text}</div><div class="muted" style="font-size:11.5px">근거 · ${it.cite || ''}</div></div>
+              <button class=${'ckbtn' + (it.done_today ? ' done' : '')} disabled=${it.done_today} onClick=${() => checkin(it)}>
+                ${it.done_today ? '완료 ✓' : '오늘 실천'}</button>
+            </div>`)}
+          </div>
+          <p class="note">매일 실천을 체크하면 기록이 쌓이고 다시 로그인해도 이어집니다. 새 트랙은 아래에서 선택하세요.</p>
+          ${trackPicker()}`
+        : html`
+          <h2>어떤 습관부터 시작할까요?</h2>
+          <p class="muted">트랙을 고르면 공신력 있는 생활수칙으로 실천 플랜을 만들어 드려요.</p>
+          <div style="height:12px"></div>
+          ${trackPicker()}`}
+    </div>
+  </${Fragment}>`;
+}
+
+// ── 병원·약국 찾기(실데이터/위치기반) ─────────────────────────
+function Finder({ go }) {
+  const [kind, setKind] = useState('pharmacy');
+  const [res, setRes] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  function search() {
+    setErr(''); setBusy(true); setRes(null);
+    if (!navigator.geolocation) { setErr('이 기기에서 위치를 쓸 수 없어요.'); setBusy(false); return; }
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const r = await api('/facilities', { method: 'POST', body: { lat: pos.coords.latitude, lon: pos.coords.longitude, kind } });
+        setRes(await r.json());
+      } catch { setErr('검색에 실패했어요.'); } finally { setBusy(false); }
+    }, () => { setErr('위치 권한이 필요해요.'); setBusy(false); }, { timeout: 10000, enableHighAccuracy: false });
+  }
+
+  return html`<${Fragment}>
+    <div class="hdr"><button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
+      <div class="brand" style="font-size:16px">병원·약국 찾기</div><span style="width:48px"></span></div>
+    <div class="pad grow" style="overflow:auto">
+      <div class="seg">
+        <button class=${'segb' + (kind === 'pharmacy' ? ' on' : '')} onClick=${() => setKind('pharmacy')}>약국</button>
+        <button class=${'segb' + (kind === 'hospital' ? ' on' : '')} onClick=${() => setKind('hospital')}>병원</button>
+      </div>
+      <button class="btn" disabled=${busy} onClick=${search}>${busy ? '내 위치로 찾는 중…' : '📍 내 위치로 찾기'}</button>
+      ${err && html`<div class="err">${err}</div>`}
+      <p class="note">위치는 검색에만 쓰이고 저장하지 않아요 · 거리순 중립 안내(특정 업체 추천 아님).</p>
+      ${res ? html`<div>
+        <div class="muted" style="font-size:12px;margin-bottom:6px">${res.real ? '실데이터' : '데모'} · ${res.notice || ''}</div>
+        ${(res.items || []).length ? res.items.map((f, i) => html`<div class="card faccard" key=${i}>
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+            <div style="font-weight:700">${f.name}</div>
+            ${f.open_now === true ? html`<span class="badge open">영업중</span>` : f.open_now === false ? html`<span class="badge closed">영업종료</span>` : ''}
+          </div>
+          <div class="muted" style="font-size:12.5px">${f.dist_label || ''}${f.hours ? (' · ' + f.hours) : ''}${f.addr ? (' · ' + f.addr) : (f.area ? (' · ' + f.area) : '')}${f.dept ? (' · ' + f.dept) : ''}</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            ${f.map_url ? html`<a class="btn ghost" style="padding:8px 12px;width:auto" href=${f.map_url} target="_blank" rel="noopener">지도</a>` : ''}
+            ${f.tel_url ? html`<a class="btn ghost" style="padding:8px 12px;width:auto" href=${f.tel_url}>전화</a>` : ''}
+          </div>
+        </div>`) : html`<p class="muted">주변에서 찾지 못했어요.</p>`}
+      </div>` : ''}
+    </div>
+  </${Fragment}>`;
+}
+
+// ── 체험 프로필(페르소나) 선택 ────────────────────────────────
+function Persona({ go }) {
+  const [list, setList] = useState(null);
+  const [busy, setBusy] = useState('');
+  useEffect(() => { api('/personas', { auth: false }).then(r => r.json()).then(d => setList(d.personas || [])); }, []);
+  async function pick(p) {
+    setBusy(p.id);
+    try { await api('/persona/select', { method: 'POST', body: { persona_id: p.id } }); go('home'); }
+    catch { setBusy(''); }
+  }
+  return html`<${Fragment}>
+    <div class="hdr"><span style="width:48px"></span>
+      <div class="brand" style="font-size:16px">체험 프로필 선택</div><span style="width:48px"></span></div>
+    <div class="pad grow" style="overflow:auto">
+      <p class="muted">데모 체험을 위해 가상의 건강 프로필을 하나 골라주세요. 선택한 프로필의 신호로
+        <b>맞춤 안내와 코칭</b>을 경험할 수 있어요. (합성 데이터 · 실제 본인 정보 아님)</p>
+      <div style="height:12px"></div>
+      ${!list ? html`<p class="muted">불러오는 중…</p>` : list.map(p => html`
+        <button class="card personacard" key=${p.id} disabled=${!!busy} onClick=${() => pick(p)}>
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="font-size:30px">${p.emoji}</div>
+            <div style="flex:1;text-align:left">
+              <div style="font-weight:700">${p.name}</div>
+              <div class="muted" style="font-size:12.5px">${p.profile}</div>
+            </div>
+            <span class="muted">${busy === p.id ? '…' : '›'}</span>
+          </div>
+        </button>`)}
+    </div>
+  </${Fragment}>`;
+}
+
 // ── 앱 루트 ───────────────────────────────────────────────────
 function App() {
   const [screen, setScreen] = useState('loading');
   useEffect(() => {
     if (!getTok()) { setScreen('onboarding'); return; }
-    api('/me').then(r => setScreen(r.ok ? 'home' : 'onboarding'));
+    api('/persona').then(async r => {
+      if (r.status === 401) { setTok(null); setScreen('onboarding'); return; }
+      const d = await r.json();
+      setScreen(d.persona ? 'home' : 'persona');     // 페르소나 미선택 → 선택 화면
+    }).catch(() => setScreen('onboarding'));
   }, []);
   if (screen === 'loading') return html`<div class="pad center"><p class="muted">불러오는 중…</p></div>`;
-  if (screen === 'onboarding') return html`<${Onboarding} onDone=${() => setScreen('home')} />`;
+  if (screen === 'onboarding') return html`<${Onboarding} onDone=${() => setScreen('persona')} />`;
+  if (screen === 'persona') return html`<${Persona} go=${setScreen} />`;
   if (screen === 'settings') return html`<${Settings} go=${setScreen} />`;
+  if (screen === 'coaching') return html`<${Coaching} go=${setScreen} />`;
+  if (screen === 'finder') return html`<${Finder} go=${setScreen} />`;
   return html`<${Home} go=${setScreen} />`;
 }
 

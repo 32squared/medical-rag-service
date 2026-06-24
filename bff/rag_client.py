@@ -97,8 +97,9 @@ def parse_sse_answer(raw: str) -> Dict:
 def chat(message: str, *, conversation_id: Optional[str] = None,
          personalization: bool = False, cross_border_ack: bool = False,
          user_id: Optional[str] = None, user_name: Optional[str] = None,
-         timeout: int = 120) -> Dict:
-    """RAG 의료 채팅 호출(SSE 소비). 동의 게이트 결과를 헤더 + personal_consent 로 전달."""
+         agent_input: Optional[Dict] = None, timeout: int = 120) -> Dict:
+    """RAG 의료 채팅 호출(SSE 소비). 동의 게이트 결과를 헤더 + personal_consent 로 전달.
+    agent_input = 개인 신호(Vital Signs/PHR/Air Quality) — 페르소나 선택 시 그 신호 주입."""
     if not RAG_URL:
         return {"error": "RAG_URL_not_configured"}
     url = f"{RAG_URL}/api/service/conversations/{RAG_GRAPH}"
@@ -106,7 +107,7 @@ def chat(message: str, *, conversation_id: Optional[str] = None,
         "query": message,
         "conversation_strid": conversation_id or "",
         "source_types": ["WEB"],
-        "agent_input_field_to_value": {},      # P0: 개인 신호 비주입(PHR=P2)
+        "agent_input_field_to_value": agent_input or {},   # 페르소나 신호(없으면 빈)
         "personal_consent": bool(personalization),
     }, ensure_ascii=False).encode("utf-8")
     headers = _headers(user_id=user_id, user_name=user_name)

@@ -12,6 +12,7 @@ param(
     [string]$DbPassword  = "",
     [string]$TokenSecret = "",
     [string]$CiHmacKey   = "",
+    [string]$DataGoKrKey = "",
     [switch]$SkipBuild
 )
 
@@ -37,6 +38,15 @@ $DatabaseUrl = "postgresql://app_user:${DbPassword}@/${DbName}?host=/cloudsql/${
 if (-not $TokenSecret) { $TokenSecret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N") }
 if (-not $CiHmacKey)   { $CiHmacKey   = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N") }
 
+# 공공데이터 키(시설 실검색) — param > env > .env (커밋 금지, .env는 gitignore)
+if (-not $DataGoKrKey) { $DataGoKrKey = $env:DATA_GO_KR_KEY }
+if (-not $DataGoKrKey -and (Test-Path ".env")) {
+    $line = (Get-Content ".env" | Where-Object { $_ -match '^\s*DATA_GO_KR_KEY\s*=' } | Select-Object -First 1)
+    if ($line) { $DataGoKrKey = ($line -replace '^\s*DATA_GO_KR_KEY\s*=\s*', '').Trim().Trim('"') }
+}
+if ($DataGoKrKey) { Write-Host "DATA_GO_KR_KEY: **** (시설 실검색 활성)" -ForegroundColor Green }
+else { Write-Host "DATA_GO_KR_KEY 없음 — 시설은 데모 데이터로 동작" -ForegroundColor Yellow }
+
 # 이미지 빌드(RAG 와 동일 Dockerfile, 전체 복사)
 if ($SkipBuild) {
     Write-Host "[1/3] Build skipped (-SkipBuild)" -ForegroundColor Yellow
@@ -49,6 +59,7 @@ if ($SkipBuild) {
 # 배포(공개, RUN_MODE=bff, Cloud SQL + VPC)
 Write-Host "[2/3] Deploying public BFF..." -ForegroundColor Yellow
 $EnvVars = "RUN_MODE=bff,RAG_URL=$RagUrl,RAG_GRAPH=SUPERVISED_HYBRID_SEARCH,DATABASE_URL=$DatabaseUrl,BFF_TOKEN_SECRET=$TokenSecret,ACCOUNT_CI_HMAC_KEY=$CiHmacKey"
+if ($DataGoKrKey) { $EnvVars = "$EnvVars,DATA_GO_KR_KEY=$DataGoKrKey" }
 gcloud run deploy $ServiceName `
     --image $ImageUri `
     --region $Region `
