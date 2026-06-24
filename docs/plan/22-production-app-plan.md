@@ -60,9 +60,9 @@
 
 | 레이어 | 권장 | 대안 | 근거 |
 |---|---|---|---|
-| 모바일 | **React Native**(또는 Flutter) | 네이티브 2벌 | 단일 코드·고령 접근성·웹뷰 임베드 재사용 |
+| 모바일 | **Flutter** ✅확정 | RN·네이티브 2벌 | 단일 코드(iOS/Android)·고령 접근성·커스텀 UI. Dart→BFF 언어공유 없음 |
 | 임베드 SDK | **웹(React) + postMessage 브리지** | 네이티브 SDK | B2B2C 파트너 앱 내 삽입 |
-| BFF/Gateway | **Node(Nest) 또는 Python(FastAPI)** | API Gateway 관리형 | 기존 파이썬 자산과 정합 → FastAPI 유력 |
+| BFF/Gateway | **FastAPI(Python)** ✅확정 | Node(Nest)·관리형 | §9.1 — Flutter+개인화 조합에서 결정적(안전로직 직접 호출, 재구현·홉 회피) |
 | 백엔드 서비스 | **Python(현 자산 유지)** | — | 안전 엔진·RAG 재사용 |
 | DB | **PostgreSQL**(현) + **Redis** 캐시 | — | 이미 사용·암호화 컬럼 |
 | 인증 | **본인인증(PASS/통신사)** + OIDC + 파트너 SSO | 소셜 | 의료 맥락 신원확인 |
@@ -70,7 +70,7 @@
 | 인프라 | **Cloud Run → GKE/관리형**(스케일·VPC) | 현 Cloud Run 유지(소규모) | min-instances·국내 리전 |
 | LLM | **국내 호스팅 우선**(방향2 G4 국외이전) | 국외+ack | 의료·민감정보 |
 
-> 결정 필요(§9): RN vs Flutter · BFF 언어 · 임베드 우선 vs 독립앱 우선.
+> 결정 완료(§9): Flutter · FastAPI · 독립앱 · 개인화 · 공단검진.
 
 ---
 
@@ -138,12 +138,26 @@
 
 ---
 
-## 9. 지금 결정해야 할 것 (사용자)
+## 9. 결정 확정 (2026-06-24)
 
-1. **프론트엔드**: React Native(권장) vs Flutter vs 웹 우선?
-2. **출시 형태**: B2B2C 파트너 임베드 우선 vs 독립 앱(B2C) 우선?
-3. **1차 출시 범위**: 비개인화 RAG+코칭(P1, 법률 리스크 낮음)부터 vs 개인화까지(P2)?
-4. **BFF 언어**: FastAPI(파이썬 자산 정합) vs Node?
-5. **PHR 1차 소스**: 공단검진 vs 파트너 제공 vs 웨어러블?
+| # | 항목 | 확정 | 근거/영향 |
+|---|---|---|---|
+| 1 | 프론트엔드 | **Flutter** | 단일 코드(iOS/Android)·고령 접근성·커스텀 UI. Dart → BFF와 언어공유 없음(→4에 영향) |
+| 2 | 출시 형태 | **독립 앱(B2C)** | 파트너 임베드는 후순위(P3 SDK). 제품 주도권·UX 통제 |
+| 3 | 1차 범위 | **개인화(P2)** | PHR·방향2(국내LLM)·동의원장 = 1차부터 필수. 법률 A(개인화)·블로커 B 선결 |
+| 4 | BFF 언어 | **FastAPI(Python)** | §9.1 — Flutter+개인화 조합에서 결정적 |
+| 5 | PHR 1차 소스 | **공단 건강검진** | 검진밴드(011/012) 결정엔진 직결. 외부 심사 리드타임 → P0 병행착수 |
 
-> 위 5개가 정해지면 P0 상세 설계(스키마·API 계약·화면 플로우)로 내려간다.
+### 9.1 BFF 언어 — FastAPI 결정 근거
+
+**핵심**: Flutter + 개인화를 고른 순간 Node의 유일한 강점이 사라지고 Python의 강점이 커진다.
+
+- **Node BFF의 최대 장점은 "프론트와 TS 공유"인데, 프론트가 Flutter(Dart)** → 공유 0. RN을 골랐다면 Node가 유력했지만 그 시나리오가 아님.
+- **개인화 = 동의게이트(G1~G6)·비식별 경계가 BFF 핫패스.** 이 컴플라이언스 핵심 로직이 전부 Python(`personal_context`·`*_safety`·동의 ledger). Node면 매 요청 (a) Python 서비스로 네트워크 홉, 또는 (b) TS로 재구현(=의료 안전로직 이중화·드리프트 위험). FastAPI면 같은 언어·같은 테스트 스위트에서 직접 호출/공유. 원시값→밴드 라벨 불변식을 한 언어에 유지.
+- **공단검진 = 정부 XML API.** 이미 `kr_facilities`에서 data.go.kr XML 파싱 패턴 보유 → Python 재사용.
+- **Pydantic** = 비식별 화이트리스트(`analytics_events`)·API 계약을 타입으로 강제. 의료 데이터 검증에 정합.
+- 동시성 우려는 약함: FastAPI(ASGI/uvicorn) async 성숙. "I/O는 Node" 논리는 2026 기준 미미.
+
+> Node가 유리했을 유일한 경우 = RN 프론트 + GraphQL 페더레이션 + JS 네이티브 대형 플랫폼팀. 셋 다 해당 없음.
+
+**→ 5개 결정 완료. 다음은 P0 상세 설계(스키마·API 계약·화면 플로우).**
