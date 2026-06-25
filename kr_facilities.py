@@ -102,7 +102,7 @@ def nearby_pharmacies(lat, lon, radius: int = 2000, limit: int = 8) -> Optional[
     # HIRA(B551182)는 기본 Python-urllib UA에 무응답(행) → 브라우저 UA 필수
     req = urllib.request.Request(HIRA_PHARMACY + "?" + q,
                                  headers={"User-Agent": "Mozilla/5.0", "Accept": "*/*"})
-    with urllib.request.urlopen(req, timeout=10) as r:
+    with urllib.request.urlopen(req, timeout=15) as r:   # Cloud Run egress 여유(콜드/지연 대비)
         xml_str = r.read().decode("utf-8")
     return _enrich(parse_pharmacies(xml_str), limit)
 
@@ -139,7 +139,7 @@ def nearby_hospitals(lat, lon, radius: int = 2000, limit: int = 8) -> Optional[L
     })
     req = urllib.request.Request(HIRA_HOSPITAL + "?" + q,
                                  headers={"User-Agent": "Mozilla/5.0", "Accept": "*/*"})
-    with urllib.request.urlopen(req, timeout=10) as r:
+    with urllib.request.urlopen(req, timeout=15) as r:   # Cloud Run egress 여유
         xml_str = r.read().decode("utf-8")
     res = []
     for o in parse_hospitals(xml_str)[:limit]:
@@ -238,13 +238,13 @@ def _egen_enrich(items: List[Dict], now_kst: datetime, limit: int) -> List[Dict]
     return res
 
 
-def _egen_gu_pharmacies(sido: str, gu: str, fetch: int = 1000) -> List[Dict]:
-    """E-Gen 약국목록(구 전체) → parse_egen_list."""
+def _egen_gu_pharmacies(sido: str, gu: str, fetch: int = 500) -> List[Dict]:
+    """E-Gen 약국목록(구 전체) → parse_egen_list. fetch 축소(500)로 응답·타임아웃 위험↓."""
     q = urllib.parse.urlencode({"serviceKey": api_key(), "Q0": sido, "Q1": gu,
                                 "pageNo": 1, "numOfRows": fetch})
     req = urllib.request.Request(EGEN_PHARMACY_LIST + "?" + q,
                                  headers={"User-Agent": "Mozilla/5.0", "Accept": "*/*"})
-    with urllib.request.urlopen(req, timeout=12) as r:
+    with urllib.request.urlopen(req, timeout=20) as r:   # 구 전체 목록 — 여유 타임아웃
         return parse_egen_list(r.read().decode("utf-8"))
 
 

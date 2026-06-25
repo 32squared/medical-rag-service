@@ -69,7 +69,7 @@ gcloud run deploy $ServiceName `
     --allow-unauthenticated `
     --memory 512Mi --cpu 1 `
     --timeout 900 `
-    --min-instances 0 --max-instances 3 `
+    --min-instances 1 --max-instances 3 `
     --concurrency 20 `
     --execution-environment gen2 `
     --set-env-vars $EnvVars `
