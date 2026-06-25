@@ -548,8 +548,9 @@ function Finder({ go }) {
       </div>` : ''}
       ${err && html`<div class="err">${err}</div>`}
       <p class="note">위치는 검색에만 쓰이고 저장하지 않아요 · 거리순 중립 안내(특정 업체 추천 아님). 실내·지하에선 GPS가 부정확할 수 있어요.</p>
-      ${res && !res.real ? html`<div class="banner" style="background:#FDF1EE;border-color:#E8C4BB;color:#A23B26">⚠️ 실시간 위치 검색에 실패해 예시 데이터를 표시합니다(실제 내 주변 아님). 다시 시도하거나 위에서 지역을 직접 선택하세요.</div>` : ''}
-      ${res ? html`<div>
+      ${res && kind === 'hospital' && !res.real ? html`<div class="banner" style="background:#EEF4FB;border-color:#CBDCEC;color:#2A5C8A">🏥 <b>병원 실시간 검색은 아직 준비 중이에요.</b> 공공데이터포털의 '병원정보서비스' 승인 후 제공됩니다. 지금은 <b>약국</b> 탭이 실데이터(거리·영업시간)로 동작해요.</div>` : ''}
+      ${res && !res.real && kind !== 'hospital' ? html`<div class="banner" style="background:#FDF1EE;border-color:#E8C4BB;color:#A23B26">⚠️ 실시간 위치 검색에 실패해 예시 데이터를 표시합니다(실제 내 주변 아님). 다시 시도하거나 위에서 지역을 직접 선택하세요.</div>` : ''}
+      ${res && !(kind === 'hospital' && !res.real) ? html`<div>
         <div class="muted" style="font-size:12px;margin-bottom:6px">${res.real ? '실데이터' : '예시(데모)'}${where ? (' · 📍 ' + where + ' 기준') : ''}${(res.real && res.items && res.items.length) ? (' · ' + areaOf(res.items[0])) : ''}</div>
         ${(res.items || []).length ? res.items.map((f, i) => html`<div class="card faccard" key=${i}>
           <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
