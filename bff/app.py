@@ -118,6 +118,27 @@ def _persona_band(persona):
         return None
 
 
+# 페르소나 태그 → 추천질문용 관심주제/기저질환(suggested_questions 테이블 키와 정합).
+_TAG_TOPIC = {"혈압": "혈압", "혈압주의": "혈압", "고혈압": "혈압", "혈당": "혈당",
+              "당뇨": "혈당", "당뇨병": "혈당", "콜레스테롤": "콜레스테롤", "고지혈증": "콜레스테롤",
+              "체중": "체중", "비만": "체중", "수면": "수면", "운동": "운동",
+              "식단": "식단", "스트레스": "스트레스"}
+_TAG_COND = {"고혈압": "고혈압", "당뇨": "당뇨", "당뇨병": "당뇨", "고지혈증": "고지혈증", "비만": "비만"}
+
+
+def _persona_topics_conditions(persona):
+    """페르소나 tags → (관심주제, 기저질환). 기저질환은 호출 측에서 민감정보 동의 확인 후 전달."""
+    topics, conds = [], []
+    for t in (persona or {}).get("tags") or []:
+        tp = _TAG_TOPIC.get(t)
+        if tp and tp not in topics:
+            topics.append(tp)
+        cd = _TAG_COND.get(t)
+        if cd and cd not in conds:
+            conds.append(cd)
+    return topics, conds
+
+
 def get_subject(authorization: Optional[str] = Header(None)) -> dict:
     """Bearer access 토큰 → {subject_id, session_id}. 위조·만료·세션철회·탈퇴를 거부(401).
 
@@ -319,10 +340,42 @@ def create_app() -> FastAPI:
 
     @app.get("/home")
     def home(sub: dict = Depends(get_subject)):
-        records = consent_db.get_records(sub["subject_id"])
-        if "personal_info" not in consent_db.granted_items(records):
+        import account_db
+        sid = sub["subject_id"]
+        records = consent_db.get_records(sid)
+        granted = consent_db.granted_items(records)
+        if "personal_info" not in granted:
             raise HTTPException(status_code=403, detail="personal_info_consent_required")
-        return {"cards": [], "personalization": consent_db.personalization_allowed(records)}
+        persona = _persona(account_db.get_persona(sid))
+        band = _persona_band(persona) if persona else None
+        # 선제 카드(결정적·비식별) — 페르소나 밴드 신호 → 오늘 챙길 것 1개(과부하 금지).
+        sig = {"band": band, "warning_days": 3 if band in ("주의", "경고") else 0}
+        cards = []
+        suggested = []
+        try:
+            import anticipatory_engine as ae
+            top = ae.should_surface(sig)
+            if top:
+                cards.append({"kind": top.get("kind"), "priority": top.get("priority"),
+                              "text": top.get("text"), "referral": top.get("referral"),
+                              "note": top.get("note")})
+            suggested = list(ae.anticipated_questions(sig))
+        except Exception:
+            pass
+        # 추천 질문 — 선제 예상질문 + 프로필(태그→주제/기저질환) 기반, 중복제거·상한.
+        try:
+            import suggested_questions as sq
+            topics, conds = _persona_topics_conditions(persona)
+            conds = conds if "sensitive_info" in granted else None   # 기저질환=민감, 동의 시에만
+            for q in sq.suggest(topics, conds):
+                if q not in suggested:
+                    suggested.append(q)
+        except Exception:
+            pass
+        return {"cards": cards, "suggested": suggested[:5],
+                "persona": ({"name": persona.get("name"), "emoji": persona.get("emoji", ""),
+                             "band": band} if persona else None),
+                "personalization": consent_db.personalization_allowed(records)}
 
     # ── 코칭(개인별 영속 — conversation_id=subject_id 로 재로그인 복원) ──
     @app.get("/coaching/config")

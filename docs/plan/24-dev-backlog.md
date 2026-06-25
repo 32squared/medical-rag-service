@@ -18,7 +18,8 @@
 - ✅ **`web/` 정적 호스팅 분리** — GCS 공개버킷(`deploy-web.ps1`), 프론트 변경=Docker 빌드 0·즉시반영. BFF 는 API 전용(CORS `storage.googleapis.com`). config.js 로 BFF URL 런타임 주입(기본 빈값=same-origin 하위호환).
   - 앱: `https://storage.googleapis.com/medical-rag-web-716262961556/index.html` · 검증: cross-origin 전체 여정(인증→동의→페르소나(경고)→코칭) ACAO ALL PASS.
 - **SSE 스트리밍**(타이핑 효과) · Vite 정식빌드 + openapi-typescript
-- 기능 이식: **선제 홈카드**(anticipatory_engine) · **프로필·추천질문**(suggested_questions) · 채팅 히스토리 · 푸시 리마인더
+- ✅ **선제 홈카드**(anticipatory_engine) + **추천질문**(suggested_questions) — `/home` 이 페르소나 밴드 신호 → 선제 'must-attend' 카드(경고→진료 referral·병원찾기) + 예상질문·태그기반 추천질문 칩. 홈 컴포넌트가 `/home` 단일 호출로 통합.
+- 기능 이식(남음): 채팅 히스토리(영속) · 푸시 리마인더
 
 ## 🟡 P2 — 개인화(실데이터)
 - **PHR 공단검진 연동**(검진밴드→vital_rules) — 페르소나 데모를 실데이터로 승격

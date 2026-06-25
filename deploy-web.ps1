@@ -11,7 +11,9 @@ param(
     [switch]$SkipCors                  # CORS 갱신 생략(이미 열려 있을 때)
 )
 
-$ErrorActionPreference = "Stop"
+# Continue: gcloud(native) 의 stderr 경고/비치명 오류가 PS5.1 에서 종료로 둔갑하지 않게.
+# 실패 판정은 각 단계의 명시적 $LASTEXITCODE 체크로 한다(아래).
+$ErrorActionPreference = "Continue"
 Write-Host "=== web/ 정적 호스팅 배포(GCS) ===" -ForegroundColor Cyan
 
 # 전역 고유 버킷명(프로젝트 번호 접미)
@@ -27,14 +29,11 @@ $BffUrl = gcloud run services describe $BffService --region $Region --project $P
 if (-not $BffUrl) { Write-Host "[ERROR] $BffService URL 조회 실패" -ForegroundColor Red; exit 1 }
 Write-Host "BFF URL : $BffUrl"
 
-# [1/5] 버킷 생성(없으면) — 단일 리전, uniform 접근
-$exists = $null
-try { $exists = gcloud storage buckets describe $Gs --project $ProjectId --format="value(name)" 2>$null } catch {}
-if (-not $exists) {
-    Write-Host "[1/5] 버킷 생성..." -ForegroundColor Yellow
-    gcloud storage buckets create $Gs --project $ProjectId --location $Region --uniform-bucket-level-access
-    if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] 버킷 생성 실패" -ForegroundColor Red; exit 1 }
-} else { Write-Host "[1/5] 버킷 존재 — 재사용" -ForegroundColor Green }
+# [1/5] 버킷 확인/생성(멱등) — 단일 리전, uniform 접근. 409(이미 존재)는 정상.
+Write-Host "[1/5] 버킷 확인/생성..." -ForegroundColor Yellow
+gcloud storage buckets create $Gs --project $ProjectId --location $Region --uniform-bucket-level-access 2>$null
+$null = gcloud storage buckets describe $Gs --project $ProjectId --format="value(storage_url)" 2>$null
+if ($LASTEXITCODE -ne 0) { Write-Host "[ERROR] 버킷 사용 불가(생성/접근 실패)" -ForegroundColor Red; exit 1 }
 
 # [2/5] 공개 읽기(allUsers:objectViewer). 실패 = 조직정책 차단 → 경량 Cloud Run 폴백 필요.
 Write-Host "[2/5] 공개 읽기 권한 부여..." -ForegroundColor Yellow

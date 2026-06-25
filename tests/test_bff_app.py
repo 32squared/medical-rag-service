@@ -269,3 +269,23 @@ def test_consent_items_public(bff):
     keys = {i["item_key"] for i in items}
     assert {"personal_info", "sensitive_info", "cross_border"} <= keys
     assert next(i for i in items if i["item_key"] == "personal_info")["required"] is True
+
+
+def test_home_persona_anticipatory_and_suggested(bff):
+    client, _ = bff
+    tok = _login(client)
+    # 고혈압 어르신(경고밴드) 선택 → sensitive 자동동의. personal_info 동의(홈 게이트).
+    assert client.post("/persona/select", json={"persona_id": "hypertension_senior"},
+                       headers=_auth(tok)).status_code == 200
+    client.post("/consent", json={"item_key": "personal_info", "action": "grant"}, headers=_auth(tok))
+    h = client.get("/home", headers=_auth(tok)).json()
+    assert h["persona"]["band"] == "경고"
+    assert h["cards"] and h["cards"][0]["kind"] == "must_attend"   # 경고 → 선제 must-attend 카드
+    assert h["cards"][0]["referral"] == "hospital"
+    assert len(h["suggested"]) >= 2                                # 예상질문 + 태그→주제/기저질환
+
+
+def test_home_requires_personal_info(bff):
+    client, _ = bff
+    tok = _login(client)                                            # 동의 전엔 403
+    assert client.get("/home", headers=_auth(tok)).status_code == 403
