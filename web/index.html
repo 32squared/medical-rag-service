@@ -477,22 +477,44 @@ function Coaching({ go }) {
 }
 
 // ── 병원·약국 찾기(실데이터/위치기반) ─────────────────────────
+// 지역 직접 선택용 주요 도심 좌표(GPS 부정확/실내·데스크톱 대비). 선택 시 그 좌표로 실검색.
+const REGIONS = [
+  { name: '서울 강남', lat: 37.4979, lon: 127.0276 },
+  { name: '서울 시청', lat: 37.5663, lon: 126.9779 },
+  { name: '부산 서면', lat: 35.1577, lon: 129.0594 },
+  { name: '인천 부평', lat: 37.4894, lon: 126.7245 },
+  { name: '대구 중구', lat: 35.8693, lon: 128.6062 },
+  { name: '대전 둔산', lat: 36.3504, lon: 127.3845 },
+  { name: '광주 상무', lat: 35.1525, lon: 126.8513 },
+];
+
 function Finder({ go }) {
   const [kind, setKind] = useState('pharmacy');
   const [res, setRes] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [where, setWhere] = useState('');     // 검색에 사용된 위치 라벨(투명성)
+  const [pick, setPick] = useState(false);    // 지역 직접 선택 펼침
 
-  function search() {
-    setErr(''); setBusy(true); setRes(null);
-    if (!navigator.geolocation) { setErr('이 기기에서 위치를 쓸 수 없어요.'); setBusy(false); return; }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const r = await api('/facilities', { method: 'POST', body: { lat: pos.coords.latitude, lon: pos.coords.longitude, kind } });
-        setRes(await r.json());
-      } catch { setErr('검색에 실패했어요.'); } finally { setBusy(false); }
-    }, () => { setErr('위치 권한이 필요해요.'); setBusy(false); }, { timeout: 10000, enableHighAccuracy: false });
+  async function doSearch(lat, lon, label) {
+    setErr(''); setBusy(true); setRes(null); setWhere(label || '');
+    try {
+      const r = await api('/facilities', { method: 'POST', body: { lat, lon, kind } });
+      setRes(await r.json());
+    } catch { setErr('검색에 실패했어요. 잠시 후 다시 시도해주세요.'); }
+    finally { setBusy(false); }
   }
+  function locate() {
+    setErr(''); setRes(null);
+    if (!navigator.geolocation) { setErr('이 기기에서 위치를 쓸 수 없어요. 아래에서 지역을 선택하세요.'); setPick(true); return; }
+    setBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => doSearch(pos.coords.latitude, pos.coords.longitude, '현재 위치(GPS)'),
+      e => { setBusy(false); setPick(true);
+             setErr('위치를 가져오지 못했어요' + (e && e.code === 1 ? '(권한 거부)' : '(시간 초과)') + '. 아래에서 지역을 선택해보세요.'); },
+      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 });   // GPS 우선(실내 부정확 대비 지역선택 병행)
+  }
+  const areaOf = (f) => f.addr ? f.addr.split(' ').slice(0, 2).join(' ') : (f.area || '');
 
   return html`<${Fragment}>
     <div class="hdr"><button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
@@ -502,11 +524,16 @@ function Finder({ go }) {
         <button class=${'segb' + (kind === 'pharmacy' ? ' on' : '')} onClick=${() => setKind('pharmacy')}>약국</button>
         <button class=${'segb' + (kind === 'hospital' ? ' on' : '')} onClick=${() => setKind('hospital')}>병원</button>
       </div>
-      <button class="btn" disabled=${busy} onClick=${search}>${busy ? '내 위치로 찾는 중…' : '📍 내 위치로 찾기'}</button>
+      <button class="btn" disabled=${busy} onClick=${locate}>${busy ? '찾는 중…' : '📍 내 위치(GPS)로 찾기'}</button>
+      <button class="btn ghost" style="margin-top:8px" onClick=${() => setPick(p => !p)}>위치가 정확하지 않나요? 지역 직접 선택</button>
+      ${pick ? html`<div class="pschips" style="margin-top:10px">
+        ${REGIONS.map(rg => html`<button class="chip" key=${rg.name} disabled=${busy} onClick=${() => doSearch(rg.lat, rg.lon, rg.name)}>${rg.name}</button>`)}
+      </div>` : ''}
       ${err && html`<div class="err">${err}</div>`}
-      <p class="note">위치는 검색에만 쓰이고 저장하지 않아요 · 거리순 중립 안내(특정 업체 추천 아님).</p>
+      <p class="note">위치는 검색에만 쓰이고 저장하지 않아요 · 거리순 중립 안내(특정 업체 추천 아님). 실내·지하에선 GPS가 부정확할 수 있어요.</p>
+      ${res && !res.real ? html`<div class="banner" style="background:#FDF1EE;border-color:#E8C4BB;color:#A23B26">⚠️ 실시간 위치 검색에 실패해 예시 데이터를 표시합니다(실제 내 주변 아님). 다시 시도하거나 위에서 지역을 직접 선택하세요.</div>` : ''}
       ${res ? html`<div>
-        <div class="muted" style="font-size:12px;margin-bottom:6px">${res.real ? '실데이터' : '데모'} · ${res.notice || ''}</div>
+        <div class="muted" style="font-size:12px;margin-bottom:6px">${res.real ? '실데이터' : '예시(데모)'}${where ? (' · 📍 ' + where + ' 기준') : ''}${(res.real && res.items && res.items.length) ? (' · ' + areaOf(res.items[0])) : ''}</div>
         ${(res.items || []).length ? res.items.map((f, i) => html`<div class="card faccard" key=${i}>
           <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
             <div style="font-weight:700">${f.name}</div>
