@@ -262,6 +262,14 @@ function Home({ go }) {
   const endRef = useRef(null);
   useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, iv]);
   useEffect(() => { api('/home').then(r => r.ok ? r.json() : null).then(setHome).catch(() => {}); }, []);
+  useEffect(() => {   // 재로그인 시 이전 대화 복원(있으면 인사말 대체)
+    api('/chat/history').then(r => r.ok ? r.json() : null).then(d => {
+      if (d && d.messages && d.messages.length)
+        setMsgs(d.messages.map(m => m.role === 'user'
+          ? { me: true, text: m.text }
+          : { ai: true, text: m.text, citations: m.citations || [], personalize: m.personalize }));
+    }).catch(() => {});
+  }, []);
   const persona = home && home.persona;
   const card = home && home.cards && home.cards[0];   // 선제 '오늘 챙길 것' 1개
   const suggested = (home && home.suggested) || [];

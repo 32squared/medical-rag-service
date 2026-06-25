@@ -19,7 +19,8 @@
   - 앱: `https://storage.googleapis.com/medical-rag-web-716262961556/index.html` · 검증: cross-origin 전체 여정(인증→동의→페르소나(경고)→코칭) ACAO ALL PASS.
 - **SSE 스트리밍**(타이핑 효과) · Vite 정식빌드 + openapi-typescript
 - ✅ **선제 홈카드**(anticipatory_engine) + **추천질문**(suggested_questions) — `/home` 이 페르소나 밴드 신호 → 선제 'must-attend' 카드(경고→진료 referral·병원찾기) + 예상질문·태그기반 추천질문 칩. 홈 컴포넌트가 `/home` 단일 호출로 통합.
-- 기능 이식(남음): 채팅 히스토리(영속) · 푸시 리마인더
+- ✅ **채팅 히스토리(영속)** — `/chat` 이 질문·답변·출처·맞춤안내를 저장(rag_db `chat_message`, conversation_id=subject_id) + `/chat/history` 복원. 홈 진입 시 이전 대화 자동 복원(인사말 대체).
+- 기능 이식(남음): 푸시 리마인더
 
 ## 🟡 P2 — 개인화(실데이터)
 - **PHR 공단검진 연동**(검진밴드→vital_rules) — 페르소나 데모를 실데이터로 승격

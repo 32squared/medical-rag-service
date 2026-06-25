@@ -328,6 +328,15 @@ def create_app() -> FastAPI:
             personalization=personalize, cross_border_ack=cross_border_ack,
             user_id=sub["subject_id"],
             agent_input=_persona_agent_input(persona) if persona else None)
+        # 채팅 히스토리 영속(개인별, conversation_id=subject_id) — 재로그인 복원용. 실패는 무시(대화 우선).
+        try:
+            import rag_db
+            rag_db.save_chat_message(conversation_id=sub["subject_id"], role="user", text=req.message)
+            ans = (rag or {}).get("answer") or (rag or {}).get("echo") or ""
+            rag_db.save_chat_message(conversation_id=sub["subject_id"], role="ai", text=ans,
+                                     citations=(rag or {}).get("citations"), personalize=personalize)
+        except Exception:
+            pass
         # 상황 되묻기(문진) — 순수 followups.clarify. 이미 문진 답을 실은 질의면 재문진 안 함.
         clarifiers = None
         if "문진:" not in req.message:
@@ -337,6 +346,22 @@ def create_app() -> FastAPI:
             except Exception:
                 clarifiers = None
         return {"personalization": personalize, "rag": rag, "clarifiers": clarifiers}
+
+    @app.get("/chat/history")
+    def chat_history(sub: dict = Depends(get_subject)):
+        import json as _json
+        import rag_db
+        out = []
+        for r in rag_db.get_chat_history(sub["subject_id"], limit=50):
+            m = {"role": r.get("role"), "text": r.get("text")}
+            if r.get("role") == "ai":
+                try:
+                    m["citations"] = _json.loads(r.get("citations_json") or "null") or []
+                except Exception:
+                    m["citations"] = []
+                m["personalize"] = bool(r.get("personalize"))
+            out.append(m)
+        return {"messages": out}
 
     @app.get("/home")
     def home(sub: dict = Depends(get_subject)):

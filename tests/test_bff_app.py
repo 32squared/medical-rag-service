@@ -52,6 +52,7 @@ def bff(tmp_path, monkeypatch):
     monkeypatch.setattr(consent_db, "_SCHEMA_ENSURED", False)
     monkeypatch.setattr(account_db, "_SCHEMA_ENSURED", False)
     monkeypatch.setattr(rag_db, "_COACHING_SCHEMA_ENSURED", False)
+    monkeypatch.setattr(rag_db, "_CHAT_SCHEMA_ENSURED", False)
     import bff.rag_client as rc
     monkeypatch.setattr(rc, "chat", lambda message, **kw: {"echo": message, "kw": kw})
     from fastapi.testclient import TestClient
@@ -289,3 +290,17 @@ def test_home_requires_personal_info(bff):
     client, _ = bff
     tok = _login(client)                                            # 동의 전엔 403
     assert client.get("/home", headers=_auth(tok)).status_code == 403
+
+
+def test_chat_history_persist_and_restore(bff):
+    client, _ = bff
+    tok = _login(client)
+    client.post("/consent", json={"item_key": "personal_info", "action": "grant"}, headers=_auth(tok))
+    assert client.get("/chat/history", headers=_auth(tok)).json()["messages"] == []
+    client.post("/chat", json={"message": "두통이 있어요"}, headers=_auth(tok))   # rag 모킹: echo=message
+    msgs = client.get("/chat/history", headers=_auth(tok)).json()["messages"]
+    assert [m["role"] for m in msgs] == ["user", "ai"]
+    assert msgs[0]["text"] == "두통이 있어요" and msgs[1]["text"] == "두통이 있어요"
+    b = _login(client, identity="hist-b")                            # 계정별 분리
+    client.post("/consent", json={"item_key": "personal_info", "action": "grant"}, headers=_auth(b))
+    assert client.get("/chat/history", headers=_auth(b)).json()["messages"] == []

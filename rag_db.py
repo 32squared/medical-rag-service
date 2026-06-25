@@ -473,3 +473,75 @@ def get_latest_coaching_plan(conversation_id) -> dict:
             return _row_to_dict(row) if row else None
     except Exception:
         return None
+
+
+# ════════════════════════════════════════
+#  채팅 히스토리 영속 — 재로그인 시 대화 복원 (conversation_id=subject_id, 개인별).
+#  저장: 사용자 질문 텍스트 + AI 답변 텍스트·출처(JSON)·맞춤안내 여부. 원시 측정값/진단명 없음.
+# ════════════════════════════════════════
+_CHAT_SCHEMA_ENSURED = False
+
+
+def ensure_chat_schema():
+    """채팅 메시지 테이블 멱등 보장 (PG/SQLite 공용)."""
+    with get_conn() as (conn, cur):
+        cur.execute(
+            """CREATE TABLE IF NOT EXISTS chat_message (
+                   message_id      TEXT PRIMARY KEY,
+                   conversation_id TEXT,
+                   role            TEXT,
+                   text            TEXT,
+                   citations_json  TEXT,
+                   personalize     INTEGER,
+                   created_at      TEXT
+               )""")
+        conn.commit()
+
+
+def _ensure_chat_once():
+    global _CHAT_SCHEMA_ENSURED
+    if _CHAT_SCHEMA_ENSURED:
+        return
+    try:
+        ensure_chat_schema()
+        _CHAT_SCHEMA_ENSURED = True
+    except Exception:
+        pass
+
+
+def save_chat_message(*, conversation_id, role, text, citations=None, personalize=None):
+    """채팅 메시지 1건 저장 → message_id. role='user'|'ai'. 실패 시 None(대화는 계속)."""
+    _ensure_chat_once()
+    mid = _uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"INSERT INTO chat_message (message_id, conversation_id, role, text, "
+                f"citations_json, personalize, created_at) "
+                f"VALUES ({_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()}, {_p()})",
+                (mid, conversation_id, role, text,
+                 json.dumps(citations, ensure_ascii=False) if citations is not None else None,
+                 (1 if personalize else 0) if personalize is not None else None,
+                 now),
+            )
+            conn.commit()
+    except Exception:
+        return None
+    return mid
+
+
+def get_chat_history(conversation_id, limit=50) -> list:
+    """주체(conversation_id=subject_id)의 최근 메시지 → 시간순 리스트. 오류 시 빈 리스트."""
+    _ensure_chat_once()
+    try:
+        with get_conn() as (conn, cur):
+            cur.execute(
+                f"SELECT role, text, citations_json, personalize, created_at FROM chat_message "
+                f"WHERE conversation_id = {_p()} ORDER BY created_at DESC LIMIT {int(limit)}",
+                (conversation_id,),
+            )
+            rows = [_row_to_dict(r) for r in cur.fetchall()]
+            return list(reversed(rows))     # 최근 N건을 시간순으로
+    except Exception:
+        return []
