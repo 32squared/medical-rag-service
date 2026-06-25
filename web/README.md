@@ -19,15 +19,26 @@ python -m http.server 5500 -d web
 # 3) 브라우저에서 http://localhost:5500 접속
 ```
 
-BFF 가 다른 오리진이면 콘솔에서 한 번 지정:
+BFF 가 다른 오리진이면 콘솔에서 한 번 지정(우선순위 1):
 ```js
 localStorage.setItem('mhc_bff', 'http://localhost:8080')
 ```
-(미설정 시 같은 오리진 호출 — BFF 가 web 을 함께 서빙하는 배포에 적합.)
+(미설정 시 `config.js`의 `window.__MHC_BFF__` → 그것도 비면 같은 오리진 호출.)
+
+## 정적 호스팅 배포(프론트/BFF 분리) — 재배포 즉시반영
+프론트는 GCS 공개버킷, BFF 는 API 전용 Cloud Run 으로 분리. **프론트 변경은 Docker 빌드 없이 수십 초**.
+```powershell
+.\deploy-web.ps1      # 버킷 생성/공개 + web/ rsync + config.js 에 BFF URL 주입 + BFF CORS 개방
+```
+- 앱 URL: `https://storage.googleapis.com/medical-rag-web-<projnum>/index.html`
+- `config.js` — 런타임 BFF URL 주입 지점(버킷 배포본은 deploy-web.ps1 이 BFF 절대 URL 로 덮어씀; 리포 기본값은 빈 문자열=same-origin 하위호환 → BFF `/app` 마운트·로컬 그대로 동작).
+- CORS: BFF `BFF_CORS_ORIGINS=https://storage.googleapis.com`(deploy-web.ps1 이 `--update-env-vars` 로 머지, deploy-bff.ps1 도 기본 포함 → 풀 재배포에도 유지).
+- 인증=Bearer 토큰(localStorage)·쿠키 없음 → cross-origin 안전. 검증: 정적 오리진에서 전체 여정(인증→동의→페르소나→코칭) 응답 ACAO 전 단계 통과 확인.
 
 ## 구성
 - `index.html` — SPA(React+htm), Warm Light 디자인 토큰(딥틸 #0E8A6B·앰버), 401 시 refresh 1회 자동 재시도
-- `manifest.webmanifest` · `sw.js` — PWA(설치·앱셸 오프라인 캐시, API 응답은 캐시 금지) · `icon.svg`
+- `config.js` — 런타임 BFF 베이스 주입(정적 호스팅 분리용; SW 가 캐시 안 함 → 호스트별 값 항상 네트워크)
+- `manifest.webmanifest` · `sw.js` — PWA(설치·앱셸 오프라인 캐시, API/크로스오리진은 캐시 금지) · `icon.svg`
 
 ## 상태/한계
 P0 데모. 본인인증은 mock(같은 기기=같은 계정). iOS Safari 웹푸시 제약(§22 다운사이드)으로

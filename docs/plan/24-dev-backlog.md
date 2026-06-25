@@ -3,18 +3,20 @@
 > P0 BFF/web 배포 이후 **엔지니어링 작업**의 우선순위·순서. 법률(A)·의료검수(D)는 [LAUNCH-READINESS](../LAUNCH-READINESS.md).
 > 운영방식: `/loop 20m` 자율 개발 — 증분 자동커밋, 테스트보다 **개발 중심**. 인증/세션은 mock 유지(후순위).
 
-## 🔵 현재 포커스 — 페르소나 기반 개인화 데모 (loop 4fb3012a)
+## ✅ 완료(라이브 검증) — 페르소나 기반 개인화 데모 (loop 4fb3012a)
 
 회원가입 → **페르소나 1개 선택**(24종, 합성 vitals/PHR) → 그 신호로 **개인화 질의응답 + 개인화 게이미피케이션** 체험. (실 PHR 대체 = 데모로 개인화를 켤 수 있음)
+> 검증: 리비전 `medical-rag-bff-00003-stj`(06-25 04:03 KST) — `/personas`(24종)·`/persona/select`(밴드 경고)·코칭 배너+캡·done_today/streak·병원약국 real=True 8곳 all PASS.
 
 1. ✅ 인용 링크·문진·코칭(영속)·병원약국 실검색 *(직전)*
-2. ⏳ **페르소나 선택·영속** — BFF `/personas`·`/persona/select`·`/persona` + `subject_profile`(account_db) 영속
-3. ⏳ **페르소나 → 개인화 채팅** — 선택 시 `build_agent_input(persona)`를 RAG 에 전달(agent_input_field_to_value) + 밴드 계산 → personalization on
-4. ⏳ **페르소나 → 개인화 코칭** — 페르소나 worst_band → `generate_plan(track,intake,band)`(밴드 배너·캡) + 게이미피케이션
-5. ⏳ **web 페르소나 화면** — 온보딩 후 선택 카드(이름·이모지·프로필·예시질문) + 홈 '현재 페르소나' 표시 + 페르소나 추천 질문 칩
+2. ✅ **페르소나 선택·영속** — BFF `/personas`·`/persona/select`·`/persona` + `subject_profile`(account_db) 영속
+3. ✅ **페르소나 → 개인화 채팅** — 선택 시 `build_agent_input(persona)`를 RAG 에 전달(agent_input_field_to_value) + 밴드 계산 → personalization on
+4. ✅ **페르소나 → 개인화 코칭** — 페르소나 worst_band → `generate_plan(track,intake,band)`(밴드 배너·캡) + 게이미피케이션(streak)
+5. ✅ **web 페르소나 화면** — 온보딩 후 선택 카드(이름·이모지·프로필·예시질문) + 홈 '현재 페르소나' 표시 + 페르소나 추천 질문 칩
 
 ## 🟢 P1 — 앱 완성·생산화
-- **`web/` 정적 호스팅 분리** (프론트 즉시반영, 재배포 탈피)
+- ✅ **`web/` 정적 호스팅 분리** — GCS 공개버킷(`deploy-web.ps1`), 프론트 변경=Docker 빌드 0·즉시반영. BFF 는 API 전용(CORS `storage.googleapis.com`). config.js 로 BFF URL 런타임 주입(기본 빈값=same-origin 하위호환).
+  - 앱: `https://storage.googleapis.com/medical-rag-web-716262961556/index.html` · 검증: cross-origin 전체 여정(인증→동의→페르소나(경고)→코칭) ACAO ALL PASS.
 - **SSE 스트리밍**(타이핑 효과) · Vite 정식빌드 + openapi-typescript
 - 기능 이식: **선제 홈카드**(anticipatory_engine) · **프로필·추천질문**(suggested_questions) · 채팅 히스토리 · 푸시 리마인더
 

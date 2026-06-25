@@ -1,4 +1,4 @@
-# P0 BFF(FastAPI) 공개 배포 — 마이헬스케어 앱.
+﻿# P0 BFF(FastAPI) 공개 배포 — 마이헬스케어 앱.
 # RUN_MODE=bff 로 web/ SPA(/app) + 인증·동의·RAG 프록시를 공개 Cloud Run 에 배포.
 # RAG 는 medical-rag-dev(비공개)를 SA 토큰으로 호출. 동의/계정은 Cloud SQL(PG).
 # 주의: 본인인증은 데모 mock(APP_ENV 미설정=dev). 완전 공개 데모.
@@ -13,6 +13,7 @@ param(
     [string]$TokenSecret = "",
     [string]$CiHmacKey   = "",
     [string]$DataGoKrKey = "",
+    [string]$CorsOrigins = "https://storage.googleapis.com",  # 정적 호스팅(deploy-web.ps1) 오리진 — 재배포 시 CORS 유지
     [switch]$SkipBuild
 )
 
@@ -60,6 +61,7 @@ if ($SkipBuild) {
 Write-Host "[2/3] Deploying public BFF..." -ForegroundColor Yellow
 $EnvVars = "RUN_MODE=bff,RAG_URL=$RagUrl,RAG_GRAPH=SUPERVISED_HYBRID_SEARCH,DATABASE_URL=$DatabaseUrl,BFF_TOKEN_SECRET=$TokenSecret,ACCOUNT_CI_HMAC_KEY=$CiHmacKey"
 if ($DataGoKrKey) { $EnvVars = "$EnvVars,DATA_GO_KR_KEY=$DataGoKrKey" }
+if ($CorsOrigins) { $EnvVars = "$EnvVars,BFF_CORS_ORIGINS=$CorsOrigins" }
 gcloud run deploy $ServiceName `
     --image $ImageUri `
     --region $Region `

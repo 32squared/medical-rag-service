@@ -9,6 +9,8 @@
 <title>마이헬스케어</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<!-- 런타임 BFF(API) 베이스 주입(정적 호스팅 분리). 모듈 스크립트보다 먼저 실행되도록 클래식 스크립트. -->
+<script src="config.js"></script>
 <style>
   :root{
     --bg:#F6F4EF; --surface:#FFFFFF; --teal:#0E8A6B; --teal-d:#0B6E52;
@@ -119,7 +121,8 @@ import htm from 'htm';
 const html = htm.bind(h);
 
 // ── BFF 클라이언트 ────────────────────────────────────────────
-const BFF = (localStorage.getItem('mhc_bff') || '').replace(/\/$/, '');
+// 우선순위: 수동 오버라이드(localStorage) > 빌드주입(config.js: window.__MHC_BFF__) > same-origin('').
+const BFF = (localStorage.getItem('mhc_bff') || window.__MHC_BFF__ || '').replace(/\/$/, '');
 const TK = 'mhc_tokens';
 const getTok = () => { try { return JSON.parse(localStorage.getItem(TK) || 'null'); } catch { return null; } };
 const setTok = (t) => t ? localStorage.setItem(TK, JSON.stringify(t)) : localStorage.removeItem(TK);

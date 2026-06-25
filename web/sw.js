@@ -1,5 +1,6 @@
-// 마이헬스케어 PWA 서비스워커 — 앱 셸 오프라인 캐시(API 응답은 캐시 금지).
-const CACHE = 'mhc-shell-v1';
+// 마이헬스케어 PWA 서비스워커 — 앱 셸 오프라인 캐시(API 응답·config.js 는 캐시 금지).
+// config.js(런타임 BFF URL)는 precache·cache 안 함 → 호스트별 주입값이 항상 네트워크 반영.
+const CACHE = 'mhc-shell-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {
@@ -17,6 +18,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;                  // 변경요청은 항상 네트워크
+  if (new URL(req.url).origin !== self.location.origin) return;  // 크로스오리진(BFF API·CDN)은 SW 미개입
   const path = new URL(req.url).pathname;
   // 인증·동의·채팅 등 BFF API 는 캐시하지 않음(민감/상태)
   if (/\/(auth|consent|chat|me|home|healthz)\b/.test(path)) return;
