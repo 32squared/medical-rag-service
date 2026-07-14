@@ -31,8 +31,8 @@ C20/C21 백스톱·가드레일/면책·비식별 이벤트(E2)·개선루프 �
 
 ## B. 개인정보·동의 🔴 ⚖️🛠️
 - **B1 민감정보 동의 시스템** — 건강정보 처리 **별도 명시 동의** UI + 동의 원장(consent_ledger), 철회·이력.
-  - 현재: 코드 게이트(`personal_consent`)만 존재, **실제 동의 캡처 없음**. (migration 017+ 예약)
-  - 완료 정의: 동의 흐름 + 철회 + 기록 + 미동의 시 개인화 비활성.
+  - 현재(2026-06-25 갱신): **동의원장 구현됨** — migration **020**(consent_item/consent_record) + `consent_db.py` + BFF 동의 게이트·철회 흐름(웹 온보딩). 단 **PASS 인증이 mock**이라 실명 귀속 동의로는 미완이며, 동의 문구의 법적 충분성(A3)·처리방침 연계는 미검토.
+  - 완료 정의: 실명 인증 기반 동의 흐름 + 철회 + 기록 + 미동의 시 개인화 비활성 + 법률 검토 통과.
 - **B2 국외이전 동의** — 국외 LLM(OpenAI 등) 사용 시 별도 동의·고지.
   - 현재: 코드 ack(`ALLOW_CROSS_BORDER_PERSONAL`)만. **실제 동의 없음** → 켜면 위반 소지.
 - **B3 처리방침·위탁** — 개인정보처리방침, 처리위탁(LLM/클라우드) 계약·고지.
@@ -52,7 +52,7 @@ C20/C21 백스톱·가드레일/면책·비식별 이벤트(E2)·개선루프 �
   - 남음: **배포 게이트(E3)에 실제 연결**(CI에서 실패 시 배포 차단) + **방향2(개인맥락 LLM 주입) 라이브 골든**(실제 LLM 응답에 진단단정/거짓안심 0 검증, 백엔드 필요).
 
 ## E. 데이터 영속·보안 🟠 🔐🛠️
-- **E1 영속 마이그레이션(017+)** — `personal_record`/`personal_record_sensitive`/`consent_ledger`/`personal_measurement` (현재 in-memory 시드).
+- **E1 영속 마이그레이션(**023+**)** — `personal_record`/`personal_record_sensitive`/`personal_measurement` (현재 in-memory 시드). ⚠️ 번호 주의: 017~022는 original_response·coaching·analytics dims·**consent_ledger(020, B1로 완료)**·account가 점유 — 다음 자유 번호 **023**.
 - **E2 암호화·최소권한** — 민감 PHR(약물·진단명) 암호화, 접근 최소권한, 감사로그.
 - **E3 운영 인증 설정** — trust secret/Bearer 실제 운영값, 비밀관리(시크릿 매니저).
 
