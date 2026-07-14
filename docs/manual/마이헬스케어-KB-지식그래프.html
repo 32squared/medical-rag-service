@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이헬스케어 KB 지식그래프</title>
+<style>
+:root{
+  --surface-0:#F6F4EF; --surface-1:#FBFAF6; --surface-2:#FFFFFF;
+  --text-primary:#23302C; --text-secondary:#5C6661; --text-muted:#8A938F;
+  --border:rgba(35,48,44,.14); --border-strong:rgba(35,48,44,.22); --border-stronger:rgba(35,48,44,.42);
+  --font-sans:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --font-mono:Consolas,"Malgun Gothic",monospace;
+  --radius:8px;
+}
+@media (prefers-color-scheme: dark){
+:root{
+  --surface-0:#141816; --surface-1:#1E2421; --surface-2:#262D29;
+  --text-primary:#E8E6DF; --text-secondary:#A8B0AB; --text-muted:#7A837E;
+  --border:rgba(232,230,223,.14); --border-strong:rgba(232,230,223,.24); --border-stronger:rgba(232,230,223,.42);
+}}
+html,body{margin:0;padding:0;background:var(--surface-0);color:var(--text-primary);font-family:var(--font-sans)}
+.page{max-width:860px;margin:0 auto;padding:28px 20px 48px}
+h1{font-size:20px;font-weight:700;margin:0 0 4px}
+.cap{font-size:12.5px;color:var(--text-muted);margin:0 0 18px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.kgW .in rect{fill:var(--surface-2);stroke:var(--border-stronger);stroke-width:1}
+.kgW .in .tl{fill:var(--text-primary)}
+.kgW .in .sb{fill:var(--text-secondary)}
+.kgW .hb rect.bx{fill:var(--surface-1);stroke:var(--border-strong);stroke-width:0.8}
+.kgW .hb .tl{fill:var(--text-primary)}
+.kgW .hb .rk{fill:var(--text-muted)}
+.kgW .ch-ok rect{fill:#E1F5EE;stroke:#0F6E56;stroke-width:1}
+.kgW .ch-ok text{fill:#085041}
+.kgW .ch-empty rect{fill:none;stroke:#888780;stroke-width:1;stroke-dasharray:3 3}
+.kgW .ch-empty text{fill:var(--text-secondary)}
+.kgW .ch-plan rect{fill:#FAEEDA;stroke:#BA7517;stroke-width:1}
+.kgW .ch-plan text{fill:#633806}
+@media (prefers-color-scheme: dark){
+.kgW .ch-ok rect{fill:#085041;stroke:#5DCAA5}.kgW .ch-ok text{fill:#9FE1CB}
+.kgW .ch-plan rect{fill:#633806;stroke:#EF9F27}.kgW .ch-plan text{fill:#FAC775}
+}
+.kgW .nd{cursor:pointer;transition:opacity .15s}
+.kgW .eg{transition:opacity .15s}
+.kgW .dim{opacity:.13}
+.kgLegend{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 8px;font-size:12px;color:var(--text-secondary);align-items:center}
+#kgPanel{min-height:104px;margin-top:10px;background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>마이헬스케어 KB 지식그래프</h1>
+<p class="cap">질문 유형 7종 ↔ 출처 허브 9개 ↔ 문서군 — retrieval_router.py 라우팅 테이블·시드 스크립트 12종·수집기 기준. 클릭으로 상세, 빈 곳 클릭으로 초기화. (2026-06-24)</p>
+<h2 class="sr-only">마이헬스케어 지식창고(KB)의 지식그래프 — 질문 유형 7종이 어떤 출처 허브로 라우팅되고, 각 허브에 어떤 문서군이 적재·부재·계획 상태인지 보여주는 인터랙티브 관계망</h2>
+<div class="kgLegend">
+<span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#1D9E75;margin-right:5px"></span>적재됨</span>
+<span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;border:1px dashed #888780;margin-right:5px"></span>라우터만 있고 비어있음</span>
+<span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#EF9F27;margin-right:5px"></span>적재 계획(문서 22)</span>
+<span style="margin-left:auto">실선 = 1차 출처 · 점선 = 보조</span>
+</div>
+<div class="kgW"><svg id="kgSvg" viewBox="0 0 700 10" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div id="kgPanel">
+<p style="margin:0;font-size:13px;color:var(--text-secondary)">질문 유형이나 출처 허브를 클릭하면 라우팅 규칙·적재 현황이 여기에 표시됩니다. 현재 적재 15개 문서군 · 비어있는 라우트 9개 · 계획 5건.</p>
+</div>
+</div>
+<script>
+(function(){
+var INTENTS=[
+{id:"sym",l:"증상·일반건강",s:"symptom·general·unknown",hubs:{kdca:1,kr:1,glob:2,paper:2},d:"증상 상담과 일반 건강 질문. 국내 지침·KDCA를 1차로, NICE·CDC·WHO를 보조로 검색하며 논문 인용이 허용됩니다(allow_papers)."},
+{id:"inf",l:"감염병",s:"infection",hubs:{kdca:1,glob:2,paper:2},d:"감염병 질문은 질병청(KDCA)이 1차, WHO·CDC가 보조입니다. 논문 인용 허용."},
+{id:"vac",l:"예방접종",s:"vaccination",hubs:{kdca:1,nip:1,glob:2},d:"예방접종은 KDCA·NIP가 1차, CDC·WHO는 보조. 논문 불허 — 국내 접종 일정과의 충돌을 막는 정책이며, 문서 22의 정제 규칙(한국 제도 충돌 영역은 한국 출처 전용)과 같은 방향입니다."},
+{id:"drug",l:"약물 안전·복용",s:"drug_safety·prescription",hubs:{mfds:1,hira:1,glob:2,kr:2},d:"약물 질문은 식약처(MFDS)·심평원(HIRA) DUR이 1차. DailyMed는 보조, 논문 불허. 처방 요청은 답변 불가 원칙 + 약물 일반정보와 의사·약사 상담 안내로 전환됩니다."},
+{id:"lab",l:"검사수치 해석",s:"lab_interpretation",hubs:{kr:1,glob:2,paper:2},d:"검사·수치 해석은 국내 지침·참조범위 문서가 1차, NICE 보조, 논문 허용. 개인 귀속 진단은 금지되고 일반 기준 안내만 합니다."},
+{id:"emg",l:"응급",s:"emergency (안전 우선)",hubs:{kr:1,kdca:1,nemc:1},d:"응급은 safety_first — 검색 결과보다 119·응급실 안내가 우선합니다. 국내 지침·KDCA가 1차이고, 응급처치 콘텐츠(NEMC·중독/소아 안전)는 우선순위 1로 배선돼 있습니다. 보조 출처·논문 없음."},
+{id:"cri",l:"정신위기·법령",s:"mental_health_crisis·legal",hubs:{legal:1,kr:1},d:"자살·자해 위기는 검색을 건너뛰고(retrieval_enabled=false) 위기 안내를 우선합니다. 법령·개인정보 질문은 법령 조항(LEGAL_POLICY)만 사용."},
+];
+var HUBS=[
+{id:"kdca",l:"질병청 KDCA 계열",rk:"우선순위 1 · 근거 A",chips:[["감염병 API","ok"],["건강정보포털","ok"],["PHWR 계획","plan"],["심뇌혈관 계획","plan"],["건강위해 계획","plan"]],d:"kdca_api(질병청 감염병 OpenAPI)와 health_kdca(국가건강정보포털)가 적재돼 있습니다(공공누리 1유형, 수집기 collect_public_kb). 문서 22 계획: K1 PHWR 법정감염병 연보(즉시 적재 가능), K3 심뇌혈관 포털·K5 건강위해 포털(진입 URL → 주제별 상세 전개 필요)."},
+{id:"nip",l:"NIP 예방접종",rk:"우선순위 2 · 근거 A",chips:[["예방접종 5건","ok"]],d:"어린이 NIP 표준 일정, 성인·임신부 접종, 이상반응 대처, 독감 지원 대상 — 5개 문서(seed_vaccination_kb). 한국 접종 일정 기준이므로 해외 출처와 섞지 않는 영역입니다."},
+{id:"glob",l:"글로벌 보조",rk:"우선순위 3~4 · 근거 B",chips:[["WHO","empty"],["CDC","empty"],["NICE","empty"],["USPSTF","empty"],["DailyMed","empty"],["CDC 심혈관 계획","plan"]],d:"라우터가 보조 출처로 기대하지만 현재 문서 0건인 자리입니다. 문서 22의 K2(CDC MMWR 심혈관, 퍼블릭 도메인)가 첫 적재 후보. 채우면 증상·감염병·약물 질문의 보조 근거가 생깁니다."},
+{id:"paper",l:"논문",rk:"우선순위 5~6 · 근거 C",chips:[["PubMed","empty"],["PMC OA","empty"],["Cochrane","empty"]],d:"allow_papers=true인 질문(증상·감염병·검사해석 등)에서만 제한적으로 인용되는 층. 현재 전부 비어 있으며 외부 API 연동이 필요합니다."},
+{id:"mfds",l:"식약처 MFDS 계열",rk:"우선순위 1 · 근거 A",chips:[["안전성서한","ok"],["DUR 8종","ok"],["e약은요","ok"]],d:"의약품 안전성서한(mfds), 병용·연령 금기 등 DUR 8종(mfds_dur), 일반인용 의약품 설명 e약은요(mfds_drug_info, DATA_GO_KR_KEY 필요) — 약물 질문의 1차 근거."},
+{id:"hira",l:"심평원 HIRA",rk:"우선순위 1 · 근거 A",chips:[["급여·DUR","empty"]],d:"라우터가 약물·제도 질문의 1차 출처로 기대하지만 현재 비어 있는 자리입니다. 급여 기준·본인부담 일부는 navigation_kr 문서가 임시로 커버 중."},
+{id:"kr",l:"국내 지침·자체 문서",rk:"우선순위 2 · 근거 A",chips:[["KMLE 발췌","ok"],["참조범위 10","ok"],["생애주기 17","ok"],["의료이용 5","ok"],["상담·FAQ·응급 30+","ok"],["자체 작성","ok"],["정신건강포털 계획","plan"]],d:"kmle_seed(대한의학회 발췌), vital_refs(혈압·혈당 등 참조범위+밴드), lifecycle_kr(암검진·수면·임신·노인·치매·만성질환 등 17), navigation_kr(진료과 선택·검진 제도 5), consultation_seed(42증상 체크리스트·응급 11시나리오·FAQ), internal_md(의사 작성). 문서 22 K4 국가정신건강정보포털이 적재 계획."},
+{id:"nemc",l:"응급의료 NEMC 계열",rk:"우선순위 1 · 근거 A",chips:[["응급처치","ok"],["중독·소아 5","ok"]],d:"응급의료포털 응급처치 가이드(nemc)와 가정 중독·약물 과다복용·소아 기도폐쇄·열성경련·CO 중독 대응(safety_kr 5건). 응급 질문에서 안전 안내와 함께 쓰입니다."},
+{id:"legal",l:"법령 LEGAL",rk:"우선순위 1",chips:[["법령 조항","ok"]],d:"의료법·응급의료법 등 핵심 조항(kr_law). 위기·법령 질문의 단독 1차 출처이며, 서비스의 답변 한계선을 정하는 근거이기도 합니다."},
+];
+var NS="http://www.w3.org/2000/svg";
+var svg=document.getElementById("kgSvg");
+function chipW(t){var w=16;for(var i=0;i<t.length;i++){w+=(t.charCodeAt(i)>127)?11:6.2;}return Math.round(w);}
+var CARDX=318,CARDW=372,CHX=12,CHH=21,CHGAP=6;
+var y=30;
+HUBS.forEach(function(h){
+  var cx=CARDX+CHX,cy=34,rows=[[]];
+  h.chips.forEach(function(c){
+    var w=chipW(c[0]);
+    if(cx+w>CARDX+CARDW-CHX){rows.push([]);cx=CARDX+CHX;cy+=CHH+CHGAP;}
+    rows[rows.length-1].push({t:c[0],st:c[1],x:cx,dy:cy,w:w});
+    cx+=w+CHGAP;
+  });
+  h._chips=[].concat.apply([],rows);
+  h._h=cy+CHH+12;
+  h._y=y;h._cy=y+h._h/2;
+  y+=h._h+13;
+});
+var hubBottom=y;
+var pos={};HUBS.forEach(function(h){pos[h.id]=h;});
+INTENTS.forEach(function(it){
+  var s=0,n=0;Object.keys(it.hubs).forEach(function(k){s+=pos[k]._cy;n++;});
+  it._cy=s/n;
+});
+INTENTS.sort(function(a,b){return a._cy-b._cy;});
+var IH=50,minGap=IH+14,prev=-999;
+INTENTS.forEach(function(it){
+  if(it._cy-prev<minGap)it._cy=prev+minGap;
+  prev=it._cy;
+});
+var H=Math.max(hubBottom,INTENTS[INTENTS.length-1]._cy+IH/2)+16;
+svg.setAttribute("viewBox","0 0 700 "+H);
+svg.innerHTML='<defs><marker id="kgArw" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M1,1 L7,4 L1,7" fill="none" stroke="#888780" stroke-width="1.4"/></marker></defs>'
++'<text x="10" y="18" font-size="11.5" fill="var(--text-muted)" font-family="var(--font-sans)">질문 유형 (분류 → 라우팅)</text>'
++'<text x="'+CARDX+'" y="18" font-size="11.5" fill="var(--text-muted)" font-family="var(--font-sans)">지식창고 출처 허브 · 문서군</text>';
+var IW=176,IX=10;
+INTENTS.forEach(function(it){
+  Object.keys(it.hubs).forEach(function(k){
+    var sec=(it.hubs[k]===2),h=pos[k];
+    var x1=IX+IW,y1=it._cy,x2=CARDX-4,y2=h._cy;
+    var p=document.createElementNS(NS,"path");
+    p.setAttribute("d","M"+x1+","+y1+" C"+(x1+62)+","+y1+" "+(x2-62)+","+y2+" "+x2+","+y2);
+    p.setAttribute("fill","none");p.setAttribute("stroke","#888780");
+    p.setAttribute("stroke-width",sec?"1.1":"1.6");
+    if(sec)p.setAttribute("stroke-dasharray","5 4");
+    p.setAttribute("marker-end","url(#kgArw)");
+    p.setAttribute("class","eg");p.setAttribute("data-a",it.id);p.setAttribute("data-b",k);
+    svg.appendChild(p);
+  });
+});
+INTENTS.forEach(function(it){
+  var g=document.createElementNS(NS,"g");
+  g.setAttribute("class","nd in");g.setAttribute("data-id",it.id);g.setAttribute("data-kind","i");
+  g.innerHTML='<rect x="'+IX+'" y="'+(it._cy-IH/2)+'" width="'+IW+'" height="'+IH+'" rx="10"/>'
+  +'<text class="tl" x="'+(IX+14)+'" y="'+(it._cy-4)+'" font-size="13" font-weight="500" font-family="var(--font-sans)">'+it.l+'</text>'
+  +'<text class="sb" x="'+(IX+14)+'" y="'+(it._cy+13)+'" font-size="11" font-family="var(--font-mono)">'+it.s+'</text>';
+  svg.appendChild(g);
+});
+HUBS.forEach(function(h){
+  var g=document.createElementNS(NS,"g");
+  g.setAttribute("class","nd hb");g.setAttribute("data-id",h.id);g.setAttribute("data-kind","h");
+  var inner='<rect class="bx" x="'+CARDX+'" y="'+h._y+'" width="'+CARDW+'" height="'+h._h+'" rx="12"/>'
+  +'<text class="tl" x="'+(CARDX+12)+'" y="'+(h._y+19)+'" font-size="12.5" font-weight="500" font-family="var(--font-sans)">'+h.l+'</text>'
+  +'<text class="rk" x="'+(CARDX+CARDW-12)+'" y="'+(h._y+19)+'" text-anchor="end" font-size="11" font-family="var(--font-sans)">'+h.rk+'</text>';
+  h._chips.forEach(function(c){
+    inner+='<g class="ch-'+c.st+'"><rect x="'+c.x+'" y="'+(h._y+c.dy)+'" width="'+c.w+'" height="'+CHH+'" rx="10"/>'
+    +'<text x="'+(c.x+c.w/2)+'" y="'+(h._y+c.dy+14.5)+'" text-anchor="middle" font-size="11" font-family="var(--font-sans)">'+c.t+'</text></g>';
+  });
+  g.innerHTML=inner;
+  svg.appendChild(g);
+});
+var panel=document.getElementById("kgPanel");
+var DEF='<p style="margin:0;font-size:13px;color:var(--text-secondary)">질문 유형이나 출처 허브를 클릭하면 라우팅 규칙·적재 현황이 여기에 표시됩니다. 현재 적재 15개 문서군 · 비어있는 라우트 9개 · 계획 5건.</p>';
+var imap={};INTENTS.forEach(function(i){imap[i.id]=i;});
+function apply(sel,kind){
+  svg.querySelectorAll(".nd").forEach(function(el){
+    var id=el.getAttribute("data-id"),k=el.getAttribute("data-kind"),on=true;
+    if(sel){
+      if(kind==="i")on=(k==="i"&&id===sel)||(k==="h"&&imap[sel].hubs[id]!==undefined);
+      else on=(k==="h"&&id===sel)||(k==="i"&&imap[id].hubs[sel]!==undefined);
+    }
+    el.classList.toggle("dim",!on);
+  });
+  svg.querySelectorAll(".eg").forEach(function(el){
+    var on=true;
+    if(sel)on=(kind==="i")?(el.getAttribute("data-a")===sel):(el.getAttribute("data-b")===sel);
+    el.classList.toggle("dim",!on);
+  });
+}
+svg.addEventListener("click",function(ev){
+  var g=ev.target.closest(".nd");
+  if(!g){apply(null);panel.innerHTML=DEF;return;}
+  var id=g.getAttribute("data-id"),kind=g.getAttribute("data-kind");
+  apply(id,kind);
+  if(kind==="i"){
+    var it=imap[id];
+    panel.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary)">질문 유형</span><span style="font-size:14px;font-weight:500;color:var(--text-primary)">'+it.l+'</span><span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">'+it.s+'</span></div>'
+    +'<p style="margin:0;font-size:13px;line-height:1.65;color:var(--text-secondary)">'+it.d+'</p>';
+  }else{
+    var h=pos[id];
+    panel.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary)">출처 허브</span><span style="font-size:14px;font-weight:500;color:var(--text-primary)">'+h.l+'</span><span style="font-size:11px;color:var(--text-muted)">'+h.rk+'</span></div>'
+    +'<p style="margin:0;font-size:13px;line-height:1.65;color:var(--text-secondary)">'+h.d+'</p>';
+  }
+});
+})();
+</script>
+</body>
+</html>
