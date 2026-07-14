@@ -544,6 +544,141 @@ def fetch_mfds_drug_info(
     return results
 
 
+# ════════════════════════════════════════════════════════════
+#  숏리스트 수집기 (docs/plan/25 — K1~K5, 라이선스 fail-closed)
+# ════════════════════════════════════════════════════════════
+
+_SOURCE_SHORTLIST = "shortlist"
+
+_HTML_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_HTML_H1_RE = re.compile(r"<h[12][^>]*>(.*?)</h[12]>", re.IGNORECASE | re.DOTALL)
+_TAG_STRIP_RE = re.compile(r"<[^>]+>")
+
+
+def _extract_html_title(html: str, fallback: str = "") -> str:
+    """페이지 제목 추출 — h1/h2(페이지 고유) 우선, 없으면 <title>, 없으면 fallback."""
+    for pat in (_HTML_H1_RE, _HTML_TITLE_RE):
+        m = pat.search(html or "")
+        if m:
+            text = _TAG_STRIP_RE.sub("", m.group(1))
+            text = re.sub(r"\s+", " ", text).strip()
+            if text:
+                return text
+    return fallback
+
+
+def _register_shortlist_sources(used_source_ids: set) -> None:
+    """숏리스트 신규 출처를 kb_sources 에 등록(멱등) + 기관/관할 보강."""
+    from kb_shortlist_sources import SOURCE_ROWS
+    rows = [SOURCE_ROWS[s] for s in used_source_ids if s in SOURCE_ROWS]
+    if not rows:
+        return
+    try:
+        from kb_ingest import seed_kb_sources
+        seed_kb_sources([
+            {k: r[k] for k in ("id", "name", "source_type", "license",
+                               "update_frequency", "is_active")}
+            for r in rows
+        ])
+        from dbcommon import get_conn, _p
+        with get_conn() as (conn, cur):
+            for r in rows:
+                cur.execute(
+                    f"UPDATE kb_sources SET jurisdiction = {_p()}, "
+                    f"institution = {_p()} WHERE id = {_p()}",
+                    (r["jurisdiction"], r["institution"], r["id"]),
+                )
+    except Exception as e:
+        logger.warning("[Shortlist] 출처 등록 보강 생략: %s", str(e)[:80])
+
+
+def fetch_shortlist(limit_per_seed: int = 30, session=None) -> List[Dict]:
+    """
+    doc 25 숏리스트 수집 — 라이선스 허용(P4) 엔트리만.
+
+    mode=ingest: 해당 URL 1건 직접 수집.
+    mode=expand: 진입 페이지 HTML → kb_link_expander.expand_detail_urls 로
+                 상세 URL 전개(섹션 include_re 제한) → 각 상세를 수집.
+    라이선스 미확정(kogl_pending) 엔트리는 fetch 자체를 하지 않고 경고만.
+
+    Args:
+        limit_per_seed: expand 엔트리당 상세 URL 상한 (폭주 방지)
+        session:        requests 세션 (테스트 주입용; None 이면 생성)
+    """
+    if not _HAS_REQUESTS and session is None:
+        logger.error("[Shortlist] requests 미설치 — 수집 불가")
+        return []
+
+    from kb_shortlist_sources import SHORTLIST, license_allows_ingest
+    from kb_link_expander import expand_detail_urls
+    from kb_url_normalize import normalize_url
+
+    sess = session or _make_session()
+    results: List[Dict] = []
+    seen_titles: set = set()
+
+    def _get_html(url: str) -> str:
+        resp = sess.get(url, timeout=_REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        return resp.text or ""
+
+    for entry in SHORTLIST:
+        eid, src_id = entry["id"], entry["source_id"]
+        if not license_allows_ingest(entry.get("license")):
+            logger.warning(
+                "[Shortlist] %s(%s) SKIP — 라이선스 미확정(%s), P4 fail-closed. "
+                "출처 사이트에서 공공누리 유형 확인 후 kb_shortlist_sources.py 의 "
+                "license 를 갱신하면 수집됩니다.",
+                eid, src_id, entry.get("license"),
+            )
+            continue
+
+        try:
+            if entry["mode"] == "expand":
+                entry_html = _get_html(entry["url"])
+                urls = expand_detail_urls(
+                    entry_html, entry["url"],
+                    include_re=entry.get("include_re"),
+                )[:limit_per_seed]
+                logger.info("[Shortlist] %s 전개: 상세 %d개 (cap=%d)",
+                            eid, len(urls), limit_per_seed)
+                time.sleep(_RATE_LIMIT_SLEEP)
+            else:
+                urls = [entry["url"]]
+
+            for u in urls:
+                try:
+                    html = _get_html(u)
+                except Exception as e:
+                    logger.warning("[Shortlist] %s fetch 실패 %s: %s", eid, u, str(e)[:80])
+                    continue
+                content_md = _html_to_markdown(html)
+                title = _extract_html_title(html, fallback=entry["source_name"])
+                # 배치 내 제목 충돌 시 URL 꼬리로 구분 (멱등성 검사가 title OR url 이라
+                # 서로 다른 문서가 동명으로 dup 처리되는 것 방지)
+                if title in seen_titles:
+                    tail = u.rsplit("/", 1)[-1][:60]
+                    title = f"{title} — {tail}"
+                seen_titles.add(title)
+
+                results.append({
+                    "title": title,
+                    "content_md": content_md,
+                    "source_url": normalize_url(u),
+                    "source_fetched_at": _now_iso(),
+                    "source_checksum": _sha256(content_md),
+                    "_source": _SOURCE_SHORTLIST,
+                    "_source_id": src_id,
+                    "_evidence_country": entry.get("evidence_country", "KR"),
+                })
+                time.sleep(_RATE_LIMIT_SLEEP)
+        except Exception as e:
+            logger.error("[Shortlist] %s 수집 오류: %s", eid, str(e)[:120])
+
+    logger.info("[Shortlist] 수집 완료: %d건", len(results))
+    return results
+
+
 _NEMC_TOPICS = [
     # 기본응급처치 (first_aid_basics.do)
     {"key": "cpr_aed",          "name": "심폐소생술 및 자동심장충격기", "url": "/egen/first_aid_basics.do?contentsno=16"},
@@ -1461,6 +1596,19 @@ def collect_all(
             logger.error("[Collect] %s", msg)
             stats["errors"].append(msg)
 
+    if "shortlist" in sources:
+        logger.info("[Collect] 숏리스트(doc 25) 수집 시작 (cap/seed=%d)", max_per_source)
+        try:
+            items = fetch_shortlist(limit_per_seed=max_per_source)
+            if items and not dry_run:
+                _register_shortlist_sources({it["_source_id"] for it in items})
+            # _source/_source_id 는 fetch_shortlist 가 엔트리별로 설정
+            all_items.extend(items)
+        except Exception as e:
+            msg = f"shortlist 수집 오류: {e}"
+            logger.error("[Collect] %s", msg)
+            stats["errors"].append(msg)
+
     stats["fetched"] = len(all_items)
     logger.info("[Collect] 총 %d건 수집 완료", stats["fetched"])
 
@@ -1526,6 +1674,8 @@ def collect_all(
                 _ev_level = evidence_level_for_source(source_id)
             except Exception:
                 _ev_level = "B"
+            # 출처별 국가 오버라이드 (숏리스트 K2 등 국외 보조 출처 — 기본 KR)
+            _ev_country = item.get("_evidence_country", "KR")
             result = ingest_document(
                 title=title,
                 content_md=content_md,
@@ -1535,9 +1685,9 @@ def collect_all(
                     "symptom_tags": [],
                     "department": "general",
                 },
-                evidence_country="KR",
+                evidence_country=_ev_country,
                 evidence_topic=evidence_topic,
-                regulatory_korea=True,
+                regulatory_korea=(_ev_country == "KR"),
                 upsert=False,
                 status="active",
                 source_url=item.get("source_url"),
@@ -1712,9 +1862,9 @@ def _cli_main():
     )
     parser.add_argument(
         "--source",
-        choices=["mfds", "nemc", "kdca", "health_kdca", "drug_info", "all"],
+        choices=["mfds", "nemc", "kdca", "health_kdca", "drug_info", "shortlist", "all"],
         default="all",
-        help="수집할 출처 (기본: all)",
+        help="수집할 출처 (기본: all — shortlist 는 opt-in, 'all' 에 미포함)",
     )
     parser.add_argument(
         "--max-per-source",

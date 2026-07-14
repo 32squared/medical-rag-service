@@ -52,9 +52,10 @@
 ## 갭 & 다음 액션 (RAG 세션)
 
 1. **예방접종 = 채택 0** — 이 배치에 한국 예방접종 출처가 없음. KDCA 예방접종도우미(`nip.kdca.go.kr`)를 별도 확보해야 함. (이미 `seed_vaccination_kb.py` NIP 5문서 존재 — 중복/보강 여부 점검)
-2. **seed 3개(K3/K4/K5) 상세 URL 전개기 필요** — 사이트맵/목록 파서로 진입 페이지에서 주제별 상세 URL 펼치기. 진입 URL 그대로 적재 금지(저밀도).
-3. **라이선스 유형 확정** — K1/K3/K4/K5 공공누리 **유형(1/2/3/4)** 확인 후 P4 판정(1유형만 본문 적재, 그 외 메타데이터+딥링크). 출처 메타데이터에 기록.
-4. **collect_public_kb.py에 정규화 전처리 추가** — 위 규칙을 ingest 파이프라인 함수로([[kb-ingest-hardening]] 5항목).
+2. ~~seed 3개(K3/K4/K5) 상세 URL 전개기 필요~~ → ✅ **구현+배선 완료(2026-06-25)**: `kb_link_expander.expand_detail_urls` + **`collect_public_kb.fetch_shortlist`**(`--source shortlist`, opt-in — 'all' 미포함). 설정 = `kb_shortlist_sources.py`(K1~K5 + include_re 섹션 제한 + 신규 출처 등록행). 테스트 `tests/test_kb_shortlist.py`.
+3. **라이선스 유형 확정(사람 확인 필요 — 유일한 남은 차단)** — **K1 PHWR·K4 정신건강포털 = `kogl_pending`으로 fail-closed 보류 중**(수집기가 fetch 자체를 스킵+경고). 출처 사이트에서 공공누리 유형 확인 후 `kb_shortlist_sources.py`의 `license`를 `kogl_type1`로 갱신하면 자동 수집. K3/K5는 기존 health_kdca 등록(kogl_type1) 재사용, K2는 US public domain(`evidence_country=US`·`regulatory_korea=False`로 적재).
+4. ~~collect_public_kb.py에 정규화 전처리 추가~~ → ✅ 구현 완료: `kb_url_normalize`(ingest 멱등성 배선) + `kb_content_filter`(수집 품질게이트 배선).
+5. **라이브 1차 실행** — `python collect_public_kb.py --source shortlist --dry-run`으로 전개 결과 미리보기 후 적재. KDCA 포털 실HTML에서 전개 0건이면 include_re 패턴을 실측 조정.
 
 ## 부록 — 기계 판독용 (collect 입력 후보)
 
