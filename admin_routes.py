@@ -280,6 +280,104 @@ class AdminRoutesMixin:
             return self._send_error(500, f"최근쿼리 실패: {type(e).__name__}: {e}")
         return self._send_json(200, {"limit": limit, "rows": rows})
 
+    # ── KB 지식그래프 (출처·문서·주제 노드/엣지) ───────────────
+    def _rag_admin_kb_graph(self, parsed):
+        """옵시디언식 그래프 뷰 데이터 — 저장된 KB를 노드/엣지로 반환.
+
+        노드: s:<source_id>(출처) · d:<doc_id>(문서) · t:<evidence_topic>(주제)
+        엣지: 문서—출처(소속), 문서—주제(evidence_topic)
+        ?status=active 면 active 문서만, 기본 all. ?limit= 문서 상한(기본 1500).
+        """
+        if not self._admin_ok():
+            return self._send_error(403, "admin secret 필요")
+        qs = parse_qs(parsed.query)
+        status = (qs.get("status", ["all"])[0] or "all").lower()
+        try:
+            limit = int(qs.get("limit", ["1500"])[0])
+        except Exception:
+            limit = 1500
+        limit = max(1, min(limit, 5000))
+        from dbcommon import get_conn, _p
+        nodes, edges = [], []
+        try:
+            with get_conn() as (conn, cur):
+                cur.execute("SELECT id, name, source_type, license FROM kb_sources")
+                sources = {r["id"]: {"name": r["name"], "source_type": r["source_type"],
+                                     "license": r["license"], "docs": 0}
+                           for r in cur.fetchall()}
+
+                if status == "active":
+                    cur.execute(
+                        f"""SELECT id, source_id, title, status, evidence_level
+                            FROM kb_documents WHERE status = {_p()}
+                            ORDER BY created_at DESC LIMIT {_p()}""",
+                        ("active", limit))
+                else:
+                    cur.execute(
+                        f"""SELECT id, source_id, title, status, evidence_level
+                            FROM kb_documents ORDER BY created_at DESC LIMIT {_p()}""",
+                        (limit,))
+                docs = {}
+                for r in cur.fetchall():
+                    docs[r["id"]] = {"title": r["title"], "source_id": r["source_id"],
+                                     "status": r["status"], "evidence_level": r["evidence_level"],
+                                     "chunks": 0, "topics": set(), "country": None}
+
+                # 청크 집계 — 문서별 청크 수 + 주제 연결 (limit로 잘린 문서는 스킵)
+                cur.execute(
+                    """SELECT document_id, evidence_topic,
+                              COUNT(*) AS chunks, MAX(evidence_country) AS country
+                       FROM kb_chunks GROUP BY document_id, evidence_topic""")
+                total_chunks = 0
+                for r in cur.fetchall():
+                    d = docs.get(r["document_id"])
+                    if d is None:
+                        continue
+                    c = _i(r["chunks"])
+                    d["chunks"] += c
+                    total_chunks += c
+                    if r["country"] and not d["country"]:
+                        d["country"] = r["country"]
+                    if r["evidence_topic"]:
+                        d["topics"].add(r["evidence_topic"])
+        except Exception as e:
+            return self._send_error(500, f"KB 그래프 실패: {type(e).__name__}: {e}")
+
+        topics = {}
+        for did, d in docs.items():
+            sid = d["source_id"]
+            if sid:
+                if sid not in sources:  # FK 밖 출처 방어 — 스텁 노드로 표시
+                    sources[sid] = {"name": sid, "source_type": "?", "license": "?", "docs": 0}
+                sources[sid]["docs"] += 1
+                edges.append({"a": f"d:{did}", "b": f"s:{sid}", "kind": "source"})
+            for t in sorted(d["topics"]):
+                topics[t] = topics.get(t, 0) + 1
+                edges.append({"a": f"d:{did}", "b": f"t:{t}", "kind": "topic"})
+
+        for sid, s in sorted(sources.items()):
+            nodes.append({"id": f"s:{sid}", "type": "source", "label": s["name"] or sid,
+                          "size": s["docs"],
+                          "meta": {"source_id": sid, "license": s["license"],
+                                   "source_type": s["source_type"], "docs": s["docs"]}})
+        for t, cnt in sorted(topics.items()):
+            nodes.append({"id": f"t:{t}", "type": "topic", "label": t, "size": cnt,
+                          "meta": {"docs": cnt}})
+        for did, d in docs.items():
+            nodes.append({"id": f"d:{did}", "type": "document",
+                          "label": (d["title"] or "")[:80], "size": d["chunks"],
+                          "meta": {"status": d["status"], "evidence_level": d["evidence_level"],
+                                   "source_id": d["source_id"], "chunks": d["chunks"],
+                                   "country": d["country"],
+                                   "topics": sorted(d["topics"])}})
+        return self._send_json(200, {
+            "status_filter": status, "limit": limit,
+            "nodes": nodes, "edges": edges,
+            "stats": {"sources": len(sources), "documents": len(docs),
+                      "topics": len(topics), "chunks": total_chunks,
+                      "empty_sources": sum(1 for s in sources.values() if not s["docs"])},
+        })
+
     # ── 현재 시스템 프롬프트 ──────────────────────────────────
     def _rag_admin_prompt(self, parsed):
         if not self._admin_ok():

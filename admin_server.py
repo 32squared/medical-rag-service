@@ -98,6 +98,11 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
 .login input{font:inherit;padding:8px 10px;border:1px solid var(--b);border-radius:8px;width:100%;margin:8px 0}
 .pill{display:inline-block;font-size:11px;border-radius:6px;padding:1px 6px}
 .warn{background:#fbe9e9;color:#c62828}.ok{background:#e7f3e8;color:#2e7d32}
+#gcanvas{border:1px solid var(--b);border-radius:12px;background:#fff;display:block;cursor:grab;touch-action:none}
+.gctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 8px;font-size:12px;color:var(--mut)}
+.gctl input[type=text]{font:inherit;padding:5px 9px;border:1px solid var(--b);border-radius:8px;min-width:170px}
+.glegend span{display:inline-flex;align-items:center;gap:4px;margin-right:10px}
+.gdot{width:9px;height:9px;border-radius:50%;display:inline-block}
 </style></head><body><div class=wrap>
 <div style="display:flex;justify-content:space-between;align-items:baseline">
  <div><h1>마이헬스케어 — RAG 운영 어드민</h1><div class=sub>답변속도 · 토큰 · 대화 통계 · 프롬프트 · 최근 쿼리</div></div>
@@ -110,6 +115,7 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
  <button class="tabbtn on" data-t=overview onclick=tab(this)>개요</button>
  <button class=tabbtn data-t=recent onclick=tab(this)>최근 쿼리</button>
  <button class=tabbtn data-t=prompt onclick=tab(this)>프롬프트</button>
+ <button class=tabbtn data-t=graph onclick=tab(this)>지식그래프</button>
  <span id=note class=sub style="margin-left:8px"></span></div>
 <div id=tab-overview class=tab>
  <div class=cards id=cards></div>
@@ -124,9 +130,28 @@ pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(
 <div id=tab-prompt class=tab style=display:none>
  <div class=sec><h2>현재 시스템 프롬프트</h2><div id=prompt></div></div>
 </div>
+<div id=tab-graph class=tab style=display:none>
+ <div class=sec><h2>KB 지식그래프 <span class=sub>— 저장된 출처·문서·주제 관계망 (드래그 이동 · 휠 줌 · 클릭 상세)</span></h2>
+ <div class=gctl>
+  <button onclick=loadGraph(true)>새로고침</button>
+  <label><input type=checkbox id=gsrc checked onchange=rebuildGraph()> 출처</label>
+  <label><input type=checkbox id=gtop checked onchange=rebuildGraph()> 주제</label>
+  <label><input type=checkbox id=gact onchange=loadGraph(true)> active만</label>
+  <input type=text id=gq placeholder="제목·출처·주제 검색" oninput=gsearch()>
+  <span id=gnote></span>
+  <span class=glegend style="margin-left:auto">
+   <span><span class=gdot style="background:#0f6e56"></span>출처</span>
+   <span><span class=gdot style="background:#b06a00"></span>주제</span>
+   <span><span class=gdot style="background:#8f9a94"></span>문서</span></span>
+ </div>
+ <div id=gwrap><canvas id=gcanvas height=620></canvas></div>
+ <div id=gdetail class=detail style="margin-top:8px;font-size:12px">노드를 클릭하면 상세가 표시됩니다.</div>
+ </div>
+</div>
 <script>
 function tab(b){document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');
- const t=b.dataset.t;document.querySelectorAll('.tab').forEach(s=>s.style.display='none');document.getElementById('tab-'+t).style.display='';}
+ const t=b.dataset.t;document.querySelectorAll('.tab').forEach(s=>s.style.display='none');document.getElementById('tab-'+t).style.display='';
+ if(t==='graph'){sizeCanvas();loadGraph();}}
 function toggle(i){const e=document.getElementById('det'+i);if(e)e.style.display=e.style.display==='none'?'':'none';}
 const $=id=>document.getElementById(id);
 function n(x){return (x||0).toLocaleString()}
@@ -198,6 +223,181 @@ function renderPrompt(p){
  $('prompt').innerHTML='<div class=sub>모델 '+esc(p.model)+' · reasoning '+esc(p.reasoning_effort)+'</div><pre>'+esc(p.system_prompt_sample)+'</pre>';
 }
 function esc(s){return (s==null?'':''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
+/* ── KB 지식그래프 (옵시디언식 캔버스 포스 그래프) ───────────── */
+const G={raw:null,n:[],e:[],adj:{},byId:{},zoom:1,px:0,py:0,alpha:0,hov:null,sel:null,match:null,
+ drag:null,pan:null,moved:false,loaded:false,W:1060,H:620,run:false};
+async function loadGraph(force){
+ if(G.loaded&&!force)return;
+ $('gnote').textContent='불러오는 중…';
+ try{
+  const st=$('gact').checked?'active':'all';
+  G.raw=await j('/api/admin/kb-graph?status='+st);
+  const s=G.raw.stats;
+  $('gnote').textContent='문서 '+n(s.documents)+' · 출처 '+n(s.sources)+'(빈 '+s.empty_sources+') · 주제 '+n(s.topics)+' · 청크 '+n(s.chunks);
+  G.loaded=true;rebuildGraph();
+ }catch(e){$('gnote').textContent='오류: '+e.message}
+}
+function rebuildGraph(){
+ if(!G.raw)return;
+ const showS=$('gsrc').checked,showT=$('gtop').checked,keep={};
+ G.n=G.raw.nodes.filter(x=>x.type==='document'||(x.type==='source'&&showS)||(x.type==='topic'&&showT));
+ sizeCanvas();
+ const cx=G.W/2,cy=G.H/2,N=G.n.length||1;
+ G.byId={};
+ G.n.forEach((x,i)=>{
+  keep[x.id]=1;
+  const a=i*2.399963,r=Math.sqrt((i+0.5)/N)*Math.min(G.W,G.H)*0.42;
+  x.x=cx+Math.cos(a)*r;x.y=cy+Math.sin(a)*r;x.vx=0;x.vy=0;
+  x.r=x.type==='source'?Math.min(18,6+Math.sqrt(x.size||0)*1.7)
+    :x.type==='topic'?Math.min(14,4.5+Math.sqrt(x.size||0)*1.5)
+    :Math.min(10,3+Math.sqrt(x.size||0)*0.9);
+  G.byId[x.id]=x;
+ });
+ G.e=G.raw.edges.filter(ed=>keep[ed.a]&&keep[ed.b]);
+ G.adj={};G.n.forEach(x=>G.adj[x.id]={});
+ G.e.forEach(ed=>{G.adj[ed.a][ed.b]=1;G.adj[ed.b][ed.a]=1;});
+ G.sel=null;G.hov=null;showGDetail(null);
+ G.zoom=1;G.px=0;G.py=0;G.alpha=1;startSim();
+}
+function sizeCanvas(){
+ const w=($('gwrap').clientWidth||1060);G.W=w;
+ const cv=$('gcanvas'),dpr=window.devicePixelRatio||1;
+ cv.width=w*dpr;cv.height=G.H*dpr;cv.style.width=w+'px';cv.style.height=G.H+'px';
+}
+function startSim(){if(!G.run){G.run=true;requestAnimationFrame(gtick)}}
+function gtick(){
+ const N=G.n.length;
+ if(G.alpha>0.02&&N){
+  const REP=1400,samp=N>450;
+  for(let i=0;i<N;i++){
+   const a=G.n[i];let fx=0,fy=0;
+   if(samp){
+    for(let k=0;k<70;k++){
+     const b=G.n[(Math.random()*N)|0];if(b===a)continue;
+     let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;if(d2>90000)continue;
+     const d=Math.sqrt(d2),f=REP*(N/70)/d2*0.9;fx+=dx/d*f;fy+=dy/d*f;
+    }
+   }else{
+    for(let jj=0;jj<N;jj++){
+     if(jj===i)continue;const b=G.n[jj];
+     let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;if(d2>160000)continue;
+     const d=Math.sqrt(d2),f=REP/d2;fx+=dx/d*f;fy+=dy/d*f;
+    }
+   }
+   fx+=(G.W/2-a.x)*0.002;fy+=(G.H/2-a.y)*0.002;
+   a.vx=(a.vx+fx*G.alpha)*0.85;a.vy=(a.vy+fy*G.alpha)*0.85;
+  }
+  for(const ed of G.e){
+   const a=G.byId[ed.a],b=G.byId[ed.b];
+   let dx=b.x-a.x,dy=b.y-a.y;const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+   const L=(ed.kind==='source'?54:44)+a.r+b.r,f=(d-L)*0.02*G.alpha;
+   dx/=d;dy/=d;a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f;
+  }
+  for(const x of G.n){
+   if(G.drag===x)continue;
+   x.x+=Math.max(-8,Math.min(8,x.vx));x.y+=Math.max(-8,Math.min(8,x.vy));
+  }
+  G.alpha*=0.992;
+ }
+ grender();
+ if(G.alpha>0.02||G.drag){requestAnimationFrame(gtick)}else{G.run=false}
+}
+function grender(){
+ const cv=$('gcanvas');if(!cv.width)return;
+ const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.W,G.H);
+ ctx.translate(G.px,G.py);ctx.scale(G.zoom,G.zoom);
+ const focus=G.sel||G.hov,q=G.match;
+ function na(x){
+  if(q)return q[x.id]?1:0.12;
+  if(focus)return (x===focus||G.adj[focus.id][x.id])?1:0.13;
+  return 1;
+ }
+ for(const ed of G.e){
+  const a=G.byId[ed.a],b=G.byId[ed.b];
+  let al=0.25;
+  if(q)al=(q[a.id]&&q[b.id])?0.5:0.04;
+  else if(focus)al=(a===focus||b===focus)?0.55:0.05;
+  ctx.strokeStyle='rgba(110,118,112,'+al+')';ctx.lineWidth=1/G.zoom;
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+ }
+ const COL={source:'#0f6e56',topic:'#b06a00',document:'#8f9a94'};
+ for(const x of G.n){
+  ctx.globalAlpha=na(x);ctx.fillStyle=COL[x.type];
+  ctx.beginPath();ctx.arc(x.x,x.y,x.r,0,6.2832);ctx.fill();
+  if(x.type==='document'&&x.meta&&x.meta.status!=='active'){
+   ctx.strokeStyle='#c62828';ctx.lineWidth=1.4/G.zoom;ctx.setLineDash([3/G.zoom,2/G.zoom]);
+   ctx.beginPath();ctx.arc(x.x,x.y,x.r+1.5/G.zoom,0,6.2832);ctx.stroke();ctx.setLineDash([]);
+  }
+  if(x===G.sel){ctx.strokeStyle='#26261f';ctx.lineWidth=2/G.zoom;
+   ctx.beginPath();ctx.arc(x.x,x.y,x.r+2.5/G.zoom,0,6.2832);ctx.stroke();}
+ }
+ ctx.textAlign='center';ctx.textBaseline='top';
+ for(const x of G.n){
+  const show=(x.type!=='document'&&G.zoom>=0.7)||(x.type==='document'&&G.zoom>=1.6)
+    ||x===focus||(q&&q[x.id])||x===G.sel;
+  if(!show)continue;
+  ctx.globalAlpha=na(x);
+  ctx.font=(12/G.zoom)+'px Malgun Gothic';
+  const lab=(x.label||'').length>26?x.label.slice(0,25)+'…':(x.label||'');
+  ctx.lineWidth=3/G.zoom;ctx.strokeStyle='rgba(255,255,255,0.85)';
+  ctx.strokeText(lab,x.x,x.y+x.r+2/G.zoom);
+  ctx.fillStyle='#26261f';ctx.fillText(lab,x.x,x.y+x.r+2/G.zoom);
+ }
+ ctx.globalAlpha=1;
+}
+function gxy(e){const rc=$('gcanvas').getBoundingClientRect();
+ return{x:(e.clientX-rc.left-G.px)/G.zoom,y:(e.clientY-rc.top-G.py)/G.zoom}}
+function ghit(p){let best=null,bd=1e9;
+ for(const x of G.n){const dx=x.x-p.x,dy=x.y-p.y,d=Math.sqrt(dx*dx+dy*dy);
+  if(d<x.r+4/G.zoom&&d<bd){bd=d;best=x}}return best}
+function showGDetail(x){
+ if(!x){$('gdetail').innerHTML='노드를 클릭하면 상세가 표시됩니다.';return}
+ const m=x.meta||{},deg=Object.keys(G.adj[x.id]||{}).length;
+ let h='<b>'+esc(x.label)+'</b> <span class=sub>('+({source:'출처',topic:'주제',document:'문서'})[x.type]+' · 연결 '+deg+')</span><br>';
+ if(x.type==='document')h+='출처 '+esc(m.source_id||'')+' · 상태 '+esc(m.status||'')+' · 근거 '+esc(m.evidence_level||'')
+   +' · 청크 '+n(m.chunks)+(m.country?' · '+esc(m.country):'')
+   +(m.topics&&m.topics.length?'<br>주제: '+esc(m.topics.join(', ')):'');
+ else if(x.type==='source')h+='source_id '+esc(m.source_id)+' · 라이선스 '+esc(m.license||'')
+   +' · 유형 '+esc(m.source_type||'')+' · 문서 '+n(m.docs)+'건'
+   +(m.docs?'':' <span class="pill warn">비어있음</span>');
+ else h+='연결 문서 '+n(m.docs)+'건';
+ $('gdetail').innerHTML=h;
+}
+function gsearch(){
+ const v=($('gq').value||'').trim().toLowerCase();
+ if(!v){G.match=null;grender();return}
+ const m={};for(const x of G.n){if((x.label||'').toLowerCase().includes(v)||x.id.toLowerCase().includes(v))m[x.id]=1}
+ G.match=m;grender();
+}
+(function(){
+ const cv=$('gcanvas');
+ cv.addEventListener('mousedown',function(e){
+  const h=ghit(gxy(e));G.moved=false;
+  if(h){G.drag=h;}else{G.pan={mx:e.clientX,my:e.clientY,px:G.px,py:G.py};}
+ });
+ window.addEventListener('mousemove',function(e){
+  if(G.drag){const p=gxy(e);G.drag.x=p.x;G.drag.y=p.y;G.moved=true;
+   G.alpha=Math.max(G.alpha,0.25);startSim();}
+  else if(G.pan){G.px=G.pan.px+e.clientX-G.pan.mx;G.py=G.pan.py+e.clientY-G.pan.my;
+   G.moved=true;grender();}
+  else if(e.target===cv){const h=ghit(gxy(e));
+   if(h!==G.hov){G.hov=h;cv.style.cursor=h?'pointer':'grab';grender();}}
+ });
+ window.addEventListener('mouseup',function(e){
+  if(G.drag&&!G.moved){G.sel=(G.sel===G.drag)?null:G.drag;showGDetail(G.sel);grender();}
+  else if(G.pan&&!G.moved){G.sel=null;showGDetail(null);grender();}
+  G.drag=null;G.pan=null;
+ });
+ cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top;
+  const nz=Math.max(0.25,Math.min(4,G.zoom*(e.deltaY<0?1.15:0.87)));
+  G.px=mx-(mx-G.px)*nz/G.zoom;G.py=my-(my-G.py)*nz/G.zoom;G.zoom=nz;grender();
+ },{passive:false});
+ window.addEventListener('resize',function(){if(G.loaded){sizeCanvas();grender();}});
+})();
 load();
 </script></div></body></html>"""
 
