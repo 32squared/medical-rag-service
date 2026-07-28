@@ -52,6 +52,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from dbcommon import get_conn, _p, _ph, _now, _use_postgres
+from kb_url_normalize import normalize_url
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +381,12 @@ def ingest_document(
     if not source_id or not source_id.strip():
         raise ValueError("source_id는 비어 있을 수 없습니다")
 
+    # source_url 정규화 — 세션/트래킹 파라미터 제거 후 canonical 형태로.
+    # 멱등성 검사(아래)와 저장에 동일 canonical 을 사용 → jsessionid·utm 등
+    # 트래킹 변형만 다른 동일 문서가 중복 row 로 적재되는 것을 방지.
+    if source_url:
+        source_url = normalize_url(source_url)
+
     evidence_level = metadata.get("evidence_level", "B")
     keywords_json = json.dumps(topic_keywords or [], ensure_ascii=False)
     fetched_at = source_fetched_at or _now()
@@ -467,12 +474,14 @@ def ingest_document(
             )
         else:
             # upsert=True 또는 checksum 변경: 문서 메타 업데이트
+            # 내용 변경 재적재 시 version 증가(감사: KB 문서 개정 추적, 07 §4-2)
             cur.execute(
                 f"""UPDATE kb_documents
                     SET content_md = {_p()}, metadata_json = {_p()},
                         evidence_level = {_p()}, updated_at = {_p()}, status = {_p()},
                         source_url = {_p()}, source_fetched_at = {_p()},
-                        source_checksum = {_p()}
+                        source_checksum = {_p()},
+                        version = version + 1
                     WHERE id = {_p()}""",
                 (
                     content_md, metadata_json_str, evidence_level, now_str, status,

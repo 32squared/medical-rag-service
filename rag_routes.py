@@ -83,6 +83,17 @@ class RagRoutesMixin:
             if path == '/api/rag/chat':
                 return self._rag_chat(body)
 
+            if path == '/api/rag/feedback':
+                return self._rag_feedback(body)
+
+            # ── 웰니스 코칭 영속(18 §7.2) — 비식별 라벨/항목만 저장 + coaching_* 이벤트 ──
+            if path == '/api/rag/coaching/session':
+                return self._rag_coaching_session(body)
+            if path == '/api/rag/coaching/plan':
+                return self._rag_coaching_plan(body)
+            if path == '/api/rag/coaching/checkin':
+                return self._rag_coaching_checkin(body)
+
             return self._send_error(404, 'Not Found')
 
         # ── PUT ───────────────────────────────────────────────
@@ -114,6 +125,22 @@ class RagRoutesMixin:
             if path == '/api/rag/result':
                 return self._rag_get_result(parsed)
 
+            # 운영 어드민 집계(읽기 전용). X-Admin-Secret 로 보호(admin_routes._admin_ok).
+            if path == '/api/rag/admin/summary':
+                return self._rag_admin_summary(parsed)
+            if path == '/api/rag/admin/timeseries':
+                return self._rag_admin_timeseries(parsed)
+            if path == '/api/rag/admin/stats':
+                return self._rag_admin_stats(parsed)
+            if path == '/api/rag/admin/recent':
+                return self._rag_admin_recent(parsed)
+            if path == '/api/rag/admin/prompt':
+                return self._rag_admin_prompt(parsed)
+            if path == '/api/rag/admin/coaching':
+                return self._rag_admin_coaching(parsed)
+            if path == '/api/rag/admin/kb-graph':
+                return self._rag_admin_kb_graph(parsed)
+
             if path == '/api/rag/kb/sources':
                 if not self._require_auth():
                     return
@@ -138,6 +165,135 @@ class RagRoutesMixin:
             return self._send_error(404, 'Not Found')
 
         return self._send_error(405, 'Method Not Allowed')
+
+    # ────────────────────────────────────────────────────────────
+    # 답변 명시 피드백 (👍/👎) — 개선 루프 B/E
+    # ────────────────────────────────────────────────────────────
+
+    def _rag_feedback(self, body):
+        """POST /api/rag/feedback — 답변 명시 피드백.
+
+        body: {"rag_query_id": str, "rating": "up"|"down",
+               "reason_code"?: str, "conversation_id"?: str}
+        코멘트 원문은 저장하지 않는다(비식별). rating·reason_code(코드)만 영속 +
+        비식별 thumbs 이벤트 emit.
+        """
+        if not RAG_ENABLED:
+            return self._send_json(503, {"error": "RAG 비활성", "code": "RAG_DISABLED"})
+        try:
+            payload = json.loads(body.decode('utf-8')) if body else {}
+        except Exception as e:
+            return self._send_json(400, {"error": f"Invalid JSON: {e}"})
+
+        rag_query_id = (payload.get('rag_query_id') or '').strip()
+        rating = (payload.get('rating') or '').strip().lower()
+        if not rag_query_id:
+            return self._send_json(400, {"error": "rag_query_id is required"})
+        if rating not in ('up', 'down'):
+            return self._send_json(400, {"error": "rating must be 'up' or 'down'"})
+
+        reason_code = (payload.get('reason_code') or '').strip() or None
+        conversation_id = (payload.get('conversation_id') or '').strip() or None
+
+        user_id = None
+        try:
+            from auth_resolver import resolve_user
+            u = resolve_user(self.headers) or self._get_tester_info()
+            user_id = (u or {}).get('id')
+        except Exception:
+            try:
+                user_id = (self._get_tester_info() or {}).get('id')
+            except Exception:
+                user_id = None
+
+        try:
+            import rag_db
+            fid = rag_db.record_response_feedback(
+                rag_query_id, rating, conversation_id=conversation_id,
+                user_id=user_id, reason_code=reason_code)
+        except Exception as e:
+            self._add_log(f"[RAG] 피드백 저장 오류: {e}")
+            fid = None
+        if not fid:
+            return self._send_json(500, {"error": "피드백 저장 실패"})
+        return self._send_json(200, {"status": "success", "feedback_id": fid})
+
+    # ────────────────────────────────────────────────────────────
+    # 웰니스 코칭 영속 API (18 §7.2) — 비식별 라벨·항목 텍스트만 저장
+    # ────────────────────────────────────────────────────────────
+    def _coaching_body(self, body):
+        if not RAG_ENABLED:
+            self._send_json(503, {"error": "RAG 비활성", "code": "RAG_DISABLED"})
+            return None
+        try:
+            return json.loads(body.decode('utf-8')) if body else {}
+        except Exception as e:
+            self._send_json(400, {"error": f"Invalid JSON: {e}"})
+            return None
+
+    def _rag_coaching_session(self, body):
+        """POST /api/rag/coaching/session — 세션 생성(영속 + 비식별 track_selected 이벤트)."""
+        p = self._coaching_body(body)
+        if p is None:
+            return
+        try:
+            import rag_db
+            sid = rag_db.create_coaching_session(
+                conversation_id=(p.get('conversation_id') or None),
+                mode=(p.get('mode') or 'medical'), track=(p.get('track') or None),
+                band_at_start=(p.get('band') or None),
+                consent_personal=bool(p.get('consent')))
+        except Exception as e:
+            self._add_log(f"[RAG] 코칭 세션 저장 오류: {e}")
+            sid = None
+        if not sid:
+            return self._send_json(500, {"error": "세션 저장 실패"})
+        return self._send_json(200, {"status": "success", "session_id": sid})
+
+    def _rag_coaching_plan(self, body):
+        """POST /api/rag/coaching/plan — 플랜 영속(items=항목 텍스트 리스트) + plan_shown 이벤트."""
+        p = self._coaching_body(body)
+        if p is None:
+            return
+        sid = (p.get('session_id') or '').strip()
+        if not sid:
+            return self._send_json(400, {"error": "session_id is required"})
+        try:
+            import rag_db
+            pid = rag_db.save_coaching_plan(
+                session_id=sid, track=(p.get('track') or None),
+                items=p.get('items') or [], target_period=(p.get('target_period') or None),
+                band=(p.get('band') or None), safety_banner=(p.get('banner') or None),
+                compliance_action=(p.get('compliance_action') or 'pass'),
+                conversation_id=(p.get('conversation_id') or None))
+        except Exception as e:
+            self._add_log(f"[RAG] 코칭 플랜 저장 오류: {e}")
+            pid = None
+        if not pid:
+            return self._send_json(500, {"error": "플랜 저장 실패"})
+        return self._send_json(200, {"status": "success", "plan_id": pid})
+
+    def _rag_coaching_checkin(self, body):
+        """POST /api/rag/coaching/checkin — 체크인 영속(done bool) + checkin 이벤트. 누적건수 반환."""
+        p = self._coaching_body(body)
+        if p is None:
+            return
+        pid = (p.get('plan_id') or '').strip()
+        if not pid:
+            return self._send_json(400, {"error": "plan_id is required"})
+        try:
+            import rag_db
+            cid = rag_db.record_coaching_checkin(
+                plan_id=pid, item_key=(p.get('item_key') or None),
+                done=bool(p.get('done', True)),
+                conversation_id=(p.get('conversation_id') or None))
+            count = len(rag_db.get_coaching_checkins(pid))
+        except Exception as e:
+            self._add_log(f"[RAG] 체크인 저장 오류: {e}")
+            cid, count = None, 0
+        if not cid:
+            return self._send_json(500, {"error": "체크인 저장 실패"})
+        return self._send_json(200, {"status": "success", "checkin_id": cid, "checkin_count": count})
 
     # ────────────────────────────────────────────────────────────
     # RAG 채팅 SSE API

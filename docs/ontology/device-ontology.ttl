@@ -1,0 +1,136 @@
+# 장치·환경 데이터 온톨로지 (PHR 온톨로지 확장) — Turtle/OWL
+# A1 통합측정기(바이탈), 공기질, 워치, 혈압기, 체중계.
+# phr-ontology.ttl과 같은 네임스페이스 — 함께 로드하면 통합 온톨로지.
+# 핵심: 소스는 여럿이어도 해석·안전 코어(Observation·BandLabel·Trend·Sensitivity)는 공유.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix phr:  <https://namuh.health/phr#> .
+
+#################################################################
+#  장치 (Device) + 등급
+#################################################################
+phr:Device a owl:Class ; rdfs:label "장치(추상)"@ko .
+phr:BloodPressureMonitor rdfs:subClassOf phr:Device ; rdfs:label "혈압기"@ko ;        phr:deviceGrade phr:ClinicalNear .
+phr:SmartScale           rdfs:subClassOf phr:Device ; rdfs:label "스마트 체중계"@ko ; phr:deviceGrade phr:Consumer .
+phr:Smartwatch           rdfs:subClassOf phr:Device ; rdfs:label "스마트워치"@ko ;    phr:deviceGrade phr:Wellness .
+phr:VitalDevice          rdfs:subClassOf phr:Device ; rdfs:label "통합측정기(A1)"@ko ; phr:deviceGrade phr:ClinicalNear .
+phr:AirQualitySensor     rdfs:subClassOf phr:Device ; rdfs:label "공기질 센서/공기청정기"@ko ; phr:deviceGrade phr:Environmental .
+
+phr:DeviceGrade a owl:Class ; rdfs:label "장치 등급"@ko .
+phr:ClinicalNear  a phr:DeviceGrade ; rdfs:label "의료근접"@ko .
+phr:Consumer      a phr:DeviceGrade ; rdfs:label "소비자"@ko .
+phr:Wellness      a phr:DeviceGrade ; rdfs:label "웰니스"@ko .
+phr:Environmental a phr:DeviceGrade ; rdfs:label "환경"@ko .
+
+#################################################################
+#  해석값 — 웰니스/환경 라벨 (임상 BandLabel과 구별)
+#################################################################
+phr:WellnessLabel a owl:Class ; rdfs:label "웰니스 라벨(본인 기저선 대비)"@ko ;
+    rdfs:comment "모집단 컷오프 없음 → 본인 과거 대비. 임상 BandLabel과 다름(B1)."@ko ;
+    owl:oneOf ( phr:평소대비높음 phr:평소대비낮음 phr:평소수준 phr:참고 ) .
+phr:평소대비높음 a phr:WellnessLabel . phr:평소대비낮음 a phr:WellnessLabel . phr:평소수준 a phr:WellnessLabel . phr:참고 a phr:WellnessLabel .
+
+phr:EnvGrade a owl:Class ; rdfs:label "공기질 등급"@ko ;
+    owl:oneOf ( phr:좋음 phr:보통 phr:나쁨 phr:매우나쁨 ) .
+phr:좋음 a phr:EnvGrade . phr:보통 a phr:EnvGrade . phr:나쁨 a phr:EnvGrade . phr:매우나쁨 a phr:EnvGrade .
+
+phr:PersonalBaseline a owl:Class ; rdfs:label "개인 기저선"@ko ;
+    rdfs:comment "웰니스 신호의 본인 과거 기준(이동평균). 최소 표본 필요."@ko .
+
+#################################################################
+#  장치 측정값 (DeviceMeasurement ⊑ Observation) — 공유 해석 코어 재사용
+#################################################################
+phr:DeviceMeasurement rdfs:subClassOf phr:Observation ; rdfs:label "장치 측정값"@ko .
+
+# 혈압기 / 통합측정기(A1) — 의료근접
+phr:DevSBP   rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "수축기혈압(기기)"@ko ; phr:signalKey "blood_pressure" ; phr:unit "mmHg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DevDBP   rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "이완기혈압(기기)"@ko ; phr:signalKey "blood_pressure" ; phr:unit "mmHg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DevPulse rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "맥박(기기)"@ko ;       phr:signalKey "heart_rate" ; phr:unit "/min" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DevSpO2  rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "산소포화도(의료기기)"@ko ; phr:signalKey "spo2" ; phr:unit "%" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DevTemp  rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "체온(기기)"@ko ;       phr:signalKey "body_temperature" ; phr:unit "Cel" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DevStress rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "스트레스 지수"@ko ;   phr:signalKey "stress" ; phr:sensitivity phr:General ; phr:utilization phr:InternalOnly ; rdfs:comment "공인 임상 참조범위 없음 → 본인 추세 참고만."@ko .
+
+# 체중계 — 소비자
+phr:Weight2     rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "체중"@ko ;     phr:signalKey "weight" ; phr:unit "kg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:BMI2        rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "체질량지수"@ko ; phr:signalKey "bmi" ; phr:unit "kg/m2" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:BodyFat     rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "체지방률"@ko ;   phr:signalKey "body_fat" ; phr:unit "%" ; phr:sensitivity phr:General ; phr:utilization phr:Banded ; rdfs:comment "임피던스 추정 오차 큼 → 천장 낮음·추세 위주(B9)."@ko .
+phr:MuscleMass  rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "근육량"@ko ;     phr:signalKey "muscle" ; phr:unit "kg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:VisceralFat rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "내장지방"@ko ;   phr:signalKey "visceral_fat" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+
+# 워치 — 웰니스 등급 (본인 기저선 대비, 임상밴드 금지)
+phr:WatchSignal rdfs:subClassOf phr:DeviceMeasurement ; rdfs:label "워치 신호(웰니스)"@ko ; phr:deviceGrade phr:Wellness .
+phr:RestingHR  rdfs:subClassOf phr:WatchSignal ; rdfs:label "안정시 심박"@ko ; phr:signalKey "resting_hr" ; phr:utilization phr:WellnessOnly .
+phr:HRV        rdfs:subClassOf phr:WatchSignal ; rdfs:label "심박변이도(HRV)"@ko ; phr:signalKey "hrv" ; phr:utilization phr:WellnessOnly ; rdfs:comment "공인 참조범위 없음 + 교차 입력 제외(B3)."@ko .
+phr:SleepTotal rdfs:subClassOf phr:WatchSignal ; rdfs:label "총 수면시간"@ko ; phr:signalKey "sleep_total" ; phr:unit "min" ; phr:utilization phr:WellnessOnly .
+phr:SleepStage rdfs:subClassOf phr:WatchSignal ; rdfs:label "수면 단계"@ko ; phr:signalKey "sleep_stage" ; phr:utilization phr:WellnessOnly .
+phr:Steps      rdfs:subClassOf phr:WatchSignal ; rdfs:label "걸음 수"@ko ; phr:signalKey "steps" ; phr:utilization phr:WellnessOnly .
+phr:ActiveCal  rdfs:subClassOf phr:WatchSignal ; rdfs:label "소모 칼로리"@ko ; phr:signalKey "active_cal" ; phr:utilization phr:WellnessOnly .
+phr:ExerciseMin rdfs:subClassOf phr:WatchSignal ; rdfs:label "운동 시간"@ko ; phr:signalKey "exercise_min" ; phr:unit "min" ; phr:utilization phr:WellnessOnly .
+phr:RespRate   rdfs:subClassOf phr:WatchSignal ; rdfs:label "호흡수"@ko ; phr:signalKey "resp_rate" ; phr:utilization phr:WellnessOnly .
+phr:WatchSpO2  rdfs:subClassOf phr:WatchSignal ; rdfs:label "산소포화도(워치)"@ko ; phr:signalKey "spo2" ; phr:utilization phr:Deny ; rdfs:comment "FDA 어두운 피부 과대측정 → 임상판정 deny, 재측정 권유만(B2)."@ko .
+phr:ECGEvent   rdfs:subClassOf phr:WatchSignal ; rdfs:label "심전도/불규칙맥 알림"@ko ; phr:signalKey "ecg" ; phr:utilization phr:Deny ; rdfs:comment "판독 금지(SaMD) — 기기 알림 패스스루만(B2)."@ko .
+phr:CompositeScore rdfs:subClassOf phr:WatchSignal ; rdfs:label "합성점수(readiness/recovery)"@ko ; phr:utilization phr:Deny ; rdfs:comment "peer-review 검증 전무 → 재생산 금지(B2)."@ko .
+
+#################################################################
+#  환경 측정 (EnvironmentReading) — 실내 공기질 (신체 측정 아님)
+#################################################################
+phr:EnvironmentReading a owl:Class ; rdfs:label "실내 환경 측정"@ko ;
+    rdfs:comment "신체가 아닌 환경. 진단 아님 — 환경 교차 참고 + 환기 권유 천장(B5). 실내만(실외 혼동 금지)."@ko ;
+    phr:deviceGrade phr:Environmental .
+phr:AQOverall  rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "종합 공기질"@ko ; phr:signalKey "overall" .
+phr:PM10  rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "미세먼지 PM10"@ko ; phr:signalKey "pm10" ; phr:unit "ug/m3" .
+phr:PM25  rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "초미세먼지 PM2.5"@ko ; phr:signalKey "pm25" ; phr:unit "ug/m3" .
+phr:PM1   rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "극초미세먼지 PM1"@ko ; phr:signalKey "pm1" .
+phr:NOx   rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "질소산화물"@ko ; phr:signalKey "nox" .
+phr:VOC   rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "휘발성유기화합물"@ko ; phr:signalKey "voc" .
+phr:HCHO  rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "폼알데하이드"@ko ; phr:signalKey "hcho" .
+phr:CO2   rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "이산화탄소"@ko ; phr:signalKey "co2_indoor" ; phr:unit "ppm" .
+phr:IndoorTemp     rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "실내 온도"@ko ; phr:signalKey "temp" ; phr:unit "Cel" .
+phr:IndoorHumidity rdfs:subClassOf phr:EnvironmentReading ; rdfs:label "실내 습도"@ko ; phr:signalKey "humidity" ; phr:unit "%" .
+
+#################################################################
+#  교차신호 화이트리스트 (I9) — 출처 첨부 조합만
+#################################################################
+phr:CrossSignalCombo a owl:Class ; rdfs:label "교차신호 조합(화이트리스트)"@ko ;
+    rdfs:comment "등재+출처 필수. 미등재 조합 생성 금지. 웰니스 단독 조합 영구 미발화(B4)."@ko .
+phr:Combo_RHR_Sleep   a phr:CrossSignalCombo ; rdfs:label "안정시심박↑+수면↓ (감염 조기신호)"@ko ; phr:hasEvidence true .
+phr:Combo_RHR_Resp    a phr:CrossSignalCombo ; rdfs:label "안정시심박↑+호흡수↑ (감염 초기)"@ko ; phr:hasEvidence true .
+phr:Combo_Act_Sleep   a phr:CrossSignalCombo ; rdfs:label "활동↓+수면↓ 지속 (생활습관)"@ko ; phr:hasEvidence true .
+phr:Combo_BP_BMI      a phr:CrossSignalCombo ; rdfs:label "가정혈압 주의+BMI 주의 (대사)"@ko ; phr:hasEvidence true .
+
+phr:DeviceDenyList a owl:Class ; rdfs:label "장치 임상판정 금지 목록"@ko ;
+    owl:oneOf ( phr:WatchSpO2 phr:ECGEvent phr:CompositeScore ) .
+
+#################################################################
+#  객체/데이터 속성 (신규)
+#################################################################
+phr:measuredBy          a owl:ObjectProperty ; rdfs:domain phr:DeviceMeasurement ; rdfs:range phr:Device .
+phr:hasDeviceGrade      a owl:ObjectProperty ; rdfs:range phr:DeviceGrade .
+phr:interpretedAsWellness a owl:ObjectProperty ; rdfs:domain phr:WatchSignal ; rdfs:range phr:WellnessLabel .
+phr:comparedToBaseline  a owl:ObjectProperty ; rdfs:domain phr:WatchSignal ; rdfs:range phr:PersonalBaseline .
+phr:hasEnvGrade         a owl:ObjectProperty ; rdfs:domain phr:EnvironmentReading ; rdfs:range phr:EnvGrade .
+phr:partOfCombo         a owl:ObjectProperty ; rdfs:domain phr:DeviceMeasurement ; rdfs:range phr:CrossSignalCombo .
+phr:deviceGrade         a owl:AnnotationProperty ; rdfs:label "장치 등급"@ko .
+phr:signalKey           a owl:AnnotationProperty ; rdfs:label "신호키(참조범위 조인)"@ko .
+phr:hasEvidence         a owl:AnnotationProperty ; rdfs:label "출처 보유"@ko .
+phr:WellnessOnly        a phr:Utilization ; rdfs:label "웰니스(본인 기저선만)"@ko .
+
+#################################################################
+#  도메인 공리 (장치·환경 — PHR의 A1~A8에 이어 B1~B9)
+#################################################################
+phr: skos:note """
+B1  deviceGrade=Wellness ⇒ ¬interpretedAs(임상 BandLabel) ; 본인 기저선 WellnessLabel만 (I8)
+B2  ECG·불규칙맥알림·워치SpO2(저산소판정)·낙상·합성점수 ∈ DeviceDenyList ⇒ 임상 라벨 금지(기기 알림 패스스루만)
+B3  워치 웰니스 신호(HRV·스트레스·수면)는 교차신호 입력에서 영구 제외 (유사과학 차단, I9)
+B4  CrossSignalCombo ⇒ 화이트리스트 등재 + 출처 필수 ; 미등재 조합 생성 금지 ; 웰니스 단독 조합 미발화
+B5  EnvironmentReading ⇒ 진단 아님 · '환경 교차 참고 + 환기 권유' 천장 ; 실내 한정(실외 혼동 금지)
+B6  사용자 채팅 타이핑 수치 ⇒ 개인화 미활성 (디바이스/연동만, I4)
+B7  원시값·고해상 파형(ECG·RR배열·hypnogram) ⇒ 저장·외부전송 금지 (A5 상속, 집계 스칼라만)
+B8  출처충돌(동일 신호: 워치 vs 의료기기) ⇒ 신뢰위계(clinical_near>consumer>wellness) + 재측정 권유 (I11)
+B9  체지방·근육·내장지방(임피던스 추정) ⇒ 추세 위주·천장 낮음(단정 금지)
+공유: signalKey로 PHR 검진값과 장치 측정값이 같은 ReferenceRange를 조인한다.
+""" .

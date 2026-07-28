@@ -17,6 +17,13 @@ app_*.db
 # 백업 파일
 *.bak
 
+# 시크릿 / 로컬 환경변수 (커밋 절대 금지)
+.env
+.env.*
+!.env.example
+*.key
+OPENAI_API_KEY*.txt
+
 # 로컬 개발 아티팩트
 .claude/dev_logs*.json
 .claude/all_logs.json
@@ -54,3 +61,11 @@ reports/cost_report*.md
 
 # 임시 deploy/test 로그 (다른 worktree 산출물)
 prod_deploy_*.log
+node_modules/
+package.json
+package-lock.json
+*.png
+~$*
+
+# docs/manual/build 중간 PDF 산출물 (최종본은 docs/manual/ 레벨에 커밋)
+docs/manual/build/*.pdf

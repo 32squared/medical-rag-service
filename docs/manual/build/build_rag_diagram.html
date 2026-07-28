@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>마이헬스케어 RAG 다이어그램</title>
+<style>
+  @page { size: A4; margin: 8mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { margin: 0; padding: 0; }
+  svg { display: block; width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 760 1080" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Malgun Gothic', sans-serif">
+  <title>마이헬스케어 RAG 작동 원리 — 비전공자용 설명</title>
+  <desc>RAG는 평소에 신뢰할 수 있는 의료 자료로 지식창고를 만들어 두고, 질문이 오면 그 창고에서 근거를 검색해 근거가 충분할 때만 출처를 달아 답하는 구조입니다.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M1,1 L8,4.5 L1,8" fill="none" stroke="#5C6661" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <!-- warm light canvas -->
+  <rect x="0" y="0" width="760" height="1080" fill="#F6F4EF"/>
+
+  <!-- Title -->
+  <text x="380" y="34" text-anchor="middle" font-size="23" font-weight="700" fill="#23302C">마이헬스케어 RAG, 쉽게 이해하기</text>
+  <text x="380" y="58" text-anchor="middle" font-size="13.5" fill="#5C6661">'아는 척'으로 지어내지 않고 — 믿을 자료를 찾아본 뒤 답하는 AI</text>
+
+  <!-- Definition callout -->
+  <rect x="20" y="76" width="720" height="70" rx="12" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <rect x="20" y="76" width="6" height="70" rx="3" fill="#0E8A6B"/>
+  <text x="42" y="104" font-size="14.5" font-weight="700" fill="#23302C">RAG = 검색(Retrieval) + 생성(Generation)</text>
+  <text x="42" y="126" font-size="12.5" fill="#5C6661">AI가 기억에 기대 지어내지 않도록, 먼저 신뢰할 의료 자료를 '검색'하고</text>
+  <text x="42" y="142" font-size="12.5" fill="#5C6661">그 근거로만 답을 '생성'합니다. 의료법상 진단·처방을 못 하기에 더더욱 필요합니다.</text>
+
+  <!-- Phase 1 header -->
+  <text x="20" y="180" font-size="15.5" font-weight="700" fill="#23302C">1단계 · 평소에 '의료 지식창고'를 만들어 둡니다 (서비스 준비)</text>
+
+  <!-- Phase 1 boxes -->
+  <rect x="20" y="192" width="224" height="74" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <circle cx="44" cy="216" r="13" fill="#0E8A6B"/>
+  <text x="44" y="221" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">1</text>
+  <text x="66" y="216" font-size="14" font-weight="700" fill="#23302C">신뢰 출처 수집</text>
+  <text x="36" y="248" font-size="11.5" fill="#5C6661">식약처·질병청·KDCA 등</text>
+
+  <rect x="268" y="192" width="224" height="74" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <circle cx="292" cy="216" r="13" fill="#0E8A6B"/>
+  <text x="292" y="221" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">2</text>
+  <text x="314" y="216" font-size="14" font-weight="700" fill="#23302C">잘게 자르기</text>
+  <text x="284" y="248" font-size="11.5" fill="#5C6661">문단·표 단위 '청킹'</text>
+
+  <rect x="516" y="192" width="224" height="74" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <circle cx="540" cy="216" r="13" fill="#0E8A6B"/>
+  <text x="540" y="221" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">3</text>
+  <text x="562" y="216" font-size="14" font-weight="700" fill="#23302C">의미를 숫자로</text>
+  <text x="532" y="248" font-size="11.5" fill="#5C6661">벡터 '임베딩'</text>
+
+  <line x1="246" y1="229" x2="266" y2="229" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="494" y1="229" x2="514" y2="229" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="380" y1="266" x2="380" y2="292" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- KB cylinder -->
+  <path d="M250,304 a130,14 0 0 1 260,0 v40 a130,14 0 0 1 -260,0 z" fill="#FFFFFF" stroke="#0E8A6B" stroke-width="1.8"/>
+  <ellipse cx="380" cy="304" rx="130" ry="14" fill="#FFFFFF" stroke="#0E8A6B" stroke-width="1.8"/>
+  <text x="380" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#23302C">🗄 의료 지식창고 (KB)</text>
+  <text x="380" y="372" text-anchor="middle" font-size="11.5" fill="#5C6661">잘게 나눈 자료를 검색용으로 색인 완료</text>
+
+  <line x1="380" y1="384" x2="380" y2="404" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <!-- Phase 2 header -->
+  <text x="20" y="400" font-size="15.5" font-weight="700" fill="#23302C">2단계 · 사용자가 질문하면 (실시간)</text>
+
+  <!-- step4 -->
+  <rect x="160" y="412" width="440" height="50" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text x="184" y="436" font-size="13.5" font-weight="700" fill="#23302C">④ 질문 이해·분류</text>
+  <text x="184" y="453" font-size="11.5" fill="#5C6661">응급인가? 약 질문인가? 위험도는?</text>
+  <line x1="380" y1="462" x2="380" y2="476" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step5 -->
+  <rect x="160" y="478" width="440" height="50" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text x="184" y="502" font-size="13.5" font-weight="700" fill="#23302C">⑤ 지식창고에서 검색</text>
+  <text x="184" y="519" font-size="11.5" fill="#5C6661">의미 검색 + 키워드 검색 동시 (하이브리드)</text>
+  <line x1="380" y1="528" x2="380" y2="542" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step6 gate -->
+  <rect x="160" y="544" width="440" height="86" rx="10" fill="#FFFFFF" stroke="#0E8A6B" stroke-width="2"/>
+  <rect x="160" y="544" width="6" height="86" rx="3" fill="#0E8A6B"/>
+  <text x="184" y="568" font-size="13.5" font-weight="700" fill="#23302C">⑥ 근거가 충분한가? — 안전 게이트</text>
+  <circle cx="190" cy="588" r="4" fill="#0E8A6B"/>
+  <text x="202" y="592" font-size="11.5" fill="#5C6661">충분하면 → 답변 진행</text>
+  <circle cx="190" cy="610" r="4" fill="#E0A23E"/>
+  <text x="202" y="614" font-size="11.5" fill="#5C6661">부족하면 → "근거 부족" 솔직히 알리고 진료과·병원 안내</text>
+  <line x1="380" y1="630" x2="380" y2="644" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step7 -->
+  <rect x="160" y="646" width="440" height="50" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text x="184" y="670" font-size="13.5" font-weight="700" fill="#23302C">⑦ 검토 자료 묶기</text>
+  <text x="184" y="687" font-size="11.5" fill="#5C6661">찾은 근거만 8개 이내로 정리</text>
+  <line x1="380" y1="696" x2="380" y2="710" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step8 -->
+  <rect x="160" y="712" width="440" height="50" rx="10" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text x="184" y="736" font-size="13.5" font-weight="700" fill="#23302C">⑧ AI가 답 작성</text>
+  <text x="184" y="753" font-size="11.5" fill="#5C6661">이 근거만 사용 · 문장마다 [출처] 인용</text>
+  <line x1="380" y1="762" x2="380" y2="776" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step9 -->
+  <rect x="160" y="778" width="440" height="50" rx="10" fill="#FFFFFF" stroke="#D64545" stroke-width="1.8"/>
+  <rect x="160" y="778" width="6" height="50" rx="3" fill="#D64545"/>
+  <text x="184" y="802" font-size="13.5" font-weight="700" fill="#23302C">⑨ 안전 검사 (가드레일)</text>
+  <text x="184" y="819" font-size="11.5" fill="#5C6661">진단·처방·응급 오판 발견 시 다시 생성</text>
+  <line x1="380" y1="828" x2="380" y2="842" stroke="#5C6661" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <!-- step10 -->
+  <rect x="160" y="844" width="440" height="54" rx="10" fill="#FFFFFF" stroke="#0E8A6B" stroke-width="2"/>
+  <text x="184" y="868" font-size="13.5" font-weight="700" fill="#23302C">⑩ 최종 답변 전달</text>
+  <text x="184" y="886" font-size="11.5" fill="#5C6661">상단·하단 면책 + 개인 맞춤 안내(선택)</text>
+
+  <!-- Legend -->
+  <rect x="20" y="922" width="720" height="92" rx="12" fill="#FFFFFF" stroke="#DAD5CB" stroke-width="1.5"/>
+  <text x="42" y="948" font-size="13" font-weight="700" fill="#23302C">색상 의미</text>
+  <circle cx="48" cy="972" r="6" fill="#D64545"/>
+  <text x="62" y="976" font-size="12" fill="#5C6661">응급 — 즉시 119·응급실</text>
+  <circle cx="288" cy="972" r="6" fill="#E0A23E"/>
+  <text x="302" y="976" font-size="12" fill="#5C6661">주의 — 근거 부족·조건부 안내</text>
+  <circle cx="560" cy="972" r="6" fill="#0E8A6B"/>
+  <text x="574" y="976" font-size="12" fill="#5C6661">안전장치</text>
+  <text x="42" y="1000" font-size="12.5" font-weight="700" fill="#0E8A6B">핵심 원칙: 근거가 없으면 답하지 않는다 → '지어내기(환각)'를 구조적으로 차단</text>
+</svg>
+</body>
+</html>

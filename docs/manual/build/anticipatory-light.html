@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  .ti{font-family:'tabler-icons'!important;font-style:normal}
+  html,body{width:390px;height:844px}
+  body{font-family:'Pretendard',sans-serif;background:#F6F4EF;color:#232220;position:relative;
+    overflow:hidden;display:flex;flex-direction:column}
+  .amb{position:absolute;inset:0;background:
+    radial-gradient(340px 300px at 80% 10%, rgba(224,162,62,.12), transparent 70%),
+    radial-gradient(360px 320px at 18% 42%, rgba(14,138,107,.07), transparent 70%)}
+  .w{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:0 24px}
+  .st{height:54px;flex:none;display:flex;align-items:center;justify-content:space-between;
+    font-size:13px;color:rgba(35,34,32,.45);padding-top:10px;letter-spacing:-.2px}
+  .av{width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid rgba(0,0,0,.08);
+    display:flex;align-items:center;justify-content:center;color:rgba(35,34,32,.55);font-size:17px;
+    box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .head{display:flex;align-items:center;gap:13px;margin-top:14px;margin-bottom:22px}
+  .orb{width:54px;height:54px;border-radius:50%;flex:none;
+    background:radial-gradient(circle at 38% 32%, #F2D9A0 0%, #E0A23E 40%, #B97A1E 75%, #7A4E12 100%);
+    box-shadow:0 6px 20px rgba(224,162,62,.4), inset -5px -6px 13px rgba(60,38,8,.4),
+      inset 4px 5px 11px rgba(255,240,210,.5)}
+  .head .gt{font-size:14px;color:rgba(35,34,32,.55)}
+  .head .gn{font-size:20px;font-weight:600;letter-spacing:-.4px;margin-top:2px}
+  .lead{font-size:12px;font-weight:600;letter-spacing:1.2px;color:rgba(35,34,32,.42);
+    text-transform:uppercase;margin-bottom:11px;display:flex;align-items:center;gap:7px}
+  .lead .p{width:7px;height:7px;border-radius:50%;background:#E0A23E}
+  .prio{background:rgba(224,162,62,.1);border:1px solid rgba(224,162,62,.32);border-radius:24px;
+    padding:20px;box-shadow:0 8px 26px rgba(185,122,30,.08)}
+  .prio .ic{width:44px;height:44px;border-radius:13px;background:rgba(224,162,62,.18);color:#B5721A;
+    display:flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:14px}
+  .prio .h{font-size:18px;font-weight:600;letter-spacing:-.4px;line-height:1.35}
+  .prio .b{font-size:14px;color:rgba(35,34,32,.66);line-height:1.55;margin-top:8px;letter-spacing:-.2px}
+  .prio .meta{font-size:11.5px;color:rgba(35,34,32,.42);margin-top:11px;display:flex;align-items:center;gap:5px}
+  .prio .acts{display:flex;gap:9px;margin-top:16px}
+  .btnP{flex:1;background:#E0A23E;color:#3A2606;border-radius:13px;height:46px;display:flex;
+    align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:600;letter-spacing:-.2px}
+  .btnG{background:#fff;border:1px solid rgba(0,0,0,.1);color:#232220;border-radius:13px;height:46px;
+    display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500;padding:0 16px}
+  .antlbl{font-size:13px;color:rgba(35,34,32,.5);margin:24px 0 12px;letter-spacing:-.2px}
+  .q{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;
+    border:1px solid rgba(0,0,0,.07);border-radius:16px;margin-bottom:9px;box-shadow:0 3px 12px rgba(0,0,0,.035)}
+  .q i{color:#0E8A6B;font-size:18px}
+  .q .qt{flex:1;font-size:14px;color:#232220;letter-spacing:-.2px}
+  .q .ar{color:rgba(35,34,32,.3);font-size:16px}
+  .sp{flex:1}
+  .ask{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid rgba(0,0,0,.08);
+    border-radius:18px;padding:12px 12px 12px 16px;margin-bottom:22px;box-shadow:0 4px 16px rgba(0,0,0,.04)}
+  .ask .s{font-size:17px;color:rgba(35,34,32,.4)}
+  .ask .ph{flex:1;font-size:13.5px;color:rgba(35,34,32,.42);letter-spacing:-.2px}
+  .ask .m{width:32px;height:32px;border-radius:50%;background:#F1EFE9;color:rgba(35,34,32,.55);
+    display:flex;align-items:center;justify-content:center;font-size:16px}
+</style></head>
+<body>
+  <div class="amb"></div>
+  <div class="w">
+    <div class="st"><span>수요일 저녁 · 9:41</span><div class="av"><i class="ti ti-user"></i></div></div>
+    <div class="head">
+      <div class="orb"></div>
+      <div><div class="gt">김건강님, 안 물어보셔도</div><div class="gn">오늘 챙길 게 하나 있어요</div></div>
+    </div>
+    <div class="lead"><span class="p"></span>지금 꼭 챙기세요</div>
+    <div class="prio">
+      <div class="ic"><i class="ti ti-heart-rate-monitor"></i></div>
+      <div class="h">혈압이 3일째<br>주의 구간이에요</div>
+      <div class="b">어제까지 이어졌어요. 이번 주 안에 진료를 한 번 고려해보시면 좋겠어요.</div>
+      <div class="meta"><i class="ti ti-info-circle" style="font-size:13px"></i>측정 구간 기준 안내 · 진단은 아니에요</div>
+      <div class="acts">
+        <div class="btnP"><i class="ti ti-map-pin"></i>가까운 병원 찾기</div>
+        <div class="btnG">내일 다시 알려줘</div>
+      </div>
+    </div>
+    <div class="antlbl">이런 것도 궁금하실 수 있어요</div>
+    <div class="q"><i class="ti ti-sparkles"></i><span class="qt">어제는 왜 더 높았을까요?</span><i class="ti ti-chevron-right ar"></i></div>
+    <div class="q"><i class="ti ti-sparkles"></i><span class="qt">저염 말고 또 뭐가 도움될까요?</span><i class="ti ti-chevron-right ar"></i></div>
+    <div class="sp"></div>
+    <div class="ask"><i class="ti ti-microphone s"></i><span class="ph">다른 게 궁금하면 물어보세요</span>
+      <span class="m"><i class="ti ti-arrow-up"></i></span></div>
+  </div>
+</body></html>

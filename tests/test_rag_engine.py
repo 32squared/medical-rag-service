@@ -267,8 +267,9 @@ class TestEvidenceTopicAlignment:
         assert filtered[0]["chunk_id"] == "ET1"
         assert filtered[0]["topic_alignment_score"] >= 0.4
 
-    def test_unrelated_topic_removed(self):
-        """evidence_topic이 질의와 무관하면 (sim < threshold) 제거."""
+    def test_unrelated_topic_kept_with_low_score(self):
+        """evidence_topic이 질의와 무관해도(sim < threshold) 청크는 유지되고,
+        낮은 topic_alignment_score만 부여된다. 실제 게이팅은 evaluate_retrieval_gate가 담당."""
         # query vector와 topic vector가 직교 → cosine sim = 0.0
         query_vec = [1.0, 0.0, 0.0]
         topic_vec = [0.0, 1.0, 0.0]
@@ -280,7 +281,9 @@ class TestEvidenceTopicAlignment:
         filtered = check_evidence_topic_alignment(
             [chunk], "소아 발열", provider, threshold=0.4
         )
-        assert len(filtered) == 0
+        assert len(filtered) == 1
+        assert filtered[0]["chunk_id"] == "ET2"
+        assert filtered[0]["topic_alignment_score"] < 0.4
 
     def test_no_evidence_topic_passes(self):
         """evidence_topic이 없는 청크는 검증 없이 통과."""
@@ -312,8 +315,8 @@ class TestEvidenceTopicAlignment:
         result = check_evidence_topic_alignment([], "발열", provider)
         assert result == []
 
-    def test_filtered_reason_recorded(self):
-        """제거된 청크에 filtered_reason이 기록된다."""
+    def test_low_alignment_score_recorded(self):
+        """무관 청크는 제거되지 않고 낮은 topic_alignment_score가 기록된다."""
         query_vec = [1.0, 0.0, 0.0]
         topic_vec = [0.0, 1.0, 0.0]
         provider = self._make_mock_provider({
@@ -321,15 +324,14 @@ class TestEvidenceTopicAlignment:
             "alopecia_treatment": topic_vec,
         })
         chunk = _make_chunk("ET6", evidence_topic="alopecia_treatment")
-        # 함수 반환값에서 제거됐으므로 원본 chunk 딕셔너리 직접 확인
-        check_evidence_topic_alignment(
+        result = check_evidence_topic_alignment(
             [chunk], "발열", provider, threshold=0.4
         )
-        assert "filtered_reason" in chunk
-        assert "evidence_topic_mismatch" in chunk["filtered_reason"]
+        assert len(result) == 1
+        assert chunk["topic_alignment_score"] < 0.4
 
-    def test_multiple_chunks_partial_filter(self):
-        """여러 청크 중 일부만 관련 있을 때 관련 청크만 통과."""
+    def test_multiple_chunks_scored_not_removed(self):
+        """여러 청크 모두 유지되며 관련도에 따라 topic_alignment_score가 차등 부여된다."""
         query_vec = [1.0, 0.0, 0.0]
         matching_vec = [0.9, 0.1, 0.0]   # sim ≈ 0.994
         unrelated_vec = [0.0, 0.0, 1.0]  # sim = 0.0
@@ -347,12 +349,13 @@ class TestEvidenceTopicAlignment:
             _make_chunk("C1", evidence_topic="fever_related"),
             _make_chunk("C2", evidence_topic="skin_disease"),
         ]
-        filtered = check_evidence_topic_alignment(
+        result = check_evidence_topic_alignment(
             chunks, "소아 발열", provider, threshold=0.4
         )
-        chunk_ids = [c["chunk_id"] for c in filtered]
-        assert "C1" in chunk_ids
-        assert "C2" not in chunk_ids
+        by_id = {c["chunk_id"]: c for c in result}
+        assert set(by_id) == {"C1", "C2"}  # 제거 없음
+        assert by_id["C1"]["topic_alignment_score"] >= 0.4
+        assert by_id["C2"]["topic_alignment_score"] < 0.4
 
 
 # ════════════════════════════════════════════════════════════

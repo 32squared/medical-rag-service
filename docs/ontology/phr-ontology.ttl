@@ -1,0 +1,187 @@
+# PHR 데이터 온톨로지 (마이헬스케어) — Turtle/OWL
+# 작성: 2026-06-21. Protégé 등에서 열람 가능.
+# 안전설계(진단 금지·민감 비표시·deny·원시값 비노출)를 클래스 주석·개체·공리로 박음.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix phr:  <https://namuh.health/phr#> .
+
+phr: a owl:Ontology ;
+    rdfs:label "PHR 데이터 온톨로지"@ko ;
+    rdfs:comment "공단·심평원 건강검진/진료/처방 데이터를 진단 없이 안전하게 활용하기 위한 개념 모델."@ko ;
+    owl:versionInfo "0.1 (2026-06-21)" .
+
+#################################################################
+#  주석(어노테이션) 속성 — 필드 메타 분류용
+#################################################################
+phr:unit        a owl:AnnotationProperty ; rdfs:label "단위"@ko .
+phr:dataType    a owl:AnnotationProperty ; rdfs:label "데이터 타입"@ko .
+phr:sensitivity a owl:AnnotationProperty ; rdfs:label "민감도"@ko .
+phr:utilization a owl:AnnotationProperty ; rdfs:label "활용 방식"@ko .
+
+#################################################################
+#  통제 어휘 (개체)
+#################################################################
+phr:Sensitivity a owl:Class ; rdfs:label "민감도"@ko .
+phr:General   a phr:Sensitivity ; rdfs:label "일반"@ko .
+phr:Sensitive a phr:Sensitivity ; rdfs:label "민감(정신·암·감염병)"@ko .
+
+phr:Utilization a owl:Class ; rdfs:label "활용 방식"@ko .
+phr:Banded         a phr:Utilization ; rdfs:label "밴드(구간 라벨)"@ko .
+phr:Deny           a phr:Utilization ; rdfs:label "deny(밴드 금지·의료진 위임)"@ko .
+phr:TimeArithmetic a phr:Utilization ; rdfs:label "시간산술"@ko .
+phr:HistoryAck     a phr:Utilization ; rdfs:label "이력 표시(ack)"@ko .
+phr:InternalOnly   a phr:Utilization ; rdfs:label "내부 신호만(비표시)"@ko .
+
+phr:BandLabel a owl:Class ; rdfs:label "밴드 라벨(노출)"@ko ;
+    owl:oneOf ( phr:안정 phr:주의 phr:경고 ) .
+phr:안정 a phr:BandLabel . phr:주의 a phr:BandLabel . phr:경고 a phr:BandLabel .
+
+phr:Trend a owl:Class ; rdfs:label "추세"@ko ;
+    rdfs:comment "데이터 패턴만. '개선/악화'(건강 판단)는 포함하지 않음(공리 A4)."@ko ;
+    owl:oneOf ( phr:안정유지 phr:지속상승 phr:지속저하 phr:불안정반복 ) .
+phr:안정유지 a phr:Trend . phr:지속상승 a phr:Trend . phr:지속저하 a phr:Trend . phr:불안정반복 a phr:Trend .
+
+phr:VisitType a owl:Class ; owl:oneOf ( phr:외래 phr:입원 phr:응급 ) .
+phr:외래 a phr:VisitType . phr:입원 a phr:VisitType . phr:응급 a phr:VisitType .
+
+phr:ScreeningResult a owl:Class ; owl:oneOf ( phr:정상 phr:이상소견 phr:판정유보 ) .
+phr:정상 a phr:ScreeningResult . phr:이상소견 a phr:ScreeningResult . phr:판정유보 a phr:ScreeningResult .
+
+phr:Provenance a owl:Class ; owl:oneOf ( phr:공단 phr:심평원 phr:파트너앱 phr:OCR ) .
+phr:공단 a phr:Provenance . phr:심평원 a phr:Provenance . phr:파트너앱 a phr:Provenance . phr:OCR a phr:Provenance .
+
+#################################################################
+#  핵심 클래스
+#################################################################
+phr:Person a owl:Class ; rdfs:label "사람"@ko .
+phr:PHR    a owl:Class ; rdfs:label "개인건강기록"@ko .
+
+phr:HealthRecord a owl:Class ; rdfs:label "건강기록(추상)"@ko .
+phr:HealthCheckup   rdfs:subClassOf phr:HealthRecord ; rdfs:label "건강검진"@ko .
+phr:DiseaseHistory  rdfs:subClassOf phr:HealthRecord ; rdfs:label "질병이력"@ko .
+phr:FamilyHistory   rdfs:subClassOf phr:HealthRecord ; rdfs:label "가족력"@ko .
+phr:Lifestyle       rdfs:subClassOf phr:HealthRecord ; rdfs:label "생활습관"@ko .
+phr:CancerScreening rdfs:subClassOf phr:HealthRecord ; rdfs:label "암검진"@ko .
+phr:HealthReport    rdfs:subClassOf phr:HealthRecord ; rdfs:label "건강리포트"@ko .
+phr:Prescription    rdfs:subClassOf phr:HealthRecord ; rdfs:label "처방"@ko .
+phr:TreatmentVisit  rdfs:subClassOf phr:HealthRecord ; rdfs:label "진료이력"@ko .
+
+# 보조 개념
+phr:Condition         a owl:Class ; rdfs:label "질환/상병"@ko .
+phr:DrugClass         a owl:Class ; rdfs:label "약물계열(ATC)"@ko .
+phr:Institution       a owl:Class ; rdfs:label "요양기관"@ko .
+phr:MedicalDepartment a owl:Class ; rdfs:label "진료과"@ko .
+phr:RecommendedCycle  a owl:Class ; rdfs:label "권장주기"@ko .
+phr:ReferenceRange    a owl:Class ; rdfs:label "참조범위"@ko .
+phr:Band              a owl:Class ; rdfs:label "밴드 구간"@ko .
+
+#################################################################
+#  관찰값(Observation) 분류 + 리프 필드(단위·민감도·활용)
+#################################################################
+phr:Observation a owl:Class ; rdfs:label "관찰값(추상)"@ko .
+
+phr:Anthropometric    rdfs:subClassOf phr:Observation ; rdfs:label "계측"@ko .
+phr:VitalMeasure      rdfs:subClassOf phr:Observation ; rdfs:label "활력"@ko .
+phr:BloodTest         rdfs:subClassOf phr:Observation ; rdfs:label "혈액검사"@ko .
+phr:LiverFunctionTest rdfs:subClassOf phr:Observation ; rdfs:label "간기능검사"@ko .
+phr:UrineTest         rdfs:subClassOf phr:Observation ; rdfs:label "요검사"@ko .
+phr:ImagingResult     rdfs:subClassOf phr:Observation ; rdfs:label "영상검사"@ko .
+phr:BoneDensity       rdfs:subClassOf phr:Observation ; rdfs:label "골밀도"@ko .
+phr:OralExam          rdfs:subClassOf phr:Observation ; rdfs:label "구강검진"@ko .
+phr:OverallJudgment   rdfs:subClassOf phr:Observation ; rdfs:label "종합판정"@ko .
+
+# 계측
+phr:Height rdfs:subClassOf phr:Anthropometric ; rdfs:label "신장"@ko ; phr:unit "cm" ; phr:dataType "수치" ; phr:sensitivity phr:General ; phr:utilization phr:InternalOnly .
+phr:Weight rdfs:subClassOf phr:Anthropometric ; rdfs:label "체중"@ko ; phr:unit "kg" ; phr:dataType "수치" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:Waist  rdfs:subClassOf phr:Anthropometric ; rdfs:label "허리둘레"@ko ; phr:unit "cm" ; phr:dataType "수치" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:BMI    rdfs:subClassOf phr:Anthropometric ; rdfs:label "체질량지수"@ko ; phr:unit "kg/m2" ; phr:dataType "수치(파생)" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+
+# 활력(혈압)
+phr:SystolicBP  rdfs:subClassOf phr:VitalMeasure ; rdfs:label "수축기혈압"@ko ; phr:unit "mmHg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:DiastolicBP rdfs:subClassOf phr:VitalMeasure ; rdfs:label "이완기혈압"@ko ; phr:unit "mmHg" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+
+# 혈액검사
+phr:Hemoglobin       rdfs:subClassOf phr:BloodTest ; rdfs:label "혈색소"@ko ; phr:unit "g/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:FastingGlucose   rdfs:subClassOf phr:BloodTest ; rdfs:label "공복혈당"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:TotalCholesterol rdfs:subClassOf phr:BloodTest ; rdfs:label "총콜레스테롤"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:HDL              rdfs:subClassOf phr:BloodTest ; rdfs:label "HDL콜레스테롤"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:LDL              rdfs:subClassOf phr:BloodTest ; rdfs:label "LDL콜레스테롤"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Deny ; rdfs:comment "위험계층별 컷오프 가변 → deny(A2)."@ko .
+phr:Triglycerides    rdfs:subClassOf phr:BloodTest ; rdfs:label "중성지방"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:Creatinine       rdfs:subClassOf phr:BloodTest ; rdfs:label "크레아티닌"@ko ; phr:unit "mg/dL" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:eGFR             rdfs:subClassOf phr:BloodTest ; rdfs:label "사구체여과율"@ko ; phr:unit "mL/min/1.73m2" ; phr:sensitivity phr:General ; phr:utilization phr:Deny ; rdfs:comment "급성/만성·연령 의존 → deny(A2)."@ko .
+
+# 간기능
+phr:AST rdfs:subClassOf phr:LiverFunctionTest ; rdfs:label "AST"@ko ; phr:unit "U/L" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:ALT rdfs:subClassOf phr:LiverFunctionTest ; rdfs:label "ALT"@ko ; phr:unit "U/L" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+phr:GGT rdfs:subClassOf phr:LiverFunctionTest ; rdfs:label "감마지티피"@ko ; phr:unit "U/L" ; phr:sensitivity phr:General ; phr:utilization phr:Banded .
+
+# 요·영상·골·종합
+phr:UrineProtein rdfs:subClassOf phr:UrineTest ; rdfs:label "요단백"@ko ; phr:dataType "정성" ; phr:sensitivity phr:General ; phr:utilization phr:Deny ; rdfs:comment "일시적 양성 흔함 → deny(A2)."@ko .
+phr:ChestXray    rdfs:subClassOf phr:ImagingResult ; rdfs:label "흉부X선"@ko ; phr:dataType "판정문" ; phr:sensitivity phr:General ; phr:utilization phr:HistoryAck .
+phr:TScore       rdfs:subClassOf phr:BoneDensity ; rdfs:label "골밀도 T-score"@ko ; phr:dataType "수치(점수)" ; phr:sensitivity phr:General ; phr:utilization phr:Deny ; rdfs:comment "부위·연령·성별 의존 → deny(A2)."@ko .
+
+#################################################################
+#  객체 속성 (관계)
+#################################################################
+phr:hasPHR         a owl:ObjectProperty ; rdfs:domain phr:Person ;        rdfs:range phr:PHR .
+phr:hasRecord      a owl:ObjectProperty ; rdfs:domain phr:PHR ;           rdfs:range phr:HealthRecord .
+phr:hasObservation a owl:ObjectProperty ; rdfs:domain phr:HealthCheckup ; rdfs:range phr:Observation .
+phr:hasJudgment    a owl:ObjectProperty ; rdfs:domain phr:HealthCheckup ; rdfs:range phr:OverallJudgment .
+phr:comparedTo     a owl:ObjectProperty ; rdfs:domain phr:Observation ;   rdfs:range phr:ReferenceRange .
+phr:interpretedAs  a owl:ObjectProperty ; rdfs:domain phr:Observation ;   rdfs:range phr:BandLabel ;
+    rdfs:comment "노출 라벨은 안정/주의/경고만(A3). value는 비노출(A5)."@ko .
+phr:partOfTrend    a owl:ObjectProperty ; rdfs:domain phr:Observation ;   rdfs:range phr:Trend .
+phr:definesBand    a owl:ObjectProperty ; rdfs:domain phr:ReferenceRange ; rdfs:range phr:Band .
+phr:hasDrugClass   a owl:ObjectProperty ; rdfs:domain phr:Prescription ;  rdfs:range phr:DrugClass .
+phr:prescribedAt   a owl:ObjectProperty ; rdfs:domain phr:Prescription ;  rdfs:range phr:Institution .
+phr:records        a owl:ObjectProperty ; rdfs:domain phr:HealthRecord ;  rdfs:range phr:Condition .
+phr:screensFor     a owl:ObjectProperty ; rdfs:domain phr:CancerScreening ; rdfs:range phr:Condition .
+phr:recommendedCycle a owl:ObjectProperty ; rdfs:domain phr:CancerScreening ; rdfs:range phr:RecommendedCycle .
+phr:atInstitution  a owl:ObjectProperty ; rdfs:domain phr:TreatmentVisit ; rdfs:range phr:Institution .
+phr:inDepartment   a owl:ObjectProperty ; rdfs:domain phr:TreatmentVisit ; rdfs:range phr:MedicalDepartment .
+phr:diagnosis      a owl:ObjectProperty ; rdfs:domain phr:TreatmentVisit ; rdfs:range phr:Condition .
+phr:hasSensitivity a owl:ObjectProperty ; rdfs:range phr:Sensitivity .
+phr:hasProvenance  a owl:ObjectProperty ; rdfs:range phr:Provenance .
+
+#################################################################
+#  데이터 속성 (Attributes)
+#################################################################
+phr:value           a owl:DatatypeProperty ; rdfs:domain phr:Observation ; rdfs:range xsd:decimal ;
+    rdfs:comment "원시 측정값 — 내부 전용, 외부(LLM/국외) 미전송(A5)."@ko .
+phr:qualitativeValue a owl:DatatypeProperty ; rdfs:range xsd:string .
+phr:observedAt      a owl:DatatypeProperty ; rdfs:range xsd:date .
+phr:daysSupplied    a owl:DatatypeProperty ; rdfs:domain phr:Prescription ; rdfs:range xsd:integer .
+phr:isPresent       a owl:DatatypeProperty ; rdfs:range xsd:boolean .
+phr:ageAtOnset      a owl:DatatypeProperty ; rdfs:domain phr:FamilyHistory ; rdfs:range xsd:integer .
+phr:packYears       a owl:DatatypeProperty ; rdfs:domain phr:Lifestyle ; rdfs:range xsd:decimal .
+phr:clinicalLabel   a owl:DatatypeProperty ; rdfs:range xsd:string ;
+    rdfs:comment "임상/질환명 라벨 — 내부 전용, 사용자 미노출(A3)."@ko .
+
+#################################################################
+#  도메인 공리 (안전 규칙 — 일부는 OWL 표현, 나머지는 정책 주석)
+#################################################################
+# A1: 민감 질환은 표면화 금지 (개체 분류로 표현)
+phr:Depression   rdfs:subClassOf phr:Condition ; rdfs:label "우울증"@ko ; phr:sensitivity phr:Sensitive .
+phr:Psychosis    rdfs:subClassOf phr:Condition ; rdfs:label "정신질환"@ko ; phr:sensitivity phr:Sensitive .
+phr:HepatitisC   rdfs:subClassOf phr:Condition ; rdfs:label "C형간염"@ko ; phr:sensitivity phr:Sensitive .
+phr:Tuberculosis rdfs:subClassOf phr:Condition ; rdfs:label "결핵"@ko ; phr:sensitivity phr:Sensitive .
+phr:Cancer       rdfs:subClassOf phr:Condition ; rdfs:label "암"@ko ; phr:sensitivity phr:Sensitive .
+
+phr:DenyList a owl:Class ; rdfs:label "밴드 금지 목록"@ko ;
+    owl:oneOf ( phr:eGFR phr:TScore phr:UrineProtein phr:LDL ) .
+
+# 규칙 메모(SWRL/SHACL로 구현 권장):
+phr: skos:note """
+A1  Condition.sensitivity=Sensitive ⇒ ¬surfaceable (표면화 금지, 내부 신호만)
+A2  Observation ∈ DenyList ⇒ ¬interpretedAs(BandLabel) ; 대신 referToClinician
+A3  노출 라벨 ⊆ {안정,주의,경고} ; clinicalLabel ⊑ internalOnly
+A4  Trend ⊑ 데이터패턴 ; {개선,악화} ∉ Trend (건강판단 금지)
+A5  Observation.value ⊑ internalOnly (원시값 비노출·외부 미전송)
+A6  CancerScreening.gapMonths = today − lastDoneOn − recommendedCycle (시간산술)
+A7  Prescription 노출 = DrugClass ∧ 과거시제 ∧ (계열 ∉ {정신과,항감염} else internalOnly)
+A8  surfaceable(record) ⇐ sensitivity=General ∧ relevantToQuery ∧ fresh
+""" .

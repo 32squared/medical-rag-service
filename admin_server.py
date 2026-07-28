@@ -1,0 +1,502 @@
+"""admin_server.py — RAG 운영 어드민 대시보드 (비밀번호 보호, 공개 ingress).
+
+답변속도·토큰·대화통계·최근쿼리(원문)·프롬프트를 보여준다. 데이터는 RAG 서비스의
+/api/rag/admin/* 집계 엔드포인트를 서버-대-서버(IAM 토큰 + X-Admin-Secret)로 호출해 받는다.
+사람 접근은 ADMIN_PASSWORD 쿠키 게이트로 보호.
+
+env: RAG_DEV_URL(대상 RAG), ADMIN_SECRET(엔드포인트 공유 비밀), ADMIN_PASSWORD(로그인),
+     PORT, K_SERVICE(Cloud Run 감지).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import sys
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs, quote
+import urllib.request
+import urllib.error
+
+RAG_URL = (os.environ.get("RAG_DEV_URL")
+           or "https://medical-rag-dev-716262961556.asia-northeast3.run.app").rstrip("/")
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+_SID = hashlib.sha256(("mha-admin|" + ADMIN_PASSWORD).encode()).hexdigest() if ADMIN_PASSWORD else ""
+
+_token = {}
+
+
+def get_id_token(audience=None):
+    key = audience or "_"
+    now = time.time()
+    c = _token.get(key)
+    if c and now - c[1] < 2400:
+        return c[0]
+    tok = None
+    if os.environ.get("K_SERVICE"):
+        try:
+            req = urllib.request.Request(
+                "http://metadata.google.internal/computeMetadata/v1/instance/"
+                "service-accounts/default/identity?audience=" + quote(audience or "", safe=""),
+                headers={"Metadata-Flavor": "Google"})
+            tok = urllib.request.urlopen(req, timeout=5).read().decode().strip() or None
+        except Exception as e:
+            sys.stderr.write(f"[token] {e}\n")
+    if tok:
+        _token[key] = (tok, now)
+    return tok
+
+
+def rag_get(path_qs):
+    """RAG admin 엔드포인트 GET 프록시 (IAM 토큰 + X-Admin-Secret)."""
+    url = f"{RAG_URL}{path_qs}"
+    h = {"X-Admin-Secret": ADMIN_SECRET,
+         "X-User-Id": "admin", "X-User-Role": "admin", "X-User-Permissions": "manage_kb"}
+    if ".run.app" in RAG_URL:
+        tok = get_id_token(audience=RAG_URL)
+        if tok:
+            h["Authorization"] = "Bearer " + tok
+    req = urllib.request.Request(url, headers=h, method="GET")
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read()
+
+
+PAGE = """<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>마이헬스케어 — RAG 어드민</title>
+<style>
+:root{--b:#e6e4da;--mut:#6b6a64;--ink:#26261f;--grn:#0f6e56;--red:#c62828;--amb:#b06a00}
+*{box-sizing:border-box}body{font-family:'Malgun Gothic','Segoe UI',sans-serif;margin:0;color:var(--ink);background:#faf9f5}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px}.sub{color:var(--mut);font-size:12px}
+.bar{display:flex;gap:8px;align-items:center;margin:12px 0}
+select,button{font:inherit;padding:5px 9px;border:1px solid var(--b);border-radius:8px;background:#fff;cursor:pointer}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0}
+.card{border:1px solid var(--b);border-radius:12px;background:#fff;padding:11px 13px}
+.card .k{font-size:12px;color:var(--mut)}.card .v{font-size:22px;font-weight:700;margin-top:3px}
+.card .s{font-size:11px;color:var(--mut);margin-top:2px}
+.sec{border:1px solid var(--b);border-radius:12px;background:#fff;padding:12px 14px;margin:12px 0}
+.sec h2{font-size:14px;margin:0 0 8px;color:var(--grn)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{border-bottom:1px solid #eee;padding:5px 7px;text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:600}
+.barrow{display:flex;align-items:center;gap:6px;margin:3px 0;font-size:12px}
+.barrow .lab{min-width:120px}.barrow .bg{flex:1;background:#f0efe9;border-radius:5px;height:14px;overflow:hidden}
+.barrow .fill{height:100%;background:#1d9e75}
+pre{white-space:pre-wrap;font-size:11px;background:#f6f5f0;border:1px solid var(--b);border-radius:8px;padding:10px;max-height:340px;overflow:auto}
+.q{color:#1f4e79}.a{color:#333}
+.tabs{display:flex;gap:6px;align-items:center;margin:12px 0;flex-wrap:wrap}
+.tabbtn{font:inherit;padding:6px 14px;border:1px solid var(--b);border-radius:8px;background:#fff;cursor:pointer;color:var(--mut)}
+.tabbtn.on{background:#0f6e56;color:#fff;border-color:#0f6e56}
+.qrow{cursor:pointer}.qrow:hover{background:#f6f5f0}
+.detail{background:#f6f5f0;border-radius:8px;padding:10px 12px}
+.detail .ans{white-space:pre-wrap;font-size:12px;line-height:1.6;margin-top:5px}
+.login{max-width:320px;margin:14vh auto;text-align:center}
+.login input{font:inherit;padding:8px 10px;border:1px solid var(--b);border-radius:8px;width:100%;margin:8px 0}
+.pill{display:inline-block;font-size:11px;border-radius:6px;padding:1px 6px}
+.warn{background:#fbe9e9;color:#c62828}.ok{background:#e7f3e8;color:#2e7d32}
+#gcanvas{border:1px solid var(--b);border-radius:12px;background:#fff;display:block;cursor:grab;touch-action:none}
+.gctl{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 8px;font-size:12px;color:var(--mut)}
+.gctl input[type=text]{font:inherit;padding:5px 9px;border:1px solid var(--b);border-radius:8px;min-width:170px}
+.glegend span{display:inline-flex;align-items:center;gap:4px;margin-right:10px}
+.gdot{width:9px;height:9px;border-radius:50%;display:inline-block}
+</style></head><body><div class=wrap>
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+ <div><h1>마이헬스케어 — RAG 운영 어드민</h1><div class=sub>답변속도 · 토큰 · 대화 통계 · 프롬프트 · 최근 쿼리</div></div>
+ <a href="/logout" style="font-size:12px;color:#888">로그아웃</a></div>
+<div class=bar>구간 <select id=days onchange=load()>
+ <option value=7>최근 7일</option><option value=30 selected>최근 30일</option><option value=90>최근 90일</option></select>
+ <button onclick=load()>새로고침</button>
+ <span class=sub style="margin-left:auto">🕒 모든 시간은 <b>KST(UTC+9)</b> 기준</span></div>
+<div class=tabs>
+ <button class="tabbtn on" data-t=overview onclick=tab(this)>개요</button>
+ <button class=tabbtn data-t=recent onclick=tab(this)>최근 쿼리</button>
+ <button class=tabbtn data-t=prompt onclick=tab(this)>프롬프트</button>
+ <button class=tabbtn data-t=graph onclick=tab(this)>지식그래프</button>
+ <span id=note class=sub style="margin-left:8px"></span></div>
+<div id=tab-overview class=tab>
+ <div class=cards id=cards></div>
+ <div class=sec><h2>액션별 응답속도 <span class=sub>(avg · p50 · p95)</span></h2><div id=byact></div></div>
+ <div class=sec><h2>구간별 (일자 · KST)</h2><div id=ts></div></div>
+ <div class=sec><h2>대화 통계</h2><div id=stats></div></div>
+ <div class=sec><h2>웰니스 코칭 퍼널 <span class=sub>(비식별 이벤트)</span></h2><div id=coach></div></div>
+</div>
+<div id=tab-recent class=tab style=display:none>
+ <div class=sec><h2>최근 쿼리 (원문) <span class=sub>— 행을 클릭하면 답변 전체</span></h2><div id=recent></div></div>
+</div>
+<div id=tab-prompt class=tab style=display:none>
+ <div class=sec><h2>현재 시스템 프롬프트</h2><div id=prompt></div></div>
+</div>
+<div id=tab-graph class=tab style=display:none>
+ <div class=sec><h2>KB 지식그래프 <span class=sub>— 저장된 출처·문서·주제 관계망 (드래그 이동 · 휠 줌 · 클릭 상세)</span></h2>
+ <div class=gctl>
+  <button onclick=loadGraph(true)>새로고침</button>
+  <label><input type=checkbox id=gsrc checked onchange=rebuildGraph()> 출처</label>
+  <label><input type=checkbox id=gtop checked onchange=rebuildGraph()> 주제</label>
+  <label><input type=checkbox id=gact onchange=loadGraph(true)> active만</label>
+  <input type=text id=gq placeholder="제목·출처·주제 검색" oninput=gsearch()>
+  <span id=gnote></span>
+  <span class=glegend style="margin-left:auto">
+   <span><span class=gdot style="background:#0f6e56"></span>출처</span>
+   <span><span class=gdot style="background:#b06a00"></span>주제</span>
+   <span><span class=gdot style="background:#8f9a94"></span>문서</span></span>
+ </div>
+ <div id=gwrap><canvas id=gcanvas height=620></canvas></div>
+ <div id=gdetail class=detail style="margin-top:8px;font-size:12px">노드를 클릭하면 상세가 표시됩니다.</div>
+ </div>
+</div>
+<script>
+function tab(b){document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ const t=b.dataset.t;document.querySelectorAll('.tab').forEach(s=>s.style.display='none');document.getElementById('tab-'+t).style.display='';
+ if(t==='graph'){sizeCanvas();loadGraph();}}
+function toggle(i){const e=document.getElementById('det'+i);if(e)e.style.display=e.style.display==='none'?'':'none';}
+const $=id=>document.getElementById(id);
+function n(x){return (x||0).toLocaleString()}
+async function j(p){const r=await fetch(p);if(!r.ok)throw new Error(p+' '+r.status);return r.json()}
+async function load(){
+ const d=$('days').value; $('note').textContent='불러오는 중…';
+ try{
+  const [s,ts,st,rc,pr,co]=await Promise.all([
+   j('/api/admin/summary?days='+d),j('/api/admin/timeseries?days='+d),
+   j('/api/admin/stats?days='+d),j('/api/admin/recent?limit=50'),j('/api/admin/prompt'),j('/api/admin/coaching?days='+d)]);
+  renderCards(s);renderByAct(s.by_action);renderTs(ts);renderStats(st);renderRecent(rc);renderPrompt(pr);renderCoach(co);
+  $('note').textContent='단가 가정 $'+s.price_in_usd_per_m+'/$'+s.price_out_usd_per_m+' per 1M · 환율 '+n(s.fx_krw)+'원';
+ }catch(e){$('note').textContent='오류: '+e.message}
+}
+function card(k,v,s){return '<div class=card><div class=k>'+k+'</div><div class=v>'+v+'</div><div class=s>'+(s||'')+'</div></div>'}
+function renderCards(s){
+ const L=s.latency_ms,T=s.tokens,C=s.cost_krw_est,F=s.feedback||{up:0,down:0};
+ $('cards').innerHTML=
+  card('쿼리 수',n(s.queries),s.days+'일')+
+  card('평균 응답속도',(L.avg_total/1000).toFixed(1)+'s','p50 '+(L.p50_total/1000).toFixed(1)+'s · p95 '+(L.p95_total/1000).toFixed(1)+'s · 최대 '+(L.max_total/1000).toFixed(1)+'s')+
+  card('총 토큰',n(T.sum_total),'입력 '+n(T.sum_in)+' · 출력 '+n(T.sum_out)+' · 평균 '+n(T.avg_in+T.avg_out)+'/쿼리')+
+  card('추정 비용',n(C.total)+'원','쿼리당 '+C.per_query+'원 (가정 단가)')+
+  card('피드백','👍 '+n(F.up)+' / 👎 '+n(F.down),'');
+}
+function renderByAct(a){
+ if(!a||!a.length){$('byact').innerHTML='<div class=sub>데이터 없음</div>';return}
+ let h='<table><tr><th>가드레일 액션</th><th>건수</th><th>평균</th><th>p50</th><th>p95</th></tr>';
+ for(const x of a)h+='<tr><td>'+esc(x.action)+'</td><td>'+n(x.count)+'</td><td>'+(x.avg_ms/1000).toFixed(1)+'s</td><td>'+(x.p50_ms/1000).toFixed(1)+'s</td><td>'+(x.p95_ms/1000).toFixed(1)+'s</td></tr>';
+ $('byact').innerHTML=h+'</table>';
+}
+function renderTs(d){
+ if(!d.series.length){$('ts').innerHTML='<div class=sub>데이터 없음</div>';return}
+ let h='<table><tr><th>일자</th><th>쿼리</th><th>입력토큰</th><th>출력토큰</th><th>합계</th><th>평균속도</th><th>추정비용</th></tr>';
+ for(const r of d.series.slice().reverse())h+='<tr><td>'+r.date+'</td><td>'+n(r.queries)+'</td><td>'+n(r.tokens_in)+'</td><td>'+n(r.tokens_out)+'</td><td>'+n(r.tokens_total)+'</td><td>'+(r.avg_latency_ms/1000).toFixed(1)+'s</td><td>'+n(r.cost_krw_est)+'원</td></tr>';
+ $('ts').innerHTML=h+'</table>';
+}
+function bars(title,arr){
+ const max=Math.max(1,...arr.map(x=>x.count));let h='<div style="font-size:12px;color:#888;margin:6px 0 2px">'+title+'</div>';
+ for(const x of arr)h+='<div class=barrow><span class=lab>'+esc(x.label)+'</span><span class=bg><span class=fill style="width:'+(x.count/max*100)+'%"></span></span><span>'+n(x.count)+'</span></div>';
+ return h;
+}
+function renderStats(d){
+ $('stats').innerHTML=bars('근거 품질(evidence_quality)',d.evidence_quality)+bars('게이트 결정(gate_decision)',d.gate_decision)+bars('가드레일 액션(guardrail_action)',d.guardrail_action);
+}
+function renderCoach(d){
+ if(!d||!d.funnel){$('coach').innerHTML='<div class=sub>데이터 없음</div>';return}
+ let h=bars('퍼널(트랙선택→플랜→체크인→실천→완주)',d.funnel);
+ if(d.by_track&&d.by_track.length)h+=bars('트랙별 플랜',d.by_track);
+ $('coach').innerHTML=h;
+}
+function renderRecent(d){
+ let h='<table><tr><th>시각(KST)</th><th>질의</th><th>토큰</th><th>속도</th><th>가드레일</th><th>근거</th></tr>';
+ d.rows.forEach((r,i)=>{
+  h+='<tr class=qrow onclick="toggle('+i+')">'+
+    '<td style="white-space:nowrap">'+esc(r.created_kst||r.created_at)+'</td>'+
+    '<td class=q>🙋 '+esc(r.query)+'</td>'+
+    '<td style="white-space:nowrap">in '+n(r.token_in)+'<br>out '+n(r.token_out)+'<br>'+r.cost_krw_est+'원</td>'+
+    '<td style="white-space:nowrap">'+(r.latency_ms/1000).toFixed(1)+'s</td>'+
+    '<td>'+esc(r.guardrail_action||'')+'</td><td>'+esc(r.evidence_quality||'')+'</td></tr>'+
+    '<tr id=det'+i+' style=display:none><td colspan=6><div class=detail>'+
+    (r.violations&&r.violations.length?'<div style="color:#c62828;margin-bottom:6px">⚠️ 위반 규칙: <b>'+esc(r.violations.join(", "))+'</b></div>':'')+
+    '<b>최종 답변</b> <span class=sub>('+n(r.answer.length)+'자, 사용자에게 전달)</span><div class=ans>💬 '+esc(r.answer)+'</div>'+
+    (r.original?'<div style="margin-top:10px"><b style="color:#b06a00">가드레일 전 원본 답변</b> <span class=sub>(블락/재생성 전 — LLM 원본)</span><div class=ans>'+esc(r.original)+'</div></div>':'')+
+    '</div></td></tr>';
+ });
+ $('recent').innerHTML=h+'</table>';
+}
+function renderPrompt(p){
+ $('prompt').innerHTML='<div class=sub>모델 '+esc(p.model)+' · reasoning '+esc(p.reasoning_effort)+'</div><pre>'+esc(p.system_prompt_sample)+'</pre>';
+}
+function esc(s){return (s==null?'':''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+
+/* ── KB 지식그래프 (옵시디언식 캔버스 포스 그래프) ───────────── */
+const G={raw:null,n:[],e:[],adj:{},byId:{},zoom:1,px:0,py:0,alpha:0,hov:null,sel:null,match:null,
+ drag:null,pan:null,moved:false,loaded:false,W:1060,H:620,run:false};
+async function loadGraph(force){
+ if(G.loaded&&!force)return;
+ $('gnote').textContent='불러오는 중…';
+ try{
+  const st=$('gact').checked?'active':'all';
+  G.raw=await j('/api/admin/kb-graph?status='+st);
+  const s=G.raw.stats;
+  $('gnote').textContent='문서 '+n(s.documents)+' · 출처 '+n(s.sources)+'(빈 '+s.empty_sources+') · 주제 '+n(s.topics)+' · 청크 '+n(s.chunks);
+  G.loaded=true;rebuildGraph();
+ }catch(e){$('gnote').textContent='오류: '+e.message}
+}
+function rebuildGraph(){
+ if(!G.raw)return;
+ const showS=$('gsrc').checked,showT=$('gtop').checked,keep={};
+ G.n=G.raw.nodes.filter(x=>x.type==='document'||(x.type==='source'&&showS)||(x.type==='topic'&&showT));
+ sizeCanvas();
+ const cx=G.W/2,cy=G.H/2,N=G.n.length||1;
+ G.byId={};
+ G.n.forEach((x,i)=>{
+  keep[x.id]=1;
+  const a=i*2.399963,r=Math.sqrt((i+0.5)/N)*Math.min(G.W,G.H)*0.42;
+  x.x=cx+Math.cos(a)*r;x.y=cy+Math.sin(a)*r;x.vx=0;x.vy=0;
+  x.r=x.type==='source'?Math.min(18,6+Math.sqrt(x.size||0)*1.7)
+    :x.type==='topic'?Math.min(14,4.5+Math.sqrt(x.size||0)*1.5)
+    :Math.min(10,3+Math.sqrt(x.size||0)*0.9);
+  G.byId[x.id]=x;
+ });
+ G.e=G.raw.edges.filter(ed=>keep[ed.a]&&keep[ed.b]);
+ G.adj={};G.n.forEach(x=>G.adj[x.id]={});
+ G.e.forEach(ed=>{G.adj[ed.a][ed.b]=1;G.adj[ed.b][ed.a]=1;});
+ G.sel=null;G.hov=null;showGDetail(null);
+ G.zoom=1;G.px=0;G.py=0;G.alpha=1;startSim();
+}
+function sizeCanvas(){
+ const w=($('gwrap').clientWidth||1060);G.W=w;
+ const cv=$('gcanvas'),dpr=window.devicePixelRatio||1;
+ cv.width=w*dpr;cv.height=G.H*dpr;cv.style.width=w+'px';cv.style.height=G.H+'px';
+}
+function startSim(){if(!G.run){G.run=true;requestAnimationFrame(gtick)}}
+function gtick(){
+ const N=G.n.length;
+ if(G.alpha>0.02&&N){
+  const REP=1400,samp=N>450;
+  for(let i=0;i<N;i++){
+   const a=G.n[i];let fx=0,fy=0;
+   if(samp){
+    for(let k=0;k<70;k++){
+     const b=G.n[(Math.random()*N)|0];if(b===a)continue;
+     let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;if(d2>90000)continue;
+     const d=Math.sqrt(d2),f=REP*(N/70)/d2*0.9;fx+=dx/d*f;fy+=dy/d*f;
+    }
+   }else{
+    for(let jj=0;jj<N;jj++){
+     if(jj===i)continue;const b=G.n[jj];
+     let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy;if(d2<1)d2=1;if(d2>160000)continue;
+     const d=Math.sqrt(d2),f=REP/d2;fx+=dx/d*f;fy+=dy/d*f;
+    }
+   }
+   fx+=(G.W/2-a.x)*0.002;fy+=(G.H/2-a.y)*0.002;
+   a.vx=(a.vx+fx*G.alpha)*0.85;a.vy=(a.vy+fy*G.alpha)*0.85;
+  }
+  for(const ed of G.e){
+   const a=G.byId[ed.a],b=G.byId[ed.b];
+   let dx=b.x-a.x,dy=b.y-a.y;const d=Math.max(1,Math.sqrt(dx*dx+dy*dy));
+   const L=(ed.kind==='source'?54:44)+a.r+b.r,f=(d-L)*0.02*G.alpha;
+   dx/=d;dy/=d;a.vx+=dx*f;a.vy+=dy*f;b.vx-=dx*f;b.vy-=dy*f;
+  }
+  for(const x of G.n){
+   if(G.drag===x)continue;
+   x.x+=Math.max(-8,Math.min(8,x.vx));x.y+=Math.max(-8,Math.min(8,x.vy));
+  }
+  G.alpha*=0.992;
+ }
+ grender();
+ if(G.alpha>0.02||G.drag){requestAnimationFrame(gtick)}else{G.run=false}
+}
+function grender(){
+ const cv=$('gcanvas');if(!cv.width)return;
+ const ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,G.W,G.H);
+ ctx.translate(G.px,G.py);ctx.scale(G.zoom,G.zoom);
+ const focus=G.sel||G.hov,q=G.match;
+ function na(x){
+  if(q)return q[x.id]?1:0.12;
+  if(focus)return (x===focus||G.adj[focus.id][x.id])?1:0.13;
+  return 1;
+ }
+ for(const ed of G.e){
+  const a=G.byId[ed.a],b=G.byId[ed.b];
+  let al=0.25;
+  if(q)al=(q[a.id]&&q[b.id])?0.5:0.04;
+  else if(focus)al=(a===focus||b===focus)?0.55:0.05;
+  ctx.strokeStyle='rgba(110,118,112,'+al+')';ctx.lineWidth=1/G.zoom;
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+ }
+ const COL={source:'#0f6e56',topic:'#b06a00',document:'#8f9a94'};
+ for(const x of G.n){
+  ctx.globalAlpha=na(x);ctx.fillStyle=COL[x.type];
+  ctx.beginPath();ctx.arc(x.x,x.y,x.r,0,6.2832);ctx.fill();
+  if(x.type==='document'&&x.meta&&x.meta.status!=='active'){
+   ctx.strokeStyle='#c62828';ctx.lineWidth=1.4/G.zoom;ctx.setLineDash([3/G.zoom,2/G.zoom]);
+   ctx.beginPath();ctx.arc(x.x,x.y,x.r+1.5/G.zoom,0,6.2832);ctx.stroke();ctx.setLineDash([]);
+  }
+  if(x===G.sel){ctx.strokeStyle='#26261f';ctx.lineWidth=2/G.zoom;
+   ctx.beginPath();ctx.arc(x.x,x.y,x.r+2.5/G.zoom,0,6.2832);ctx.stroke();}
+ }
+ ctx.textAlign='center';ctx.textBaseline='top';
+ for(const x of G.n){
+  const show=(x.type!=='document'&&G.zoom>=0.7)||(x.type==='document'&&G.zoom>=1.6)
+    ||x===focus||(q&&q[x.id])||x===G.sel;
+  if(!show)continue;
+  ctx.globalAlpha=na(x);
+  ctx.font=(12/G.zoom)+'px Malgun Gothic';
+  const lab=(x.label||'').length>26?x.label.slice(0,25)+'…':(x.label||'');
+  ctx.lineWidth=3/G.zoom;ctx.strokeStyle='rgba(255,255,255,0.85)';
+  ctx.strokeText(lab,x.x,x.y+x.r+2/G.zoom);
+  ctx.fillStyle='#26261f';ctx.fillText(lab,x.x,x.y+x.r+2/G.zoom);
+ }
+ ctx.globalAlpha=1;
+}
+function gxy(e){const rc=$('gcanvas').getBoundingClientRect();
+ return{x:(e.clientX-rc.left-G.px)/G.zoom,y:(e.clientY-rc.top-G.py)/G.zoom}}
+function ghit(p){let best=null,bd=1e9;
+ for(const x of G.n){const dx=x.x-p.x,dy=x.y-p.y,d=Math.sqrt(dx*dx+dy*dy);
+  if(d<x.r+4/G.zoom&&d<bd){bd=d;best=x}}return best}
+function showGDetail(x){
+ if(!x){$('gdetail').innerHTML='노드를 클릭하면 상세가 표시됩니다.';return}
+ const m=x.meta||{},deg=Object.keys(G.adj[x.id]||{}).length;
+ let h='<b>'+esc(x.label)+'</b> <span class=sub>('+({source:'출처',topic:'주제',document:'문서'})[x.type]+' · 연결 '+deg+')</span><br>';
+ if(x.type==='document')h+='출처 '+esc(m.source_id||'')+' · 상태 '+esc(m.status||'')+' · 근거 '+esc(m.evidence_level||'')
+   +' · 청크 '+n(m.chunks)+(m.country?' · '+esc(m.country):'')
+   +(m.topics&&m.topics.length?'<br>주제: '+esc(m.topics.join(', ')):'');
+ else if(x.type==='source')h+='source_id '+esc(m.source_id)+' · 라이선스 '+esc(m.license||'')
+   +' · 유형 '+esc(m.source_type||'')+' · 문서 '+n(m.docs)+'건'
+   +(m.docs?'':' <span class="pill warn">비어있음</span>');
+ else h+='연결 문서 '+n(m.docs)+'건';
+ $('gdetail').innerHTML=h;
+}
+function gsearch(){
+ const v=($('gq').value||'').trim().toLowerCase();
+ if(!v){G.match=null;grender();return}
+ const m={};for(const x of G.n){if((x.label||'').toLowerCase().includes(v)||x.id.toLowerCase().includes(v))m[x.id]=1}
+ G.match=m;grender();
+}
+(function(){
+ const cv=$('gcanvas');
+ cv.addEventListener('mousedown',function(e){
+  const h=ghit(gxy(e));G.moved=false;
+  if(h){G.drag=h;}else{G.pan={mx:e.clientX,my:e.clientY,px:G.px,py:G.py};}
+ });
+ window.addEventListener('mousemove',function(e){
+  if(G.drag){const p=gxy(e);G.drag.x=p.x;G.drag.y=p.y;G.moved=true;
+   G.alpha=Math.max(G.alpha,0.25);startSim();}
+  else if(G.pan){G.px=G.pan.px+e.clientX-G.pan.mx;G.py=G.pan.py+e.clientY-G.pan.my;
+   G.moved=true;grender();}
+  else if(e.target===cv){const h=ghit(gxy(e));
+   if(h!==G.hov){G.hov=h;cv.style.cursor=h?'pointer':'grab';grender();}}
+ });
+ window.addEventListener('mouseup',function(e){
+  if(G.drag&&!G.moved){G.sel=(G.sel===G.drag)?null:G.drag;showGDetail(G.sel);grender();}
+  else if(G.pan&&!G.moved){G.sel=null;showGDetail(null);grender();}
+  G.drag=null;G.pan=null;
+ });
+ cv.addEventListener('wheel',function(e){
+  e.preventDefault();
+  const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top;
+  const nz=Math.max(0.25,Math.min(4,G.zoom*(e.deltaY<0?1.15:0.87)));
+  G.px=mx-(mx-G.px)*nz/G.zoom;G.py=my-(my-G.py)*nz/G.zoom;G.zoom=nz;grender();
+ },{passive:false});
+ window.addEventListener('resize',function(){if(G.loaded){sizeCanvas();grender();}});
+})();
+load();
+</script></div></body></html>"""
+
+LOGIN = """<!doctype html><html lang=ko><head><meta charset=utf-8><title>어드민 로그인</title>
+<style>body{font-family:'Malgun Gothic',sans-serif;background:#faf9f5}.login{max-width:320px;margin:16vh auto;text-align:center}
+input{font:inherit;padding:9px 11px;border:1px solid #ddd;border-radius:8px;width:100%;margin:8px 0}
+button{font:inherit;padding:9px;border:0;border-radius:8px;background:#0f6e56;color:#fff;width:100%;cursor:pointer}
+h1{font-size:18px}.m{color:#c62828;font-size:13px;min-height:18px}</style></head><body>
+<form class=login method=post action=/login>
+<h1>마이헬스케어 RAG 어드민</h1><div class=m>__MSG__</div>
+<input type=password name=pw placeholder="관리자 비밀번호" autofocus>
+<button>로그인</button></form></body></html>"""
+
+
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def _authed(self):
+        if not _SID:
+            return False
+        ck = self.headers.get("Cookie") or ""
+        return ("asid=" + _SID) in ck
+
+    def _send(self, code, body, ctype="text/html; charset=utf-8", cookie=None):
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Connection", "close")
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except Exception:
+            pass
+        self.close_connection = True
+
+    def do_GET(self):
+        p = urlparse(self.path)
+        if p.path == "/logout":
+            return self._send(200, LOGIN.replace("__MSG__", "로그아웃되었습니다."),
+                              cookie="asid=; Max-Age=0; Path=/")
+        if not self._authed():
+            msg = "" if _SID else "서버에 ADMIN_PASSWORD가 설정되지 않았습니다."
+            return self._send(200, LOGIN.replace("__MSG__", msg))
+        if p.path == "/":
+            return self._send(200, PAGE)
+        if p.path.startswith("/api/admin/"):
+            rag_path = "/api/rag/admin/" + p.path[len("/api/admin/"):]
+            qs = ("?" + p.query) if p.query else ""
+            try:
+                data = rag_get(rag_path + qs)
+                return self._send(200, data, "application/json; charset=utf-8")
+            except urllib.error.HTTPError as e:
+                return self._send(e.code, json.dumps({"error": f"RAG {e.code}"}),
+                                  "application/json; charset=utf-8")
+            except Exception as e:
+                return self._send(502, json.dumps({"error": str(e)}),
+                                  "application/json; charset=utf-8")
+        return self._send(404, "not found")
+
+    def do_POST(self):
+        p = urlparse(self.path)
+        if p.path == "/login":
+            n = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(n).decode("utf-8", "replace") if n else ""
+            pw = parse_qs(body).get("pw", [""])[0]
+            if _SID and pw == ADMIN_PASSWORD:
+                self.send_response(302)
+                self.send_header("Location", "/")
+                self.send_header("Set-Cookie", f"asid={_SID}; Path=/; HttpOnly; Max-Age=43200")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.close_connection = True
+                return
+            return self._send(200, LOGIN.replace("__MSG__", "비밀번호가 올바르지 않습니다."))
+        return self._send(404, "not found")
+
+
+def main():
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+    port = int(os.environ.get("PORT", "8780"))
+    host = "0.0.0.0" if (os.environ.get("K_SERVICE") or os.environ.get("PORT")) else "127.0.0.1"
+    print("=" * 56)
+    print(" RAG 운영 어드민 대시보드")
+    print(f"  대상 RAG : {RAG_URL}")
+    print(f"  비밀번호 : {'설정됨' if _SID else '미설정(로그인 불가) — ADMIN_PASSWORD 필요'}")
+    print(f"  시크릿   : {'설정됨' if ADMIN_SECRET else '미설정'}")
+    print(f"  바인드   : {host}:{port}")
+    print("=" * 56)
+    ThreadingHTTPServer((host, port), H).serve_forever()
+
+
+if __name__ == "__main__":
+    main()

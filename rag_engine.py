@@ -64,9 +64,15 @@ _RRF_K = 60         # RRF 파라미터
 
 # ─── consultation_checklists.json 1회 로딩 ───────────────────
 def _load_checklists() -> dict:
-    """consultation_checklists.json → {"symptoms": {symptom_key: {...}}} (consultation_loader 위임)."""
-    import consultation_loader
-    return consultation_loader.load_checklists_by_symptom()
+    """증상 카탈로그 → {"symptoms": {symptom_key: {...}}}.
+    symptom_catalog 경유로 기존 42증상 + repo-local 보강(symptom_supplement)을 병합한다.
+    실패 시 consultation_loader 직접 폴백(무손상)."""
+    try:
+        from symptom_catalog import load_catalog_by_symptom
+        return load_catalog_by_symptom()
+    except Exception:
+        import consultation_loader
+        return consultation_loader.load_checklists_by_symptom()
 
 
 CHECKLISTS: dict = _load_checklists()
@@ -270,6 +276,12 @@ def _sparse_search(
 
     # 의미 토큰(조사·어미 제거) — tsvector OR 질의 + ILIKE fallback 공용
     _kw_tokens = _korean_meaningful_tokens(query)
+    # 동의어 확장 (일반인 표현↔의학 용어 — recall 보강, 실패 시 원본 유지)
+    try:
+        from synonym_expander import expand_tokens as _expand_syn
+        _kw_tokens = _expand_syn(_kw_tokens)
+    except Exception:
+        pass
     # tsvector OR 질의식: '가슴 | 통증 | 답답' (to_tsquery용, 한글/영숫자만)
     _safe_tokens = [_re.sub(r"[^가-힣a-zA-Z0-9]", "", t) for t in _kw_tokens]
     _safe_tokens = [t for t in _safe_tokens if t]
@@ -469,6 +481,32 @@ def rrf_fusion(
 _EVIDENCE_LEVEL_SCORE = {"A": 1.0, "B": 0.75, "C": 0.5, "D": 0.25, "F": 0.1}
 
 
+def _freshness_score(date_str, today=None) -> float:
+    """발행/개정일(ISO 'YYYY-MM-DD…') → 신선도 0~1. 의학정보는 최신성=정확성.
+
+    최근 1년 이내 1.0 → 6년에 걸쳐 0.3까지 선형 감쇠. 미상/파싱불가/미래 날짜는
+    0.5(중립) — 날짜 미색인 문서는 기존 동작과 동일(무회귀).
+    today: 테스트 결정성용 기준일(미지정 시 date.today()).
+    """
+    if not date_str:
+        return 0.5
+    try:
+        from datetime import date
+        s = str(date_str)[:10]
+        doc = date(int(s[0:4]), int(s[5:7]), int(s[8:10]))
+        ref = today or date.today()
+        years = (ref - doc).days / 365.0
+        if years < 0:
+            return 0.5
+        if years <= 1:
+            return 1.0
+        if years >= 6:
+            return 0.3
+        return round(1.0 - (years - 1) * (0.7 / 5.0), 3)
+    except Exception:
+        return 0.5
+
+
 def _weighted_rerank(
     fused: List[dict],
     dense_results: List[dict],
@@ -505,7 +543,9 @@ def _weighted_rerank(
         except Exception:
             sp = 3
         sp_score = max(0.0, (7 - sp) / 6.0)             # 1→1.0 … 6→0.17
-        fresh = 0.5                                       # revised_at 미색인 → 중립
+        # 신선도: 개정일/발행일이 chunk에 있으면 반영, 없으면 0.5 중립(무회귀).
+        # (날짜 색인은 후속 — 마이그레이션+SELECT+ingestion. 로직은 선반영.)
+        fresh = _freshness_score(c.get("revised_at") or c.get("published_at"))
         dom = float(c.get("topic_alignment_score") or 0.5)
         dom = min(max(dom, 0.0), 1.0)
         evl = _EVIDENCE_LEVEL_SCORE.get((c.get("evidence_level") or "").upper(), 0.5)
@@ -541,6 +581,14 @@ def detect_symptom_keys(query: str, checklists: dict) -> List[str]:
         매칭된 symptom_key 리스트 (중복 제거)
     """
     matched = []
+    # 1차: 증상 이름·세부표현·동의어 기반 매칭 (symptom_matcher — 구어체 도달률 개선).
+    #      "머리아파"→headache 같이 증상 표현 자체로 도달. 실패해도 무해(아래 키워드 매칭 보강).
+    try:
+        from symptom_matcher import match_symptoms
+        matched.extend(match_symptoms(query))
+    except Exception:
+        pass
+    # 2차: 기존 문진/red_flag 키워드 매칭 (호환 — 누락분 보강)
     symptoms = checklists.get("symptoms", {})
     for symptom_key, data in symptoms.items():
         found = False
@@ -562,7 +610,7 @@ def detect_symptom_keys(query: str, checklists: dict) -> List[str]:
                         break
                 if found:
                     break
-    return list(set(matched))
+    return list(dict.fromkeys(matched))  # 순서 보존 dedup (matcher 우선순위 유지)
 
 
 def apply_red_flag_boost(
@@ -623,11 +671,13 @@ def check_evidence_topic_alignment(
 ) -> List[dict]:
     """
     각 청크의 evidence_topic이 질의와 의미적으로 연결되는지 검증.
-    완전히 무관한 청크(예: 소아 발열 질의에 항말라리아제 자료)는 제거.
+    완전히 무관한 청크(예: 소아 발열 질의에 항말라리아제 자료)에 낮은
+    topic_alignment_score를 부여한다. **청크를 제거하지는 않으며**, 실제
+    컷오프(게이팅)는 evaluate_retrieval_gate()가 score를 보고 판단한다.
 
     양현종(소아청소년과) 자문 반영:
     - "소아 발열 시나리오에서 아토피·movement disorder·항말라리아제 참고문헌이
-       노출된 문제"를 retrieval 단계에서 차단.
+       노출된 문제"를 score 기반 게이트로 걸러낸다.
 
     Args:
         results: boost 적용 후 청크 리스트
@@ -636,10 +686,9 @@ def check_evidence_topic_alignment(
         threshold: 코사인 유사도 임계값 (기본 0.20, 한글 임베딩 의미공간 기준)
 
     Returns:
-        topic alignment 검증을 통과한 청크 리스트.
-        evidence_topic이 없는 청크는 그대로 통과.
-        topic_alignment_score 필드가 추가됨.
-        제거된 청크는 filtered_reason 필드에 이유 기록 (로그용).
+        입력 청크 전체(제거 없음). evidence_topic이 있는 청크에는
+        topic_alignment_score 필드가 추가됨(낮아도 유지). evidence_topic이
+        없는 청크는 score 미부여로 그대로 통과.
     """
     if not results:
         return results
@@ -996,13 +1045,17 @@ def evaluate_retrieval_gate(chunks: List[Dict]) -> Dict:
 #  T5: generate_response — 통합 RAG 응답 생성
 # ════════════════════════════════════════════════════════════
 
-# 4단 응답 구조 헤더 (rag_architecture.md §5.6)
-_FOUR_SECTION_HEADERS = [
-    "【① 즉시 행동】",
-    "【② 의심 원인 요약】",
-    "【③ 상세 설명】",
-    "【④ 추가 확인 사항】",
-]
+# 응답 섹션 구조 검증용 — 고정 4단이 아니라 '상황별 동적 헤더 + 이모지'를 쓴다.
+# 헤더 라인 패턴: 줄 시작이 이모지 / 마크다운 헤딩(##) / 굵은 제목(**) / 【…】 중 하나.
+import re as _re_struct
+_SECTION_HEADER_RE = _re_struct.compile(
+    r"(?m)^\s*(?:"
+    r"#{1,4}\s+\S"                                   # ## 제목
+    r"|\*\*\S"                                        # **굵은 제목**
+    r"|【.+?】"                                       # 【…】 (구형 호환)
+    r"|[\U0001F300-\U0001FAFF☀-➿⬀-⯿←-⇿]"  # 이모지/기호 시작
+    r")"
+)
 
 # EMERGENCY 감지 키워드
 _EMERGENCY_KEYWORDS = ["119", "응급실", "긴급", "즉시 병원", "즉시 응급"]
@@ -1076,6 +1129,8 @@ def generate_response(
     provider_id: str = None,
     top_k: int = 5,
     enable_guardrails: bool = True,
+    personal_findings=None,
+    personal_consent: bool = False,
 ) -> Iterator[Dict]:
     """
     Hybrid search → 프롬프트 빌드 → LLM 스트리밍 → 가드레일 → DB 기록.
@@ -1097,6 +1152,9 @@ def generate_response(
     from llm_router import get_llm_provider
 
     start_ts = time.time()
+    # 비식별 이벤트(analytics_events) 적재용 상태 — STOP 지점마다 1건 emit.
+    _had_personal_block = False
+    emergency_detected = False
 
     # 클라이언트에 즉시 상태 알림 (cold start + GPT-5 reasoning 지연 동안 멈춤 방지)
     yield {"type": "INFO", "data": {"status": "started", "query": query[:50]}}
@@ -1115,6 +1173,12 @@ def generate_response(
             "tokens": {"input": 0, "output": 0},
             "guardrail_action": "emergency_redirect",
         }
+        _emit_analytics(
+            "emergency_redirect", conversation_id, None,
+            guardrail_action="emergency_redirect",
+            latency_ms=int((time.time() - start_ts) * 1000),
+            emergency=True,
+        )
         return
 
     # ── 1.5 PII/PHI 마스킹 + 질문 분류 (스펙 통합, 가드 — 실패해도 본 흐름 유지) ──
@@ -1132,11 +1196,47 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] 분류 스킵: %s", _e)
 
+    # ── 1.6 멀티턴: 후속질의면 직전 주제로 *검색 질의* 재작성 (06 §3) ──
+    # 안전 분류는 위에서 원본 질의로 끝남(§6-1). 재작성은 검색에만 적용.
+    # 실패는 비차단(원본 질의 유지). intent emergency/crisis면 재작성 안 함.
+    _retrieval_query = query
+    _is_followup = False
+    _mt_ctx = {}
+    _mt_cur_keys = []
+    _rewrite_method = "none"
+    try:
+        import conversation_context as _cc
+        _mt = _cc.resolve_retrieval_query(
+            query, conversation_id,
+            intent=(_classification or {}).get("intent"),
+        )
+        _retrieval_query = _mt["retrieval_query"]
+        _is_followup = _mt["is_followup"]
+        _mt_ctx = _mt["context"]
+        _mt_cur_keys = _mt["current_symptom_keys"]
+        _rewrite_method = _mt["rewrite_method"]
+        if _rewrite_method != "none":
+            logger.info(
+                "[RAGEngine][Multiturn] 후속질의 재작성 method=%s → 검색질의 전환",
+                _rewrite_method,
+            )
+    except Exception as _e:
+        logger.debug("[RAGEngine] 멀티턴 해석 스킵: %s", _e)
+
+    # 진입 이벤트(비식별) — 분류 직후 1건. 퍼널 분모/intent 분포(응급 재진입 제외).
+    _emit_analytics(
+        "query_received", conversation_id, _classification,
+        is_followup=_is_followup,
+    )
+
     # ── 1.7 트리아지: 비의료/대화성 입력은 4단 의료답변 대신 되묻기 ──
     # "배고파", "안녕" 등 의료 신호 없는 모호 입력에 응급징후·문진을 들이대는
     # 과의료화 방지. 검색·LLM 호출을 건너뛰어 비용도 절약(0원).
+    # 멀티턴 재작성이 성공하면(검색질의 확보) 되묻기를 건너뛴다 —
+    # "언제 병원 가야해요?" 같은 후속질의가 비의료 모호입력으로 오인돼
+    # 되묻기 막다른길에 빠지던 문제 해소.
     _clarify_reason = _should_clarify(query, _classification)
-    if _clarify_reason:
+    if _clarify_reason and _rewrite_method == "none":
         logger.info(
             "[RAGEngine][Triage] 비의료/모호 입력 되묻기 query=%r reason=%s",
             query[:40], _clarify_reason,
@@ -1152,12 +1252,20 @@ def generate_response(
             "tokens": {"input": 0, "output": 0},
             "guardrail_action": "triage_clarify",
         }
+        _emit_analytics(
+            "triage_clarify", conversation_id, _classification,
+            guardrail_action="triage_clarify",
+            latency_ms=int((time.time() - start_ts) * 1000),
+            is_followup=_is_followup,
+        )
         return
 
     # ── 2. Hybrid search ──────────────────────────────────────
+    # 단계 이벤트(파트너 앱 '생각 중→검색 중→답변 중' 표시 계약) — 어댑터가 PROGRESS로 변환
+    yield {"type": "INFO", "data": {"status": "stage", "stage": "searching"}}
     retrieval_start = time.time()
     try:
-        chunks = hybrid_search(query, top_k=top_k)
+        chunks = hybrid_search(_retrieval_query, top_k=top_k)
     except Exception as e:
         logger.error("[RAGEngine] hybrid_search 오류: %s", e)
         yield {"type": "ERROR", "message": f"검색 오류: {e}"}
@@ -1226,6 +1334,12 @@ def generate_response(
                 "evidence_quality": "insufficient",
                 "gate_decision": "INSUFFICIENT",
             }
+            _emit_analytics(
+                "insufficient_evidence", conversation_id, _classification,
+                guardrail_action="insufficient_evidence", gate_result=gate_result,
+                citations_count=0, latency_ms=int((time.time() - start_ts) * 1000),
+                is_followup=_is_followup, refusal=True,
+            )
             return
         else:
             # shadow 모드: 로그만 남기고 정상 진행
@@ -1254,8 +1368,29 @@ def generate_response(
     # ── 4. LLM 스트리밍 (단일 스레드 — diag로 0.7~0.9초 정상 확인됨) ──
     # 리즈닝 침묵 동안 SSE가 끊겨도(truncation) 서버는 끝까지 생성·저장하고
     # 프론트가 /api/rag/result 로 폴링 복구하므로 별도 스레드 keep-alive 불필요.
+    yield {"type": "INFO", "data": {"status": "stage", "stage": "answering"}}
     llm_start = time.time()
     provider = get_llm_provider(provider_id)
+
+    # 방향 2: 비식별 개인 맥락(밴드 라벨만)을 LLM 프롬프트에 주입 — 플래그·동의·국외이전·
+    # 응급 게이트로 통제(정본 17). 기본 off → 미설정 시 행동 변화 0. 원시값·진단명 미투입.
+    _personal_injected = []   # 관찰성: 실제 LLM에 주입된 밴드 라벨(없으면 빈 리스트)
+    try:
+        import personal_llm_context as _plc
+        _pctx = _plc.build_llm_context(
+            personal_findings, query,
+            consent=personal_consent, provider=provider,
+            is_emergency=((_classification or {}).get("intent") == "emergency"),
+        )
+        if _pctx:
+            system_prompt = system_prompt + "\n\n" + _pctx
+            # 주입된 (표시명, 밴드) → "혈압=경고" 형태로 STOP에 실어 클라이언트가 검증 가능
+            _personal_injected = [f"{d}={l}" for d, l in _plc.candidate_items(personal_findings, query)]
+            logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과): %s",
+                        _personal_injected)
+    except Exception as _e:
+        logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
+
     full_text = ""
     tokens = {"input": 0, "output": 0}
 
@@ -1278,6 +1413,10 @@ def generate_response(
     llm_ms = int((time.time() - llm_start) * 1000)
     # 진단: 1차 LLM 스트리밍이 완료됐는지(여기 도달하면 스트리밍 OK, 행은 이후 단계)
     logger.info("[RAGEngine] LLM1 스트리밍 완료 llm_ms=%d len=%d", llm_ms, len(full_text))
+
+    # 가드레일이 교체/재생성하기 전의 원본 LLM 답변(감사·과차단 디버깅용 — B).
+    # 가드레일이 실제로 바꾼 경우에만 STOP 후 rag_queries.original_response 에 저장.
+    _original_text = full_text
 
     # ── 5. 가드레일 후처리 ────────────────────────────────────
     guardrail_result = {"action": "pass", "violations": []}
@@ -1340,25 +1479,49 @@ def generate_response(
                     guardrail_result["violations"], _regen_ms, llm_ms,
                 )
 
-            # 인용 검증
+            # 인용 검증 — INSUFFICIENT면 이미 헤지 답변이므로 '인용 0건 재생성'
+            # (꼬리 LLM 추가 호출)을 생략해 마무리 지연을 줄인다. 범위 밖 [N] 제거는 유지.
             full_text, citations_action = _validate_and_fix_citations(
-                full_text, chunks, system_prompt, user_prompt
+                full_text, chunks, system_prompt, user_prompt,
+                allow_regen=(gate_result["decision"] != "INSUFFICIENT"),
             )
             if citations_action == "regenerated":
                 guardrail_result["action"] = "regenerated_citation"
 
+            # EMERGENCY 잠금은 *사용자 질의 분류*(intent=emergency)로만 판정한다.
+            # 답변 본문(4단 구조의 【① 즉시 행동】)·면책문구에는 "…면 119/응급실"
+            # 같은 조건부 안내가 정상 답변에도 흔히 들어가므로, 답변 텍스트를 스캔하면
+            # 일반 대화가 영구 응급-리다이렉트로 고착된다(과대 트리아지, 레드팀 #4).
+            # 분류기는 구어체·부사삽입 내성을 갖춰 실제 응급 질의를 잡는다.
+            emergency_detected = (_classification or {}).get("intent") == "emergency"
+
+            # ── 개인화 주입 (P1a, 정본 14 §6 — C19 렌더 + C20 백스톱) ──
+            # 결정적 로컬 findings → 안전 블록을 답변에 후append. 개인 데이터는 LLM
+            # 프롬프트에 미투입(stream_chat 직전 원시값 스캔 0이 구조적으로 보장).
+            # EMERGENCY/triage는 개인화 생략(I7). safe_block이 관련성 게이트+C20을
+            # 내포하며 위반/무관 시 ""(fail-closed) → 답변 무변경.
+            if personal_findings and not emergency_detected:
+                try:
+                    import personal_context as _pc
+                    _pblock = _pc.safe_block(personal_findings, query)
+                    if _pblock:
+                        full_text = full_text.rstrip() + "\n\n" + _pblock
+                        _had_personal_block = True
+                except Exception as _pe:
+                    logger.debug("[RAGEngine] 개인화 주입 스킵: %s", _pe)
+
             # 면책조항 자동 부착 (하단)
             full_text = _ensure_disclaimer(full_text)
-            # 상단 고지 자동 부착 (필수 고정 문구)
+            # 상단 고지 자동 부착 (필수 고정 문구 — 119·응급실 문구 포함)
             full_text = _ensure_top_disclaimer(full_text)
 
-            # 4단 응답 구조 헤더 검증
-            structure_ok = _ensure_four_section_structure(full_text)
+            # 섹션 헤더 가독성 검증(동적 헤더 2개 이상) — 라벨용, 차단 안 함
+            structure_ok = _has_section_structure(full_text)
             if not structure_ok and guardrail_result["action"] == "pass":
                 guardrail_result["action"] = "missing_structure"
 
-            # EMERGENCY 감지 → 상태 전환
-            if _detect_emergency_signal(full_text):
+            # EMERGENCY 감지 → 상태 전환 (면책문구 부착 전 판정값 사용)
+            if emergency_detected:
                 _set_conversation_state(conversation_id, "EMERGENCY_REDIRECTED")
                 logger.info(
                     "[RAGEngine] EMERGENCY 감지 → conversation_id=%s EMERGENCY_REDIRECTED 전환",
@@ -1366,7 +1529,18 @@ def generate_response(
                 )
 
         except Exception as e:
-            logger.error("[RAGEngine] 가드레일 오류 (스킵): %s", e)
+            # fail-open 완화: 가드레일이 예외로 미완료되면 'pass'로 오라벨하지 않고
+            # 'error'로 표시해 감사·검수가 인지하게 한다. 면책문구는 예외 시에도
+            # 반드시 부착(예외가 disclaimer 부착 전에 발생하면 누락되던 컴플라이언스 갭).
+            # 가용성을 위해 응답 자체를 차단하지는 않는다(과도차단 방지).
+            logger.error("[RAGEngine] 가드레일 오류 — fail-safe 처리(action=error): %s", e)
+            if guardrail_result.get("action") == "pass":
+                guardrail_result["action"] = "error"
+            try:
+                full_text = _ensure_disclaimer(full_text)
+                full_text = _ensure_top_disclaimer(full_text)
+            except Exception:
+                pass
 
     # ── 6. 인용 매핑 추출 ────────────────────────────────────
     citations = _extract_citations(full_text, chunks)
@@ -1398,6 +1572,25 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] citation_verify 스킵: %s", _e)
 
+    # ── 6.6 claim↔근거 의미일치(어휘 겹침) shadow 검증 (07 §9.1) ──
+    # 인용 마커 범위(verify_citations)를 넘어, 인용 문장이 실제 근거 청크와
+    # 겹치는지 결정적으로 점검. shadow — 로그·검수 신호로만(차단/삭제 없음).
+    try:
+        from citation_verifier import check_citation_grounding
+        _ev_by_marker = {}
+        for _i, _c in enumerate(chunks, 1):
+            _txt = _c.get("content") or _c.get("snippet") or ""
+            _ev_by_marker[str(_i)] = _txt
+            _ev_by_marker[f"E{_i}"] = _txt
+        _grounding = check_citation_grounding(full_text, _ev_by_marker)
+        if _grounding.get("checked") and _grounding.get("weak_claims"):
+            logger.info(
+                "[RAGEngine][Grounding] 근거일치율=%.2f weak=%d (shadow)",
+                _grounding["grounded_ratio"], len(_grounding["weak_claims"]),
+            )
+    except Exception as _e:
+        logger.debug("[RAGEngine] grounding shadow 스킵: %s", _e)
+
     # ── 7. rag_queries INSERT ─────────────────────────────────
     rag_query_id = _insert_rag_query(
         conversation_id=conversation_id,
@@ -1413,54 +1606,136 @@ def generate_response(
         guardrail_violations=guardrail_result.get("violations", []),
         guardrail_action=guardrail_result["action"],
         gate_result=gate_result,
+        original_response=(_original_text if guardrail_result["action"] in
+                           ("blocked", "regenerated", "regenerated_citation") else None),
     )
 
-    # ── 7.5 감사 필드 + 검수 큐 적재 (스펙 통합, 가드) ─────────
-    try:
-        if rag_query_id and _classification is not None:
-            import rag_db as _rag_db
-            from review_queue import should_review
-            _answer_id = "ans_" + rag_query_id[:12]
-            _model_v = getattr(provider, "model_id", None) or getattr(provider, "provider_id", "unknown")
-            _rag_db.update_rag_query_audit(
-                rag_query_id,
-                answer_id=_answer_id,
-                model_version=_model_v,
-                prompt_version="rag-engine-v1",
-                classification_json=json.dumps(_classification, ensure_ascii=False),
-                evidence_pack_json=(
-                    json.dumps(_evidence_pack, ensure_ascii=False) if _evidence_pack else None
-                ),
-            )
-            _decision = should_review(
-                classification=_classification,
-                citation_result=(_citation_result or {
-                    "overall_pass": guardrail_result["action"] != "blocked",
-                    "citation_coverage": 1.0 if citations else 0.0,
-                }),
-                safety_result={
-                    "safe_to_send": guardrail_result["action"] != "blocked",
-                    "risk_flags": guardrail_result.get("violations", []),
-                },
-            )
-            if _decision.get("needs_review"):
-                _rag_db.add_review_item({
-                    "answer_id": _answer_id, "rag_query_id": rag_query_id,
-                    "question": query[:500], "answer": full_text[:2000],
-                    "priority": _decision["priority"],
-                    "assignee_role": _decision["assignee_role"],
-                    "reasons": _decision["reasons"],
-                })
-    except Exception as _e:
-        logger.debug("[RAGEngine] 감사/검수 스킵: %s", _e)
-
-    # ── 8. STOP 이벤트 ────────────────────────────────────────
+    # ── 7.5~8. 후처리 쓰기 비차단화 ───────────────────────────
+    # 감사·검수큐·멀티턴컨텍스트·analytics는 답변 렌더와 무관하다(STOP 페이로드가
+    # 의존하지 않음). 클라우드 DB 동기 왕복이 STOP을 지연시키므로 데몬 스레드로 옮겨
+    # 답변 마무리(STOP)를 즉시 방출한다. rag_queries INSERT(rag_query_id)는 STOP에
+    # 필요하므로 위에서 차단 유지. 스레드 내부 실패는 비차단(로그만).
     _total_ms = int((time.time() - start_ts) * 1000)
-    # 지연/가드레일 측정용 요약 로그 (재생성 빈도·비용 추적)
     logger.info(
         "[RAGEngine] 응답완료 총=%dms gen=%dms 가드레일=%s 인용=%d",
         _total_ms, llm_ms, guardrail_result["action"], len(citations),
     )
+
+    def _post_writes():
+        # 7.5 감사 필드 + 검수 큐 적재 (스펙 통합, 가드)
+        try:
+            if rag_query_id and _classification is not None:
+                import rag_db as _rag_db
+                from review_queue import should_review
+                _answer_id = "ans_" + rag_query_id[:12]
+                _model_v = getattr(provider, "model_id", None) or getattr(provider, "provider_id", "unknown")
+                # 멀티턴 재작성 추적(06 §6-4): 재작성 방법 + 원 질의 해시(원문 미저장)
+                _rewritten_from = None
+                if _rewrite_method != "none":
+                    import hashlib as _hl
+                    _rewritten_from = _hl.sha1((query or "").encode("utf-8")).hexdigest()[:16]
+                _rag_db.update_rag_query_audit(
+                    rag_query_id,
+                    answer_id=_answer_id,
+                    model_version=_model_v,
+                    prompt_version="rag-engine-v1",
+                    classification_json=json.dumps(_classification, ensure_ascii=False),
+                    evidence_pack_json=(
+                        json.dumps(_evidence_pack, ensure_ascii=False) if _evidence_pack else None
+                    ),
+                    rewrite_method=_rewrite_method,
+                    rewritten_from=_rewritten_from,
+                )
+                _decision = should_review(
+                    classification=_classification,
+                    citation_result=(_citation_result or {
+                        "overall_pass": guardrail_result["action"] != "blocked",
+                        "citation_coverage": 1.0 if citations else 0.0,
+                    }),
+                    safety_result={
+                        "safe_to_send": guardrail_result["action"] != "blocked",
+                        "risk_flags": guardrail_result.get("violations", []),
+                    },
+                )
+                if _decision.get("needs_review"):
+                    _rag_db.add_review_item({
+                        "answer_id": _answer_id, "rag_query_id": rag_query_id,
+                        "question": query[:500], "answer": full_text[:2000],
+                        "priority": _decision["priority"],
+                        "assignee_role": _decision["assignee_role"],
+                        "reasons": _decision["reasons"],
+                    })
+        except Exception as _e:
+            logger.debug("[RAGEngine] 감사/검수 스킵: %s", _e)
+
+        # 7.6 멀티턴 세션 컨텍스트 갱신 (06 §3 step 5, 가드)
+        # 비식별 요약만 저장(증상키·intent·진료과). 후속질의(증상 0건)는 직전 주제를
+        # carry-forward 해 대화 주제를 유지한다. 실패는 비차단.
+        try:
+            import conversation_context as _cc
+            _persist_keys = _cc.keys_to_persist(_mt_cur_keys, _mt_ctx)
+            _persist_depts = []
+            if _persist_keys:
+                try:
+                    from symptom_matcher import departments_for
+                    _persist_depts = departments_for(_persist_keys)
+                except Exception:
+                    _persist_depts = []
+            _cc.update_context(
+                conversation_id,
+                symptom_keys=_persist_keys,
+                intent=(_classification or {}).get("intent"),
+                departments=_persist_depts,
+            )
+        except Exception as _e:
+            logger.debug("[RAGEngine] 멀티턴 컨텍스트 갱신 스킵: %s", _e)
+
+        # answer_shown analytics (비식별 이벤트)
+        try:
+            _emit_analytics(
+                "answer_shown", conversation_id, _classification,
+                rag_query_id=rag_query_id,
+                guardrail_action=guardrail_result["action"], gate_result=gate_result,
+                citations_count=len(citations), latency_ms=_total_ms,
+                is_followup=_is_followup, had_personal_block=_had_personal_block,
+                gave_referral=bool((_classification or {}).get("requires_clinician_consult")),
+                refusal=False, emergency=emergency_detected,
+            )
+        except Exception as _e:
+            logger.debug("[RAGEngine] analytics 스킵: %s", _e)
+
+    import threading as _threading
+    _threading.Thread(target=_post_writes, daemon=True).start()
+
+    # 후속 질문 제안(멀티턴 버튼용) — 결정적, 비차단. STOP에 포함되므로 동기로 계산.
+    try:
+        import followups as _fu
+        _followups = _fu.suggest(query, classification=_classification,
+                                 personal_findings=personal_findings)
+    except Exception:
+        _followups = []
+
+    # ── 핸드오프(웰니스 코칭) 트리거 — 룰 기반·플래그 게이트·STOP 메타만(비차단, P1) ──
+    # 정본 18 §3-A. WELLNESS_ROUTER_ENABLED off(기본)면 None → 기존 행동 무변화.
+    _handoff = None
+    try:
+        import wellness_router as _wr
+        if _wr.is_enabled():
+            _hf_band = None
+            try:
+                import personal_llm_context as _plc2
+                _hf_band = _wr.worst_band(
+                    [l for _, l in _plc2.candidate_items(personal_findings, query)])
+            except Exception:
+                _hf_band = None
+            _handoff = _wr.detect_handoff(
+                query, full_text,
+                intent=(_classification or {}).get("intent"),
+                band=_hf_band, mode="medical")
+    except Exception as _e:
+        logger.debug("[RAGEngine] 핸드오프 트리거 스킵: %s", _e)
+
+    # ── 8. STOP 이벤트 (감사·검수·analytics는 백그라운드에서 계속) ──
     yield {
         "type": "STOP",
         "text": full_text,
@@ -1471,6 +1746,9 @@ def generate_response(
         "guardrail_action": guardrail_result["action"],
         "evidence_quality": gate_result["evidence_quality"],
         "gate_decision": gate_result["decision"],
+        "followups": _followups,
+        "personal_injected": _personal_injected,   # 방향2 주입 밴드(관찰성 — 빈 리스트면 미주입)
+        "handoff": _handoff,                        # 핸드오프(코칭 버튼) 메타 — None이면 미노출(P1)
     }
 
 
@@ -1513,7 +1791,7 @@ def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict =
 
     # 설계 문서 §4.2 신규 프롬프트 전문
     prompt = f"""당신은 한국 의료법(의료법 27조 무면허 의료행위 금지, 응급의료법)을 준수하는
-건강 정보 안내 AI '나만의 주치의'입니다.
+건강 정보 안내 AI '마이헬스케어'입니다.
 
 당신은 의사가 아닙니다. 진단·처방·치료를 수행하지 않습니다.
 당신은 오직 아래 ## 검토 자료에 명시된 사실만 사용해 정보를 안내합니다.
@@ -1550,25 +1828,29 @@ def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict =
 [맨 처음 줄] 아래 상단 고지를 그대로 1회 출력한 뒤 한 줄 띄우시오 (절대 생략 금지):
 "{top_disclaimer}"
 
-그 다음 반드시 4단 헤더 사용:
-【① 즉시 행동】
-   - 1~3개 행동. 응급 여부 판단 포함. 자가관리(휴식·수분 등)는 여기, 병원 방문 권유도 여기에만.
-【② 의심 원인 요약】
-   - 가능성 2~3개. 각 가능성 끝에 [N] 인용. 단정 금지.
-【③ 상세 설명】
-   - 검토 자료 기반 설명. 모든 의학적 주장 끝 [N] 인용 강제. (자가관리 정보만, 병원 방문 권유는 ①/④로)
-   - 검토 자료가 약한 부분은 근거가 제한적입니다 [N] 명시.
-【④ 추가 확인 사항】 (비응급 시 ⓐ~ⓓ를 질문 형태로 빠짐없이 포함)
-   ⓐ 증상 정밀화: 부위·양상·시작 시점/빈도·강도(일상생활 지장 정도 포함)·동반 증상을 되물으시오.
-      동반 증상은 해당 증상과 의학적으로 연관된 것을 구체적으로 물으시오 — 예: 출혈/멍이면 코피·잇몸출혈·혈뇨·혈변·점상출혈 등 다른 부위 출혈, 발진이면 형태 변화(반점→물집→딱지)·분포(한쪽/피부분절), 통증이면 방사 양상.
-   ⓑ 위험 신호: 응급 경고 징후를 구체적 질문 2~3개로 선별하시오.
-      (가) 전신 응급 징후 중 해당 증상과 관련된 것을 직접 물으시오 — 실신·의식저하, 호흡곤란, 심한 흉통, 갑작스런 신경학적 이상(편측 마비·발음장애·얼굴 처짐), 대량 출혈, 그리고 발열·반복 감염·심한 쇠약 등 전신 중증 징후.
-      (나) 해당 증상의 위험인자·악화 상황을 물으시오 — 예: 다리 붓기/장거리 이동/최근 수술(혈전), 외상 강도, 고열·반복 감염 동반, 증상이 악화되는 특정 상황 등.
-      모두 "혹시 ~신가요?" 형태의 질문으로만.
-   ⓒ 환자 맥락: 나이·성별, 기저질환, 현재 복용 중인 약(항응고제 등 관련 약 포함), 관련 질환의 가족력(혈액질환·심혈관·암 등 해당 시), 생활 요인(수면·스트레스·음주·흡연·식이)을 물으시오.
-   ⓓ 안내: 적절한 진료과를 "OO과 진료를 고려해보실 수 있습니다" 형태로 제시하고, 경증일 때 자가관리와 중증일 때 병원 방문을 구분하여 어떤 경우 언제 병원을 방문하면 좋은지 시점을 안내하시오.
-   ※ 모든 항목은 단정·지시가 아닌 질문/권유로만. 예: "혹시 ~신가요?", "~를 알려주시면 더 정확히 안내드릴 수 있습니다".
-   ※ 응급(EMERGENCY)으로 판단되면 ④의 문진 질문을 생략하고 즉시 이동만 안내하시오.
+그 다음, **고정된 4단 구조를 쓰지 말고** 질문 상황에 가장 잘 맞는 섹션 2~4개를
+스스로 정해 구성하시오. 각 섹션은 **상황에 어울리는 이모지 + 굵은 제목**으로 시작해
+가독성을 높이시오 (마크다운 `## 이모지 제목` 형태 권장).
+
+[섹션 선택 가이드 — 상황에 맞게 고르고, 제목·문구는 상황에 맞게 자유롭게 변형]
+- 응급 신호가 있으면: 맨 위에 "**🚨 즉시 119 또는 응급실 방문을 권유드립니다.**" 한 줄 →
+  이어서 "## 🚑 지금 즉시" 중심으로 짧게. (이때 아래 문진은 생략)
+- 일반 증상 상담: 예) "## 🩺 지금 상황", "## 💡 가능한 원인", "## 📋 자세히", "## ❓ 더 정확히 알려면".
+- 약/복용 질문: 예) "## 💊 약 정보", "## ⚠️ 주의할 점", "## 👩‍⚕️ 상담 권유".
+- 근거가 부족하거나 길 안내가 핵심이면: 예) "## 🏥 어느 과로?", "## 📝 진료 준비".
+
+[섹션 제목이 무엇이든 항상 지킬 내용 규칙]
+- 모든 의학적 주장 문장 끝에 [N] 인용. 근거 약한 부분은 "근거가 제한적입니다 [N]" 명시.
+- 가능성은 단정 금지 → "OO 가능성을 시사합니다 [N]".
+- 자가관리(휴식·수분 등)와 병원 방문 권유를 구분해 안내.
+- **비응급이면** 반드시 한 섹션(예: "## ❓ 더 정확히 알려면")에서 아래를 질문으로 확인하시오
+  (단정·지시 금지, 모두 "혹시 ~신가요?"·"~를 알려주시면…" 형태. 이미 말한 정보는 다시 묻지 말 것):
+  · 증상 5요소 — 부위 / 양상(쑤심·찌름·묵직) / 시작 시점·빈도 / 강도(일상 지장) / 동반 증상
+    (동반 증상은 해당 증상과 의학적으로 연관된 것 — 출혈/멍이면 다른 부위 출혈, 발진이면 형태·분포 등)
+  · 위험 신호 2~3개 — 실신·의식저하, 호흡곤란, 심한 흉통, 편측마비·발음장애, 대량 출혈,
+    고열·반복 감염 등 + 해당 증상의 위험인자·악화 상황
+  · 환자 맥락 — 나이·성별, 기저질환, 복용 약(항응고제 등), 가족력(해당 시), 생활요인(수면·스트레스·음주·흡연)
+  · 진료과 안내 — "OO과 진료를 고려해보실 수 있습니다" + 언제 병원 가면 좋은지 시점
 
 ## 마지막 줄 면책 (반드시 포함)
 "{bottom_disclaimer}"
@@ -1580,52 +1862,41 @@ def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict =
 
 ## Few-shot 예시
 
-### Example 1 — 정상 PASS
+### Example 1 — 일반 증상 (상황별 동적 헤더 + 이모지)
 사용자: "3세 아이가 38.5도 열이 났어요. 어떻게 해야 하나요?"
 검토 자료:
 - [1] (KDCA) 소아 발열 38도 이상 시 미온수 마사지·해열제 권장, 39도 이상 또는 처짐·경련 동반 시 응급실 권유.
 - [2] (대한소아과학회) 발열 자체보다 동반 증상 중요. 처짐·경련 없이 활동성 유지되면 가정 관찰 가능.
 
 응답:
-【① 즉시 행동】
-- 미온수 마사지로 체온 조절 [1]
-- 처짐·경련·호흡곤란 발생 시 즉시 응급실 방문 [1]
+## 🩺 지금 상황
+- 38.5도는 응급 기준(39도) 미만이라 가정에서 관찰이 가능합니다 [1][2].
+- 미온수 마사지로 체온을 조절하고, 처짐·경련·호흡곤란이 보이면 즉시 응급실 방문을 권유드립니다 [1].
 
-【② 의심 원인 요약】
-- 일반적인 소아 발열 가능성 [2]
+## 💡 가능한 원인
+- 일반적인 소아 발열 가능성을 시사합니다 [2]. 동반 증상이 위험도를 결정합니다 [2].
 
-【③ 상세 설명】
-38.5도는 응급 기준 39도 미만이므로 가정 관찰이 가능합니다 [1][2].
-동반 증상이 발열의 위험도를 결정합니다 [2].
-
-【④ 추가 확인 사항】
-- (증상) 열이 처음 시작된 시점과 최고 체온, 열 외 동반 증상(기침·발진·구토·설사)이 있는지 알려주시면 도움이 됩니다.
-- (위험 신호) 처짐·경련·호흡곤란·소변량 감소·12시간 이상 수분 거부 중 해당되는 것이 있으신가요?
-- (맥락) 아이 나이·몸무게, 기저질환이나 알레르기, 최근 복용한 해열제 종류와 시간을 알려주세요.
-- (안내) 소아청소년과 진료를 고려해보실 수 있으며, 위 위험 신호가 보이면 즉시 응급실 방문을 권합니다.
+## ❓ 더 정확히 알려면
+- 열이 시작된 시점·최고 체온, 기침·발진·구토·설사 등 동반 증상이 있으신가요?
+- 처짐·경련·소변량 감소·12시간 이상 수분 거부 중 해당되는 게 있으신가요?
+- 아이 나이·몸무게, 기저질환·알레르기, 최근 복용한 해열제 종류·시간을 알려주시면 도움이 됩니다.
+- 소아청소년과 진료를 고려해보실 수 있고, 위 신호가 보이면 즉시 응급실을 권합니다.
 
 본 정보는 참고용이며, 정확한 진단·치료는 의료진과 상담하세요.
 
-### Example 2 — 응급 신호
+### Example 2 — 응급 (문진 생략, 즉시 이동 중심)
 사용자: "갑자기 가슴이 쥐어짜는 듯이 아프고 식은땀이 나요."
 검토 자료: [1] (응급의료포털) 갑작스러운 흉통 + 식은땀은 급성 관상동맥 증후군 의심 신호. 즉시 119.
 
 응답:
-**즉시 119 또는 응급실 방문을 권유드립니다.**
+**🚨 즉시 119 또는 응급실 방문을 권유드립니다.**
 
-【① 즉시 행동】
-- 119 즉시 신고 [1]
-- 활동 중단, 앉거나 누운 자세 유지 [1]
+## 🚑 지금 즉시
+- 119에 즉시 신고하세요 [1].
+- 활동을 멈추고 앉거나 누운 자세를 유지하세요 [1].
 
-【② 의심 원인 요약】
-- 급성 관상동맥 증후군(심근경색·협심증) 가능성 [1]
-
-【③ 상세 설명】
-가슴을 쥐어짜는 흉통과 식은땀이 동반되면 심장 응급질환의 대표 신호입니다 [1].
-
-【④ 추가 확인 사항】
-- 119 도착 전 보호자에게 알리기
-- 평소 복용 약물 정보 준비
+## 💡 의심되는 상황
+- 급성 관상동맥 증후군(심근경색·협심증) 가능성을 시사합니다 [1].
 
 본 정보는 참고용이며, 정확한 진단·치료는 의료진과 상담하세요.
 """
@@ -1808,12 +2079,16 @@ def _validate_and_fix_citations(
     chunks: List[dict],
     system_prompt: str = "",
     user_prompt: str = "",
+    allow_regen: bool = True,
 ) -> tuple:
     """
     응답 텍스트의 인용 번호를 검증한다.
 
     - 사용된 [N]이 1..len(chunks) 범위를 벗어나면 해당 인용을 제거
-    - 인용이 0건이면 fallback provider로 재생성 1회 시도
+    - 인용이 0건이면 fallback provider로 재생성 1회 시도(allow_regen=True일 때만)
+
+    allow_regen=False면 인용 0건이어도 재생성하지 않는다(예: 근거 INSUFFICIENT —
+    이미 헤지 답변이라 추가 LLM 호출 가치가 낮고 꼬리 지연만 키움).
 
     Returns:
         (수정된 텍스트, 액션) — 액션: "pass" | "fixed" | "regenerated"
@@ -1834,9 +2109,9 @@ def _validate_and_fix_citations(
     fixed_text = _CITATION_PATTERN.sub(replace_invalid, text)
     action = "pass" if fixed_text == text else "fixed"
 
-    # 인용 0건이면 재생성 시도
+    # 인용 0건이면 재생성 시도 (allow_regen일 때만 — 꼬리 LLM 호출 억제 옵션)
     found = _CITATION_PATTERN.findall(fixed_text)
-    if not found and system_prompt:
+    if not found and system_prompt and allow_regen:
         regen_system = (
             system_prompt
             + "\n\n### 중요: 응답에 반드시 제공된 검토 자료 [1]~[{}]에서 최소 1개 이상 인용하라.".format(max_idx)
@@ -1915,18 +2190,20 @@ def _ensure_top_disclaimer(text: str) -> str:
     return top + "\n\n" + text
 
 
-def _ensure_four_section_structure(text: str) -> bool:
-    """
-    4단 응답 구조 헤더 검증 (자문 §5.6).
+def _has_section_structure(text: str) -> bool:
+    """응답이 가독성 있는 '섹션 헤더'를 2개 이상 갖는지 검증.
 
-    헤더 4개 모두 포함 여부 확인.
-    누락 시 자동 추가는 하지 않음 — guardrail_action에 'missing_structure' 표시.
-
-    Returns:
-        True: 4단 구조 완전 포함
-        False: 하나 이상 누락 (가드레일 메모용, 재생성 안 함)
+    고정 4단 헤더 강제를 폐기하고 상황별 동적 헤더(이모지/##/**/【…】)를 허용한다.
+    헤더가 2개 미만이면 가독성 부족으로 보고 guardrail_action='missing_structure' 표시
+    (재생성·차단은 하지 않는 메모용 라벨).
     """
-    return all(header in text for header in _FOUR_SECTION_HEADERS)
+    if not text:
+        return False
+    return len(_SECTION_HEADER_RE.findall(text)) >= 2
+
+
+# 하위호환 별칭(기존 호출부/테스트 안전)
+_ensure_four_section_structure = _has_section_structure
 
 
 def _detect_emergency_signal(text: str) -> bool:
@@ -2035,6 +2312,7 @@ def _insert_rag_query(
     guardrail_violations: list,
     guardrail_action: str,
     gate_result: Dict = None,
+    original_response: str = None,
 ) -> Optional[str]:
     """
     rag_queries 테이블에 레코드를 INSERT하고 생성된 id를 반환한다.
@@ -2074,7 +2352,7 @@ def _insert_rag_query(
                     guardrail_violations, guardrail_action,
                     evidence_quality, retrieval_top1_score, retrieval_chunk_count,
                     retrieval_weighted_score, gate_decision, blocked_reasons,
-                    created_at
+                    created_at, original_response
                 ) VALUES (
                     {_p()}, {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
@@ -2083,7 +2361,7 @@ def _insert_rag_query(
                     {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
                     {_p()}, {_p()}, {_p()},
-                    {_p()}
+                    {_p()}, {_p()}
                 )
                 """,
                 (
@@ -2108,6 +2386,7 @@ def _insert_rag_query(
                     gate_decision,
                     blocked_reasons_str,
                     now,
+                    original_response,
                 ),
             )
             conn.commit()
@@ -2116,6 +2395,54 @@ def _insert_rag_query(
     except Exception as e:
         logger.error("[RAGEngine] rag_queries INSERT 오류: %s", e)
         return None
+
+
+def _emit_analytics(
+    event_name: str,
+    conversation_id: str,
+    classification: Optional[Dict],
+    *,
+    rag_query_id: str = None,
+    guardrail_action: str = None,
+    gate_result: Dict = None,
+    citations_count: int = None,
+    latency_ms: int = None,
+    is_followup: bool = None,
+    had_personal_block: bool = None,
+    gave_referral: bool = None,
+    refusal: bool = None,
+    emergency: bool = None,
+) -> None:
+    """비식별 이벤트 1건을 analytics_events에 적재(개선 루프 E2).
+
+    classification에서 intent·1차 도메인·위험도만 추출한다. 질의 원문·원시 측정값·
+    진단명은 넘기지 않으며, analytics_events.emit이 화이트리스트 밖 값을 다시 폐기한다.
+    비차단 — 실패해도 응답 생성에 영향 없음.
+    """
+    try:
+        import analytics_events as _ae
+        cls = classification or {}
+        _domains = cls.get("medical_domains") or []
+        _ae.emit(
+            event_name,
+            conversation_id=conversation_id,
+            rag_query_id=rag_query_id,
+            intent=cls.get("intent"),
+            primary_domain=(_domains[0] if _domains else None),
+            risk_level=cls.get("risk_level"),
+            guardrail_action=guardrail_action,
+            gate_decision=(gate_result or {}).get("decision"),
+            evidence_quality=(gate_result or {}).get("evidence_quality"),
+            citations_count=citations_count,
+            latency_ms=latency_ms,
+            is_followup=is_followup,
+            had_personal_block=had_personal_block,
+            gave_referral=gave_referral,
+            refusal=refusal,
+            emergency=emergency,
+        )
+    except Exception as _e:
+        logger.debug("[RAGEngine] analytics emit 스킵: %s", _e)
 
 
 def _format_search_result(chunk: dict) -> dict:

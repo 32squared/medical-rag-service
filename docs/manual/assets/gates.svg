@@ -1,0 +1,48 @@
+<svg width="680" viewBox="0 0 680 500" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>방향2 개인맥락 주입 — 6게이트 fail-closed</title>
+<desc>G1 기능플래그 → G2 동의 → G3 응급아님 → G4 국외이전 ack → G5 관련성 → G6 라벨온리 모두 통과해야 비식별 밴드 라벨을 LLM 프롬프트에 주입. 하나라도 미충족이면 미주입.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif}
+.th{font-size:14px;font-weight:500}.ts{font-size:12px}
+</style>
+<defs><marker id="ag" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#73726C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<rect x="120" y="30" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="50" dominant-baseline="central" fill="#412402">G1 · 기능 플래그</text>
+<text class="ts" x="140" y="67" dominant-baseline="central" fill="#854F0B">PERSONAL_SIGNAL_TO_LLM (기본 off)</text>
+<line x1="290" y1="80" x2="290" y2="94" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="120" y="96" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="116" dominant-baseline="central" fill="#412402">G2 · 동의</text>
+<text class="ts" x="140" y="133" dominant-baseline="central" fill="#854F0B">personal_consent</text>
+<line x1="290" y1="146" x2="290" y2="160" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="120" y="162" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="182" dominant-baseline="central" fill="#412402">G3 · 응급 아님</text>
+<text class="ts" x="140" y="199" dominant-baseline="central" fill="#854F0B">intent ≠ emergency (I7)</text>
+<line x1="290" y1="212" x2="290" y2="226" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="120" y="228" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="248" dominant-baseline="central" fill="#412402">G4 · 국외이전 ack</text>
+<text class="ts" x="140" y="265" dominant-baseline="central" fill="#854F0B">OpenAI=국외 · ALLOW_CROSS_BORDER</text>
+<line x1="290" y1="278" x2="290" y2="292" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="120" y="294" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="314" dominant-baseline="central" fill="#412402">G5 · 관련성 게이트</text>
+<text class="ts" x="140" y="331" dominant-baseline="central" fill="#854F0B">질의 관련 밴드만</text>
+<line x1="290" y1="344" x2="290" y2="358" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="120" y="360" width="340" height="50" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.8"/>
+<text class="th" x="140" y="380" dominant-baseline="central" fill="#412402">G6 · 라벨-온리 백스톱</text>
+<text class="ts" x="140" y="397" dominant-baseline="central" fill="#854F0B">원시값·진단명 스캔</text>
+<line x1="290" y1="410" x2="290" y2="430" stroke="#73726C" stroke-width="1.2" marker-end="url(#ag)"/>
+
+<rect x="150" y="432" width="280" height="50" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.8"/>
+<text class="th" x="290" y="450" text-anchor="middle" dominant-baseline="central" fill="#04342C">주입 → system_prompt</text>
+<text class="ts" x="290" y="468" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">혈압 = 경고 (밴드 라벨만)</text>
+
+<rect x="492" y="200" width="160" height="72" rx="8" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.8"/>
+<text class="th" x="572" y="226" text-anchor="middle" dominant-baseline="central" fill="#501313">미충족 시 미주입</text>
+<text class="ts" x="572" y="246" text-anchor="middle" dominant-baseline="central" fill="#791F1F">fail-closed</text>
+<path d="M460 236 L492 236" fill="none" stroke="#A32D2D" stroke-width="1" stroke-dasharray="5 4" marker-end="url(#ag)"/>
+</svg>

@@ -1,0 +1,284 @@
+{
+  "_comment": "증상 보강 (KB 확장 Sprint 3) — 기존 42증상(medical_shared 서브모듈)에 repo-local로 additive 병합되는 증상. 스키마는 consultation_checklists 항목과 동일. 추가 순서는 gap 리포트(rag_gap_analysis unmapped)로 검증·재정렬 대상. red_flags는 안전 직결이므로 보수적으로 작성.",
+  "_version": "2026.06-suppl1",
+  "symptoms": [
+    {
+      "symptom_key": "pediatric_fever",
+      "symptom_name": "소아 발열",
+      "category": "pediatric",
+      "detail": "아기열, 아이열, 소아고열, 영아발열",
+      "department": "소아청소년과",
+      "required_questions": [
+        {"label": "나이", "keywords": ["개월", "살", "나이", "신생아"]},
+        {"label": "지속 기간", "keywords": ["지속", "기간", "며칠"]}
+      ],
+      "red_flags": [
+        {"label": "3개월 미만 발열", "keywords": ["신생아", "3개월", "100일"]},
+        {"label": "처짐/의식", "keywords": ["처짐", "축 늘어", "의식", "안 깨"]},
+        {"label": "경련", "keywords": ["경련", "경기"]},
+        {"label": "탈수", "keywords": ["소변", "탈수", "안 먹"]}
+      ],
+      "context_questions": [
+        {"label": "동반증상", "keywords": ["발진", "기침", "토"]}
+      ]
+    },
+    {
+      "symptom_key": "pediatric_cough",
+      "symptom_name": "소아 기침",
+      "category": "pediatric",
+      "detail": "아기기침, 아이기침, 컹컹기침",
+      "department": "소아청소년과",
+      "required_questions": [
+        {"label": "나이", "keywords": ["개월", "살", "나이"]},
+        {"label": "양상", "keywords": ["컹컹", "쌕쌕", "가래"]}
+      ],
+      "red_flags": [
+        {"label": "호흡곤란", "keywords": ["숨", "호흡", "갈비뼈", "함몰"]},
+        {"label": "입술 청색", "keywords": ["입술", "파래", "청색"]},
+        {"label": "컹컹/협착음", "keywords": ["컹컹", "쇳소리", "협착"]}
+      ],
+      "context_questions": [
+        {"label": "발열 동반", "keywords": ["열", "발열"]}
+      ]
+    },
+    {
+      "symptom_key": "pediatric_rash",
+      "symptom_name": "소아 발진",
+      "category": "pediatric",
+      "detail": "아기발진, 아이두드러기, 수족구의심",
+      "department": "소아청소년과",
+      "required_questions": [
+        {"label": "분포", "keywords": ["어디", "퍼짐", "전신"]},
+        {"label": "발열 동반", "keywords": ["열", "발열"]}
+      ],
+      "red_flags": [
+        {"label": "출혈성 발진(안 눌림)", "keywords": ["멍", "점출혈", "눌러", "안 사라"]},
+        {"label": "고열 동반", "keywords": ["고열", "39", "40"]},
+        {"label": "처짐", "keywords": ["처짐", "축 늘어"]}
+      ],
+      "context_questions": [
+        {"label": "입안 물집", "keywords": ["입안", "물집", "수족구"]}
+      ]
+    },
+    {
+      "symptom_key": "vomiting",
+      "symptom_name": "구토",
+      "category": "digestive",
+      "detail": "토함, 게움, 구역질",
+      "department": "내과",
+      "required_questions": [
+        {"label": "빈도", "keywords": ["몇 번", "횟수", "계속"]},
+        {"label": "양상", "keywords": ["색", "피", "분수"]}
+      ],
+      "red_flags": [
+        {"label": "토혈", "keywords": ["피", "토혈", "커피색"]},
+        {"label": "분수성 구토", "keywords": ["분수", "뿜"]},
+        {"label": "심한 복통 동반", "keywords": ["복통", "배 아프"]},
+        {"label": "탈수/의식", "keywords": ["탈수", "어지럼", "의식"]}
+      ],
+      "context_questions": [
+        {"label": "설사 동반", "keywords": ["설사", "장염"]}
+      ]
+    },
+    {
+      "symptom_key": "nausea",
+      "symptom_name": "메스꺼움",
+      "category": "digestive",
+      "detail": "구역, 오심, 울렁거림",
+      "department": "내과",
+      "required_questions": [
+        {"label": "지속", "keywords": ["지속", "계속", "언제"]}
+      ],
+      "red_flags": [
+        {"label": "가슴통증 동반", "keywords": ["가슴", "흉통"]},
+        {"label": "심한 두통 동반", "keywords": ["두통", "머리"]}
+      ],
+      "context_questions": [
+        {"label": "임신 가능성", "keywords": ["임신", "생리"]}
+      ]
+    },
+    {
+      "symptom_key": "toothache",
+      "symptom_name": "치통",
+      "category": "dental",
+      "detail": "이가 아픔, 잇몸 통증, 이앓이",
+      "department": "치과",
+      "required_questions": [
+        {"label": "부위", "keywords": ["어금니", "잇몸", "윗니", "아랫니"]},
+        {"label": "양상", "keywords": ["욱신", "시림", "지속"]}
+      ],
+      "red_flags": [
+        {"label": "얼굴 부종/발열", "keywords": ["부어", "붓", "열", "고름"]},
+        {"label": "입 벌리기 어려움", "keywords": ["벌리", "삼키", "목"]}
+      ],
+      "context_questions": [
+        {"label": "외상", "keywords": ["부딪", "깨짐", "빠짐"]}
+      ]
+    },
+    {
+      "symptom_key": "sore_throat_acute",
+      "symptom_name": "인후통",
+      "category": "ent",
+      "detail": "목 따가움, 침 삼킬 때 아픔, 편도",
+      "department": "이비인후과",
+      "required_questions": [
+        {"label": "지속", "keywords": ["지속", "며칠"]},
+        {"label": "발열 동반", "keywords": ["열", "발열"]}
+      ],
+      "red_flags": [
+        {"label": "침 못 삼킴/호흡곤란", "keywords": ["못 삼", "침 흘", "숨", "호흡"]},
+        {"label": "목 부종", "keywords": ["부어", "붓"]}
+      ],
+      "context_questions": [
+        {"label": "편도 고름", "keywords": ["편도", "고름", "하얀"]}
+      ]
+    },
+    {
+      "symptom_key": "burn_injury",
+      "symptom_name": "화상",
+      "category": "injury",
+      "detail": "데임, 끓는 물, 불, 뜨거운",
+      "department": "응급의학과",
+      "required_questions": [
+        {"label": "범위/부위", "keywords": ["넓이", "부위", "손", "얼굴"]},
+        {"label": "깊이", "keywords": ["물집", "하얗", "검"]}
+      ],
+      "red_flags": [
+        {"label": "광범위/얼굴/기도", "keywords": ["얼굴", "넓", "전신", "흡입", "연기"]},
+        {"label": "물집/3도", "keywords": ["물집", "하얗", "검게", "감각 없"]}
+      ],
+      "context_questions": [
+        {"label": "원인", "keywords": ["화학", "전기", "끓는"]}
+      ]
+    },
+    {
+      "symptom_key": "wound_laceration",
+      "symptom_name": "열상/상처",
+      "category": "injury",
+      "detail": "베임, 찢어짐, 출혈, 상처",
+      "department": "외과",
+      "required_questions": [
+        {"label": "부위/깊이", "keywords": ["깊", "벌어", "부위"]},
+        {"label": "출혈", "keywords": ["피", "출혈", "멈"]}
+      ],
+      "red_flags": [
+        {"label": "지혈 안됨", "keywords": ["계속 피", "안 멈", "분출"]},
+        {"label": "깊은 상처/이물", "keywords": ["벌어", "뼈", "이물", "박힘"]}
+      ],
+      "context_questions": [
+        {"label": "파상풍/오염", "keywords": ["녹슨", "동물", "물림", "흙"]}
+      ]
+    },
+    {
+      "symptom_key": "nosebleed",
+      "symptom_name": "코피",
+      "category": "ent",
+      "detail": "비출혈, 코출혈",
+      "department": "이비인후과",
+      "required_questions": [
+        {"label": "지속/빈도", "keywords": ["계속", "자주", "멈"]}
+      ],
+      "red_flags": [
+        {"label": "지혈 안됨(20분+)", "keywords": ["안 멈", "20분", "계속"]},
+        {"label": "다량 출혈/어지럼", "keywords": ["많이", "어지럼", "넘어감"]}
+      ],
+      "context_questions": [
+        {"label": "항응고제 복용", "keywords": ["아스피린", "와파린", "항응고"]}
+      ]
+    },
+    {
+      "symptom_key": "allergic_reaction",
+      "symptom_name": "알레르기 반응",
+      "category": "immune",
+      "detail": "알러지, 두드러기, 붓기, 과민반응",
+      "department": "내과",
+      "required_questions": [
+        {"label": "유발 요인", "keywords": ["음식", "약", "벌", "먹고"]},
+        {"label": "증상 범위", "keywords": ["전신", "두드러기", "부어"]}
+      ],
+      "red_flags": [
+        {"label": "호흡곤란/목 조임(아나필락시스)", "keywords": ["숨", "호흡", "목", "조여", "쉰 목소리"]},
+        {"label": "입술/혀 부종", "keywords": ["입술", "혀", "얼굴 부"]},
+        {"label": "어지럼/실신", "keywords": ["어지럼", "쓰러", "실신"]}
+      ],
+      "context_questions": [
+        {"label": "과거 아나필락시스력", "keywords": ["에피펜", "과거", "응급실"]}
+      ]
+    },
+    {
+      "symptom_key": "vaginal_discharge",
+      "symptom_name": "질 분비물",
+      "category": "urogenital",
+      "detail": "냉, 분비물, 가려움, 냄새",
+      "department": "산부인과",
+      "required_questions": [
+        {"label": "양상", "keywords": ["색", "냄새", "양"]},
+        {"label": "동반 증상", "keywords": ["가려움", "통증", "작열"]}
+      ],
+      "red_flags": [
+        {"label": "발열/하복부 통증", "keywords": ["열", "하복부", "골반"]},
+        {"label": "임신 중 출혈", "keywords": ["임신", "출혈", "피"]}
+      ],
+      "context_questions": [
+        {"label": "임신 가능성", "keywords": ["임신", "생리"]}
+      ]
+    },
+    {
+      "symptom_key": "edema_general",
+      "symptom_name": "부종",
+      "category": "systemic",
+      "detail": "몸 붓기, 얼굴 붓기, 손 붓기, 전신 부종",
+      "department": "내과",
+      "required_questions": [
+        {"label": "부위", "keywords": ["얼굴", "손", "다리", "전신"]},
+        {"label": "지속", "keywords": ["아침", "지속", "계속"]}
+      ],
+      "red_flags": [
+        {"label": "호흡곤란 동반", "keywords": ["숨", "호흡", "누우면"]},
+        {"label": "소변량 감소", "keywords": ["소변", "줄"]}
+      ],
+      "context_questions": [
+        {"label": "신장/심장 질환력", "keywords": ["신장", "콩팥", "심장"]}
+      ]
+    },
+    {
+      "symptom_key": "radiating_arm_pain",
+      "symptom_name": "팔 방사통",
+      "category": "musculoskeletal",
+      "detail": "방사통, 견갑골, 날개뼈, 팔저림, 목디스크",
+      "department": "신경외과",
+      "required_questions": [
+        {"label": "위치/경로", "keywords": ["목", "견갑골", "어디", "어느 팔"]},
+        {"label": "유발 요인", "keywords": ["목 움직", "고개", "기침", "자세"]}
+      ],
+      "red_flags": [
+        {"label": "가슴통증·압박감 동반(심장 감별)", "keywords": ["가슴", "흉통", "압박", "쥐어짜"]},
+        {"label": "식은땀·호흡곤란 동반", "keywords": ["식은땀", "호흡", "숨"]},
+        {"label": "양팔 위약/보행 이상(척수 신호)", "keywords": ["양팔", "힘이 빠", "걷기", "보행", "대소변"]},
+        {"label": "외상 후 발생", "keywords": ["사고", "부딪", "낙상", "외상"]}
+      ],
+      "context_questions": [
+        {"label": "목 통증 동반", "keywords": ["목", "뒷목"]},
+        {"label": "저림 분포", "keywords": ["저림", "손가락", "감각"]}
+      ]
+    },
+    {
+      "symptom_key": "jaundice",
+      "symptom_name": "황달",
+      "category": "digestive",
+      "detail": "눈 노랗, 피부 노랗, 소변 진함",
+      "department": "내과",
+      "required_questions": [
+        {"label": "부위", "keywords": ["눈", "피부", "소변"]},
+        {"label": "동반 증상", "keywords": ["복통", "체중", "가려움"]}
+      ],
+      "red_flags": [
+        {"label": "고열/심한 복통 동반", "keywords": ["고열", "오한", "심한 복통"]},
+        {"label": "의식 변화", "keywords": ["의식", "혼동", "처짐"]}
+      ],
+      "context_questions": [
+        {"label": "간질환/음주력", "keywords": ["간", "음주", "B형", "C형"]}
+      ]
+    }
+  ]
+}

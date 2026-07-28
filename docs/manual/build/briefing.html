@@ -1,0 +1,127 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  .ti{font-family:'tabler-icons'!important;font-style:normal}
+  body{width:1120px;background:#F6F4EF;font-family:'Pretendard',sans-serif;color:#232220;padding:46px 50px}
+  .h1{font-size:38px;font-weight:600;letter-spacing:-1px}
+  .h1 b{color:#0E8A6B}
+  .sub{font-size:16px;color:#5F5E58;margin-top:9px;letter-spacing:-.2px}
+  .date{font-size:13px;color:#9A988F;margin-top:6px}
+  .lab{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#A29F95;
+    margin:34px 0 14px;display:flex;align-items:center;gap:9px}
+  .lab::after{content:'';flex:1;height:1px;background:rgba(0,0,0,.08)}
+  .card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;padding:20px 22px;
+    box-shadow:0 5px 18px rgba(0,0,0,.04)}
+  /* arc */
+  .arc{display:flex;align-items:stretch;gap:14px}
+  .node{flex:1;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;padding:20px;
+    box-shadow:0 5px 18px rgba(0,0,0,.04)}
+  .node.teal{border-color:rgba(14,138,107,.3);background:rgba(14,138,107,.05)}
+  .node .ico{width:44px;height:44px;border-radius:12px;background:rgba(14,138,107,.12);color:#0E8A6B;
+    display:flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:13px}
+  .node h3{font-size:19px;font-weight:600;letter-spacing:-.4px}
+  .node .q{font-size:14px;color:#0E8A6B;font-weight:500;margin-top:5px;letter-spacing:-.2px}
+  .node p{font-size:13.5px;color:#5F5E58;margin-top:8px;line-height:1.5;letter-spacing:-.2px}
+  .node .bdg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+    border-radius:20px;padding:4px 11px;margin-top:13px}
+  .bdg.ok{background:rgba(14,138,107,.12);color:#0B5F4A}
+  .bdg.plan{background:rgba(224,162,62,.14);color:#B5721A}
+  .arr{display:flex;flex-direction:column;align-items:center;justify-content:center;color:#C9C6BC}
+  .arr i{font-size:30px}.arr span{font-size:11px;color:#9A988F;font-weight:600;margin-top:3px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .g4{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .doc .n{font-size:13px;font-weight:700;color:#0E8A6B;letter-spacing:.5px}
+  .doc h4{font-size:17px;font-weight:600;margin:3px 0 7px;letter-spacing:-.3px}
+  .doc p{font-size:13px;color:#5F5E58;line-height:1.55;letter-spacing:-.2px}
+  .chips{display:flex;gap:12px;flex-wrap:wrap}
+  .chip{flex:1;min-width:230px;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:14px;
+    padding:15px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(0,0,0,.035)}
+  .chip i{font-size:22px;color:#0E8A6B}
+  .chip .t{font-size:12px;color:#9A988F;font-weight:600;letter-spacing:.3px}
+  .chip .v{font-size:16px;font-weight:600;letter-spacing:-.3px;margin-top:1px}
+  .moat{background:rgba(14,138,107,.06);border:1px solid rgba(14,138,107,.2);border-radius:18px;padding:22px 24px}
+  .moat .row{display:flex;align-items:flex-start;gap:11px;padding:8px 0;font-size:14.5px;color:#2c2b27;letter-spacing:-.2px;line-height:1.5}
+  .moat .row i{color:#0E8A6B;font-size:19px;margin-top:1px;flex:none}
+  .moat .star{background:rgba(14,138,107,.12);border-radius:12px;padding:13px 15px;margin-top:8px;
+    font-size:15.5px;font-weight:600;color:#0B5F4A;display:flex;align-items:center;gap:10px;letter-spacing:-.3px}
+  .blk{background:rgba(192,57,43,.06);border:1px solid rgba(192,57,43,.22);border-radius:18px;padding:20px 24px}
+  .blk .row{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:14.5px;color:#7a241b;letter-spacing:-.2px}
+  .blk .row i{color:#C0392B;font-size:19px}
+  .blk .row b{color:#C0392B;font-weight:600}
+  .next{background:#0E8A6B;border-radius:18px;padding:20px 26px;display:flex;align-items:center;gap:16px;margin-top:14px}
+  .next i{font-size:30px;color:#fff;opacity:.9}
+  .next .t{font-size:13px;color:rgba(255,255,255,.7);font-weight:600;letter-spacing:.5px}
+  .next .v{font-size:19px;color:#fff;font-weight:600;letter-spacing:-.3px;margin-top:2px}
+  .stat{display:flex;align-items:center;gap:13px}
+  .stat .d{width:11px;height:11px;border-radius:50%;flex:none}
+  .stat h4{font-size:16px;font-weight:600;letter-spacing:-.3px}
+  .stat p{font-size:12.5px;color:#8A887F;margin-top:1px}
+</style></head>
+<body>
+
+  <div class="h1"><b>마이헬스케어</b> — 기획 브리핑</div>
+  <div class="sub">의료법(27조) 경계 안의 한국어 의료정보 AI + 웰니스 코칭 레이어 · B2B2C</div>
+  <div class="date">2026-06-23 · Phase 2 프로토타입</div>
+
+  <div class="lab">제품 아크 — 핸드오프가 가치 전환점</div>
+  <div class="arc">
+    <div class="node teal"><div class="ico"><i class="ti ti-stethoscope"></i></div>
+      <h3>의료 RAG</h3><div class="q">"이게 뭐고 걱정해야 하나"</div>
+      <p>근거 기반 정보 + 진료 권유. 진단·처방 단정 0.</p>
+      <span class="bdg ok"><i class="ti ti-check"></i>빌드 + 배포</span></div>
+    <div class="arr"><i class="ti ti-arrow-right"></i><span>핸드오프</span></div>
+    <div class="node teal"><div class="ico" style="background:rgba(224,162,62,.16);color:#B5721A"><i class="ti ti-flame"></i></div>
+      <h3>웰니스 코칭</h3><div class="q" style="color:#B5721A">"그래서 뭘 실천하지"</div>
+      <p>식단·운동·습관 코칭 → 지속·재방문. MVP=식단.</p>
+      <span class="bdg plan"><i class="ti ti-pencil"></i>기획 (코드 0)</span></div>
+  </div>
+
+  <div class="lab">현재 상태</div>
+  <div class="g3">
+    <div class="card stat"><span class="d" style="background:#0E8A6B"></span><div><h4>의료 RAG</h4><p>빌드+배포 · 단 프로토타입(미검증)</p></div></div>
+    <div class="card stat"><span class="d" style="background:#E0A23E"></span><div><h4>웰니스 코칭</h4><p>기획 완료 · 코드 0</p></div></div>
+    <div class="card stat"><span class="d" style="background:#E0A23E"></span><div><h4>UX · 디자인</h4><p>확정 · 시안 렌더 보유</p></div></div>
+  </div>
+
+  <div class="lab">기획 구조 — 4개 문서</div>
+  <div class="g2">
+    <div class="card doc"><div class="n">DOC 18 · 웰니스 코칭 v1.2</div><h4>코칭 시스템 설계</h4>
+      <p>룰 라우터 · 핸드오프 트리거 · 3트랙 · 컴플라이언스(WC-C1~6) · 시설안내(referral) · 데이터모델 · 지속 루프(게이미피케이션 + 듀오링고 벤치마크)</p></div>
+    <div class="card doc"><div class="n">DOC 19 · UX v0.2</div><h4>화면 · 디자인 시스템</h4>
+      <p>원칙 · IA · 전체 화면 스펙(C1~13·M1·N1~2) · 컴포넌트. <b style="color:#0E8A6B">확정: Warm Light + Anticipatory</b></p></div>
+    <div class="card doc"><div class="n">DOC 20 · 혁신 탐색</div><h4>인터랙션 패러다임</h4>
+      <p>Calm Intelligence → Living Canvas → <b style="color:#0E8A6B">Anticipatory Canvas</b>(선제적 — 묻기 전에 챙겨줌)</p></div>
+    <div class="card doc"><div class="n">DOC 21 · 갭 분석</div><h4>빠진 요소 · 추가 기획</h4>
+      <p>G1 선제 트리거 엔진 · G2 비즈/GTM · G3 코칭 KB · G5 파트너 통합 · G6 신호 파이프라인 (G4·G7=법률)</p></div>
+  </div>
+
+  <div class="lab">확정된 결정</div>
+  <div class="chips">
+    <div class="chip"><i class="ti ti-salad"></i><div><div class="t">MVP 트랙</div><div class="v">식단</div></div></div>
+    <div class="chip"><i class="ti ti-palette"></i><div><div class="t">디자인</div><div class="v">Warm Light</div></div></div>
+    <div class="chip"><i class="ti ti-sparkles"></i><div><div class="t">인터랙션</div><div class="v">Anticipatory(선제)</div></div></div>
+    <div class="chip"><i class="ti ti-building-store"></i><div><div class="t">시장</div><div class="v">B2B2C 우선</div></div></div>
+  </div>
+
+  <div class="lab">핵심 설계 원칙 = 해자</div>
+  <div class="moat">
+    <div class="row"><i class="ti ti-shield-lock"></i><div><b>경계 설계</b> — 원시 측정값은 로컬 결정엔진이 해석 → <b>비식별 밴드 라벨(안정/주의/경고)만</b> LLM·국외로. 원시값·진단명 0.</div></div>
+    <div class="row"><i class="ti ti-lock-check"></i><div><b>안전 게이트 공유</b> — 의료·코칭이 같은 불변식(응급 I7 · WC-C · 거짓안심 0) 통과. "톤·KB·실천성만 코칭화."</div></div>
+    <div class="row"><i class="ti ti-bell-check"></i><div><b>선제도 안전하게</b> — 트리거는 결정적 규칙 · 불확실하면 침묵(응급은 항상) · "진단 아님" 병기.</div></div>
+    <div class="star"><i class="ti ti-diamond"></i>해자 = 의료법 컴플라이언스 엔진 + 개인화 (범용 LLM이 못 하는 한국 의료 안전)</div>
+  </div>
+
+  <div class="lab">🔴 출시 전 블로커 (LAUNCH-READINESS)</div>
+  <div class="blk">
+    <div class="row"><i class="ti ti-gavel"></i><div><b>A 법률 검토</b> — 의료법·식광법·정보통신망법 (밴드 라벨이 의료행위로 해석될 리스크)</div></div>
+    <div class="row"><i class="ti ti-file-certificate"></i><div><b>B 동의 시스템</b> — 민감정보·국외이전·푸시 실제 동의</div></div>
+    <div class="row"><i class="ti ti-clipboard-check"></i><div><b>D KB 의료 검수</b> — 의료진·영양사 검수</div></div>
+  </div>
+
+  <div class="next"><i class="ti ti-player-track-next"></i><div><div class="t">다음 단계</div>
+    <div class="v">코드 P1 착수 — 룰 라우터 + 핸드오프 버튼 (§8-A, DB 변경 0) · 출시는 블로커 선결 전제</div></div></div>
+
+</body></html>

@@ -423,7 +423,7 @@ def seed_phase1_sources() -> int:
         },
         {
             "id": "guideline_internal",
-            "name": "의료법 준수 가이드라인 (나만의 주치의 내부 기준)",
+            "name": "의료법 준수 가이드라인 (마이헬스케어 내부 기준)",
             "source_type": "guideline",
             "license": "proprietary",
             "update_frequency": "on_demand",

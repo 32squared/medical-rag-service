@@ -143,13 +143,17 @@ def _run_generate_response(
 # ════════════════════════════════════════════════════════════
 
 class TestSystemPromptFourSections:
-    def test_four_section_headers_in_system_prompt(self):
-        """_build_rag_system_prompt 결과에 4단 구조 헤더가 포함된다."""
-        from rag_engine import _build_rag_system_prompt, _FOUR_SECTION_HEADERS
-        chunks = [_make_chunk("C1")]
-        prompt = _build_rag_system_prompt("두통", chunks)
-        for header in _FOUR_SECTION_HEADERS:
-            assert header in prompt, f"4단 헤더 누락: {header}"
+    def test_dynamic_emoji_header_guidance_in_system_prompt(self):
+        """프롬프트가 고정 4단 대신 상황별 동적 헤더 + 이모지를 지시한다."""
+        from rag_engine import _build_rag_system_prompt
+        prompt = _build_rag_system_prompt("두통", [_make_chunk("C1")])
+        # 고정 4단 강제 문구는 더 이상 없어야 함
+        assert "반드시 4단 헤더" not in prompt
+        # 동적 헤더 + 이모지 지시 존재
+        assert "고정된 4단 구조를 쓰지 말고" in prompt
+        assert "이모지" in prompt
+        # 상황별 헤더 예시 이모지 일부 포함
+        assert ("🩺" in prompt) or ("🚑" in prompt) or ("💊" in prompt)
 
     def test_system_prompt_contains_citation_instruction(self):
         """시스템 프롬프트에 인용 규칙 지침이 포함된다."""
@@ -174,6 +178,10 @@ class TestGuardrailCriticalBlock:
         critical_v.rule_id = "harmful_assumption"
         critical_v.severity = "CRITICAL"
         critical_v.matched_text = "자해"
+        # context는 실제 analyzer가 문자열로 채운다. RAG 오탐필터가
+        # context를 정규식 검사하므로 mock도 문자열이어야 한다(MagicMock이면
+        # 필터가 TypeError→가드레일 우회). 부정/면책/용량 없는 문맥 → 보존됨.
+        critical_v.context = "사용자가 자해 충동을 호소함"
         analysis = MagicMock()
         analysis.violations = [critical_v]
         return analysis
@@ -213,6 +221,8 @@ class TestGuardrailHighRegeneration:
         high_v.rule_id = rule_id
         high_v.severity = "HIGH"
         high_v.matched_text = "응급"
+        # context는 문자열이어야 RAG 오탐필터가 정상 동작(MagicMock이면 우회).
+        high_v.context = "응급 증상 가능성 언급"
         analysis = MagicMock()
         analysis.violations = [high_v]
         return analysis
@@ -347,6 +357,84 @@ class TestCitationZeroRegeneration:
 #  TC-6: EMERGENCY 감지 → 상태 전환
 # ════════════════════════════════════════════════════════════
 
+class TestMultiturnWiring:
+    """멀티턴 배선 end-to-end: 후속질의가 검색 단계에서 재작성되는지 검증."""
+
+    def test_followup_rewrites_hybrid_search_query(self):
+        from unittest.mock import MagicMock
+        spy = MagicMock(return_value=[_make_chunk("C1")])
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", spy), \
+             patch("conversation_context.load_context", return_value={
+                 "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+                 "last_departments": ["신경과"], "turn_count": 1}), \
+             patch("conversation_context.update_context"), \
+             patch("llm_router.get_llm_provider", return_value=_make_provider_mock()), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            list(generate_response("언제 병원 가야 해요?", "conv-mt-1", enable_guardrails=True))
+
+        # hybrid_search가 *재작성된* 질의로 호출되어야 함(원본과 다름)
+        called_query = spy.call_args[0][0]
+        assert called_query != "언제 병원 가야 해요?", "검색 질의가 재작성되지 않음"
+        assert "진료" in called_query, f"재작성 템플릿 누락: {called_query}"
+
+    def test_emergency_followup_not_rewritten(self):
+        """후속 신호가 있어도 이번 턴이 응급이면 재작성하지 않는다(안전)."""
+        from unittest.mock import MagicMock
+        spy = MagicMock(return_value=[_make_chunk("C1")])
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", spy), \
+             patch("conversation_context.load_context", return_value={
+                 "last_symptom_keys": ["headache"], "last_intent": "symptom_info",
+                 "last_departments": ["신경과"], "turn_count": 1}), \
+             patch("conversation_context.update_context"), \
+             patch("llm_router.get_llm_provider", return_value=_make_provider_mock()), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            # 응급 신호 + 후속처럼 짧은 질의
+            list(generate_response("숨을 못 쉬겠어요", "conv-mt-2", enable_guardrails=True))
+
+        called_query = spy.call_args[0][0]
+        assert called_query == "숨을 못 쉬겠어요", "응급 질의가 재작성됨(안전 위반)"
+
+
+class TestGuardrailFailSafe:
+    """가드레일 예외 시 fail-open이 아니라 감사가능·면책보장으로 처리."""
+
+    def test_guardrail_exception_marks_error_and_keeps_disclaimer(self):
+        """analyzer가 예외를 던지면 guardrail_action='error'로 표시되고
+        면책문구가 부착된다(예외를 'pass'로 오라벨하지 않음)."""
+        mock_provider = _make_provider_mock(response_text="두통 정보입니다. [1]")
+        with patch("rag_engine.hybrid_search", return_value=[_make_chunk("C1")]), \
+             patch("llm_router.get_llm_provider", return_value=mock_provider), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._set_conversation_state"), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.side_effect = RuntimeError("analyzer boom")
+
+            from rag_engine import generate_response
+            events = list(generate_response(
+                "두통이 있어요", "conv-err-001", enable_guardrails=True
+            ))
+
+        stop = next(e for e in events if e["type"] == "STOP")
+        assert stop["guardrail_action"] == "error", \
+            f"가드레일 예외가 'error'로 표시되지 않음: {stop['guardrail_action']}"
+        # 예외 시에도 면책문구가 부착되어야 함
+        assert ("건강정보" in stop["text"]) or ("의료진" in stop["text"]), \
+            "가드레일 예외 시 면책문구 누락"
+
+
 class TestEmergencyDetection:
     def test_emergency_keyword_triggers_state_change(self):
         """응답에 '119'가 포함되면 _set_conversation_state가 EMERGENCY_REDIRECTED로 호출된다."""
@@ -404,6 +492,31 @@ class TestEmergencyDetection:
             list(generate_response("두통이 가끔 있어요", "conv-normal-001", enable_guardrails=True))
 
         mock_set_state.assert_not_called()
+
+    def test_cautionary_119_in_answer_does_not_latch_emergency(self):
+        """비응급 질의의 답변이 조건부 '119/응급실' 안내를 포함해도 EMERGENCY로
+        잠그지 않는다(과대 트리아지 고착 버그 회귀 — 질의 분류 기준 판정)."""
+        mock_provider = _make_provider_mock(
+            response_text=(
+                "【① 즉시 행동】 머리 외상이 있으면 즉시 119 또는 응급실을 이용하세요.\n"
+                "【② 의심 원인 요약】 일반적인 두통\n"
+                "【③ 상세 설명】 [1] 휴식이 도움이 됩니다.\n"
+                "【④ 추가 확인 사항】 지속되면 신경과 상담을 고려하세요.\n"
+            )
+        )
+        analysis = MagicMock()
+        analysis.violations = []
+        with patch("rag_engine.hybrid_search", return_value=[_make_chunk("C1")]), \
+             patch("llm_router.get_llm_provider", return_value=mock_provider), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._set_conversation_state") as mock_set, \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.return_value = analysis
+            from rag_engine import generate_response
+            # 질의는 비응급(두통/symptom_info) — 답변에 119가 있어도 잠그면 안 됨
+            list(generate_response("3일째 머리가 아파", "conv-headache", enable_guardrails=True))
+        mock_set.assert_not_called()
 
 
 # ════════════════════════════════════════════════════════════
@@ -535,42 +648,44 @@ class TestExtractCitations:
 
 
 # ════════════════════════════════════════════════════════════
-#  TC-10: _ensure_four_section_structure
+#  TC-10: _has_section_structure (동적 헤더 — 2개 이상이면 통과)
 # ════════════════════════════════════════════════════════════
 
-class TestFourSectionStructure:
-    def test_all_headers_present_returns_true(self):
-        """4단 헤더가 모두 있으면 True 반환."""
-        from rag_engine import _ensure_four_section_structure
+class TestSectionStructure:
+    def test_emoji_headers_pass(self):
+        """이모지 마크다운 헤더 2개 이상이면 True."""
+        from rag_engine import _has_section_structure
         text = (
-            "【① 즉시 행동】 응급실 이동\n"
-            "【② 의심 원인 요약】 심장 관련\n"
-            "【③ 상세 설명】 세부 정보\n"
-            "【④ 추가 확인 사항】 후속 점검"
+            "## 🩺 지금 상황\n- 내용 [1]\n"
+            "## 💡 가능한 원인\n- 내용 [2]\n"
+            "## ❓ 더 정확히 알려면\n- 질문"
         )
-        assert _ensure_four_section_structure(text) is True
+        assert _has_section_structure(text) is True
 
-    def test_missing_one_header_returns_false(self):
-        """헤더 하나 누락 시 False 반환."""
-        from rag_engine import _ensure_four_section_structure
-        text = (
-            "【① 즉시 행동】 조치\n"
-            "【② 의심 원인 요약】 원인\n"
-            "【③ 상세 설명】 설명\n"
-            # 【④ 추가 확인 사항】 누락
-        )
-        assert _ensure_four_section_structure(text) is False
+    def test_legacy_bracket_headers_pass(self):
+        """구형 【…】 헤더도 헤더로 인식(하위호환)."""
+        from rag_engine import _has_section_structure
+        text = "【① 즉시 행동】 조치\n【② 의심 원인 요약】 원인"
+        assert _has_section_structure(text) is True
+
+    def test_single_header_returns_false(self):
+        """헤더 1개뿐이면 구조 부족 → False."""
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("## 🩺 지금 상황\n내용만 길게...") is False
+
+    def test_no_header_returns_false(self):
+        """헤더 없는 평문 → False."""
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("그냥 줄글 답변입니다. 헤더가 없습니다.") is False
 
     def test_empty_text_returns_false(self):
-        """빈 텍스트 → False."""
-        from rag_engine import _ensure_four_section_structure
-        assert _ensure_four_section_structure("") is False
+        from rag_engine import _has_section_structure
+        assert _has_section_structure("") is False
 
-    def test_partial_headers_returns_false(self):
-        """일부 헤더만 있으면 False."""
-        from rag_engine import _ensure_four_section_structure
-        text = "【① 즉시 행동】 행동"
-        assert _ensure_four_section_structure(text) is False
+    def test_legacy_alias_exists(self):
+        """기존 호출부 호환 별칭 유지."""
+        from rag_engine import _ensure_four_section_structure, _has_section_structure
+        assert _ensure_four_section_structure is _has_section_structure
 
 
 # ════════════════════════════════════════════════════════════
@@ -616,11 +731,17 @@ class TestGenerateResponseStopEvent:
             assert f in stop, f"STOP 이벤트에 필드 누락: {f}"
 
     def test_info_event_has_search_results(self):
-        """INFO 이벤트에 search_results가 포함된다."""
+        """INFO 이벤트 중 정확히 하나가 search_results를 포함한다.
+
+        generate_response는 'started' 상태 INFO와 search_results INFO를
+        각각 1회 emit한다(총 INFO 2개). 여기서는 후자의 존재를 검증한다.
+        """
         events = _run_generate_response(enable_guardrails=False)
-        info_events = [e for e in events if e["type"] == "INFO"]
-        assert len(info_events) == 1
-        assert "search_results" in info_events[0]["data"]
+        sr_events = [
+            e for e in events
+            if e["type"] == "INFO" and "search_results" in e.get("data", {})
+        ]
+        assert len(sr_events) == 1
 
     def test_generation_events_present(self):
         """GENERATION 이벤트가 최소 1개 있다."""

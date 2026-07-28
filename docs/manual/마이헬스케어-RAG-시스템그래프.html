@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이헬스케어 RAG 시스템 그래프</title>
+<style>
+:root{
+  --surface-0:#F6F4EF; --surface-1:#FBFAF6; --surface-2:#FFFFFF;
+  --text-primary:#23302C; --text-secondary:#5C6661; --text-muted:#8A938F;
+  --border:rgba(35,48,44,.14); --border-strong:rgba(35,48,44,.22); --border-stronger:rgba(35,48,44,.42);
+  --font-sans:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --font-mono:Consolas,"Malgun Gothic",monospace;
+  --radius:8px;
+}
+@media (prefers-color-scheme: dark){
+:root{
+  --surface-0:#141816; --surface-1:#1E2421; --surface-2:#262D29;
+  --text-primary:#E8E6DF; --text-secondary:#A8B0AB; --text-muted:#7A837E;
+  --border:rgba(232,230,223,.14); --border-strong:rgba(232,230,223,.24); --border-stronger:rgba(232,230,223,.42);
+}}
+html,body{margin:0;padding:0;background:var(--surface-0);color:var(--text-primary);font-family:var(--font-sans)}
+.page{max-width:860px;margin:0 auto;padding:28px 20px 48px}
+h1{font-size:20px;font-weight:700;margin:0 0 4px}
+.cap{font-size:12.5px;color:var(--text-muted);margin:0 0 18px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.rgG .nd rect{stroke-width:1.5}
+.rgG .g-teal rect{fill:#E1F5EE;stroke:#0F6E56}.rgG .g-teal .tl{fill:#085041}.rgG .g-teal .sb{fill:#0F6E56}
+.rgG .g-purple rect{fill:#EEEDFE;stroke:#534AB7}.rgG .g-purple .tl{fill:#3C3489}.rgG .g-purple .sb{fill:#534AB7}
+.rgG .g-coral rect{fill:#FAECE7;stroke:#993C1D}.rgG .g-coral .tl{fill:#712B13}.rgG .g-coral .sb{fill:#993C1D}
+.rgG .g-red rect{fill:#FCEBEB;stroke:#A32D2D}.rgG .g-red .tl{fill:#791F1F}.rgG .g-red .sb{fill:#A32D2D}
+.rgG .g-pink rect{fill:#FBEAF0;stroke:#993556}.rgG .g-pink .tl{fill:#72243E}.rgG .g-pink .sb{fill:#993556}
+.rgG .g-gray rect{fill:#F1EFE8;stroke:#5F5E5A}.rgG .g-gray .tl{fill:#444441}.rgG .g-gray .sb{fill:#5F5E5A}
+@media (prefers-color-scheme: dark){
+.rgG .g-teal rect{fill:#085041;stroke:#5DCAA5}.rgG .g-teal .tl{fill:#9FE1CB}.rgG .g-teal .sb{fill:#5DCAA5}
+.rgG .g-purple rect{fill:#3C3489;stroke:#AFA9EC}.rgG .g-purple .tl{fill:#CECBF6}.rgG .g-purple .sb{fill:#AFA9EC}
+.rgG .g-coral rect{fill:#712B13;stroke:#F0997B}.rgG .g-coral .tl{fill:#F5C4B3}.rgG .g-coral .sb{fill:#F0997B}
+.rgG .g-red rect{fill:#791F1F;stroke:#F09595}.rgG .g-red .tl{fill:#F7C1C1}.rgG .g-red .sb{fill:#F09595}
+.rgG .g-pink rect{fill:#72243E;stroke:#ED93B1}.rgG .g-pink .tl{fill:#F4C0D1}.rgG .g-pink .sb{fill:#ED93B1}
+.rgG .g-gray rect{fill:#444441;stroke:#B4B2A9}.rgG .g-gray .tl{fill:#D3D1C7}.rgG .g-gray .sb{fill:#B4B2A9}
+}
+.rgG .nd{cursor:pointer;transition:opacity .15s}
+.rgG .eg{transition:opacity .15s}
+.rgG .dim{opacity:.14}
+.rgL{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.rgL button{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-sans)}
+.rgL button.on{border-color:var(--border-stronger);color:var(--text-primary);background:var(--surface-1)}
+#rgPanel{min-height:96px;margin-top:10px;background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:12px 16px}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>마이헬스케어 RAG 시스템 그래프</h1>
+<p class="cap">실제 코드 기준 구성요소 23개 · 데이터 흐름 26개 — 노드를 클릭하면 설명, 범례를 누르면 계열 강조, 빈 곳 클릭으로 초기화. 점선 = 조건부 경로. (2026-06-24)</p>
+<h2 class="sr-only">마이헬스케어 RAG 시스템의 실제 구성요소 23개와 데이터 흐름을 노드-엣지 그래프로 보여주는 인터랙티브 시각화</h2>
+<div class="rgL" id="rgLegend"></div>
+<div class="rgG"><svg id="rgSvg" viewBox="0 0 720 724" style="width:100%;height:auto;display:block" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div id="rgPanel">
+  <p style="margin:0;font-size:13px;color:var(--text-secondary)">노드를 클릭하면 해당 구성요소의 설명이 여기에 표시됩니다. 범례를 누르면 그 계열만 강조됩니다.</p>
+</div>
+</div>
+<script>
+(function(){
+var GROUPS={teal:"지식 준비",purple:"질의 이해·검색",coral:"답변 생성",red:"안전·전달",pink:"개인화",gray:"기록·확장"};
+var N=[
+{id:"collect",x:225,y:64,l:"공공 출처 수집",s:"collect_public_kb",g:"teal",d:"식약처(MFDS)·응급의료포털·질병청 등 공공 출처에서 문서를 수집합니다. 공공누리 1유형만 본문 적재하는 라이선스 원칙을 따릅니다.",f:"collect_public_kb.py"},
+{id:"ingest",x:365,y:64,l:"청킹·임베딩 적재",s:"kb_ingest",g:"teal",d:"문서를 헤더 기준으로 나누고 512~1024토큰 규칙(표는 분할 금지, 50토큰 겹침)으로 청킹한 뒤, 1536차원 임베딩과 키워드 색인을 만들어 저장합니다.",f:"kb_ingest.py · embedding_provider.py"},
+{id:"kb",x:505,y:64,l:"지식창고 KB",s:"3계층 테이블",g:"teal",d:"출처(kb_sources) → 문서(kb_documents) → 청크(kb_chunks) 3계층. 청크마다 벡터·키워드색인·국가(KR/US)·주제·규제 메타가 붙어 검색 대상이 됩니다.",f:"migrations/001_rag_tables.sql"},
+{id:"query",x:85,y:170,l:"사용자 질문",s:"진입점",g:"purple",d:"대화의 진입점입니다. 응급·위기 구어 표현 감지가 이 단계부터 작동합니다.",f:"service_routes.py"},
+{id:"rewriter",x:225,y:170,l:"후속질문 재작성",s:"followup_rewriter",g:"purple",d:"멀티턴 대화에서 “그건 왜요?” 같은 후속 질문을 앞 대화 맥락으로 독립적인 질문으로 다시 씁니다. 재작성 이력은 감사 테이블에 남습니다.",f:"followup_rewriter.py"},
+{id:"classifier",x:365,y:170,l:"의도·위험 분류",s:"medical_classifier",g:"purple",d:"증상 상담인지, 약 질문인지, 제도 질문인지와 위험도(응급/고위험/일반)를 분류합니다. 응급이면 즉시 119·응급실 안내 경로로 빠집니다.",f:"medical_classifier.py"},
+{id:"synonym",x:225,y:268,l:"동의어 확장",s:"synonym_expander",g:"purple",d:"“속쓰림”을 “위산역류”로도 찾도록 일반인 표현과 의학 용어를 잇는 질의 확장입니다(전체 14토큰·용어당 3개 상한).",f:"synonym_expander.py"},
+{id:"sparse",x:365,y:268,l:"키워드 검색",s:"tsvector BM25",g:"purple",d:"질문의 의미 토큰(조사·어미 제거)으로 키워드 일치를 찾습니다. 결과 0건이면 ILIKE 폴백으로 재시도합니다.",f:"rag_engine._sparse_search"},
+{id:"dense",x:505,y:268,l:"의미(벡터) 검색",s:"pgvector cosine",g:"purple",d:"질문을 임베딩해 청크 벡터와 cosine 유사도로 “뜻이 비슷한 글”을 찾습니다(HNSW 인덱스).",f:"rag_engine._dense_search"},
+{id:"rrf",x:505,y:366,l:"융합·재순위",s:"RRF + 가중식",g:"purple",d:"두 검색 결과를 RRF로 합친 뒤 가중식으로 재정렬합니다 — 키워드 0.30 + 벡터 0.25 + 출처권위 0.20 + 신선도 0.10 + 주제 0.10 + 근거등급 0.05, 해외 출처는 감점.",f:"rag_engine._weighted_rerank"},
+{id:"gate",x:645,y:366,l:"근거 게이트",s:"PASS·WEAK·부족",g:"red",d:"1위 유사도 0.55/0.42 기준과 관련 청크 수·주제 일치로 PASS / WEAK_PASS / INSUFFICIENT를 판정합니다. 근거가 부족하면 답변 대신 안내로 전환하는 환각 차단 장치입니다.",f:"rag_engine.evaluate_retrieval_gate"},
+{id:"nav",x:505,y:464,l:"거절 → 길 안내",s:"진료과·병원 안내",g:"red",d:"근거 부족 시 지어내지 않고 “지금 자료로는 단정이 어렵다”고 밝히며 적절한 진료과·병원 찾기로 안내합니다(거절 최소화 전략).",f:"rag_engine (INSUFFICIENT 경로)"},
+{id:"pack",x:645,y:464,l:"검토자료 팩",s:"evidence_pack",g:"coral",d:"통과한 근거를 최대 8건, 발췌 600자로 묶고 [E#] 인용 ID·출처·관할·개정일·한계를 명시합니다. 국내·해외 근거가 충돌하면 국내 공식 기준 우선 메모가 자동으로 붙습니다.",f:"evidence_pack.py"},
+{id:"prompt",x:645,y:562,l:"의료법 프롬프트",s:"8대 절대원칙",g:"coral",d:"진단 단정 금지, 모든 의학 주장에 [N] 인용 필수, 검토 자료 밖 정보 금지, 응급 안내 의무, 상·하단 면책 등 의료법 준수 원칙을 시스템 프롬프트로 고정합니다.",f:"rag_engine._build_rag_system_prompt"},
+{id:"llm",x:505,y:562,l:"LLM 답변 생성",s:"gpt-5.4-mini",g:"coral",d:"검토자료 팩만 사용해 답변을 만듭니다. 답변 상한 1200토큰, LLM 설정은 llm_providers 테이블로 관리됩니다.",f:"llm_router.py"},
+{id:"guardrail",x:365,y:562,l:"가드레일",s:"위반 → 재생성",g:"red",d:"완성된 답을 다시 검사해 진단·처방 단정, 응급 축소 표현이 있으면 재생성시키고, 실패하면 차단합니다(fail-closed).",f:"rag_engine (guardrail 단계)"},
+{id:"final",x:225,y:562,l:"최종 답변",s:"면책 + [N] 인용",g:"red",d:"상단·하단 면책과 문장별 [N] 인용이 포함된 답이 사용자에게 전달됩니다. 개인 맥락 블록·코칭 버튼이 이 시점에 붙습니다.",f:"generate_response 반환"},
+{id:"wellness",x:85,y:562,l:"코칭 핸드오프",s:"wellness_router",g:"gray",d:"답변 끝에 “실천 코칭 받기” 버튼을 노출할지 결정합니다. 응급이면 버튼 차단 + 진료 우선, 경고 밴드면 부드러운 제안만(fail-closed).",f:"wellness_router.py"},
+{id:"pctx",x:85,y:660,l:"개인 맥락 붙임",s:"personal_context",g:"pink",d:"생성이 끝난 뒤 결정적 규칙으로 개인 안내 블록을 답변에 덧붙입니다. LLM 프롬프트에는 개인정보가 들어가지 않는 경계 설계입니다.",f:"personal_context.py"},
+{id:"vital",x:225,y:660,l:"밴드 판정",s:"vital_rules",g:"pink",d:"혈압 등 원시 측정값을 로컬 규칙 엔진이 ‘안정/주의/경고’ 밴드 라벨로만 바꿉니다. 원시값·진단명은 밖으로 나가지 않습니다(fail-closed).",f:"vital_rules.py"},
+{id:"pllm",x:365,y:660,l:"방향2 주입",s:"기본 OFF",g:"pink",d:"비식별 밴드 라벨만 6중 게이트(기능 플래그·동의·응급 억제·국외이전·관련성·라벨온리 검사)를 모두 통과할 때 프롬프트에 주입됩니다. 기본은 꺼져 있습니다.",f:"personal_llm_context.py"},
+{id:"ragq",x:505,y:660,l:"감사 로그",s:"rag_queries",g:"gray",d:"질의 원문·검색 청크·인용·토큰·가드레일 판정을 감사용으로 저장합니다(내부 감사 전용, BI에는 미사용).",f:"rag_queries 테이블"},
+{id:"analytics",x:645,y:660,l:"비식별 이벤트",s:"analytics_events",g:"gray",d:"answer_shown·근거부족·응급안내 등 STOP 지점 이벤트를 라벨/카운트만 남기는 화이트리스트 방식으로 기록합니다(자유 텍스트 구조적 차단).",f:"analytics_events.py"},
+];
+var E=[
+["collect","ingest"],["ingest","kb"],
+["kb","dense"],["kb","sparse"],
+["query","rewriter"],["rewriter","classifier"],
+["classifier","sparse"],["classifier","dense"],["synonym","sparse"],
+["dense","rrf"],["sparse","rrf"],["rrf","gate"],
+["gate","pack","","충분"],["gate","nav","","부족"],
+["pack","prompt"],["prompt","llm"],["llm","guardrail"],
+["guardrail","llm","dash","위반 시 재생성",[435,518]],
+["guardrail","final"],["final","wellness"],
+["vital","pctx"],["pctx","final"],
+["vital","pllm"],["pllm","prompt","dash","기본 OFF",[505,624]],
+["final","ragq","","",[365,706]],["final","analytics","","",[420,724]],
+];
+var HW=66,HH=24;
+var svg=document.getElementById("rgSvg");
+var NS="http://www.w3.org/2000/svg";
+var pos={};N.forEach(function(n){pos[n.id]=n;});
+function edgePts(a,b){
+  var dx=b.x-a.x,dy=b.y-a.y;
+  function clip(cx,cy,sx,sy){
+    var t=1e9;
+    if(sx!==0)t=Math.min(t,HW/Math.abs(sx));
+    if(sy!==0)t=Math.min(t,HH/Math.abs(sy));
+    return[cx+sx*t,cy+sy*t];
+  }
+  var p1=clip(a.x,a.y,dx,dy),p2=clip(b.x,b.y,-dx,-dy);
+  return[p1,p2];
+}
+var defs=document.createElementNS(NS,"defs");
+defs.innerHTML='<marker id="rgArw" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M1,1 L7,4 L1,7" fill="none" stroke="#888780" stroke-width="1.5"/></marker>';
+svg.appendChild(defs);
+var adj={};N.forEach(function(n){adj[n.id]={};});
+E.forEach(function(e){adj[e[0]][e[1]]=1;adj[e[1]][e[0]]=1;});
+E.forEach(function(e){
+  var a=pos[e[0]],b=pos[e[1]],g=document.createElementNS(NS,"g");
+  g.setAttribute("class","eg");g.setAttribute("data-a",e[0]);g.setAttribute("data-b",e[1]);
+  var p=document.createElementNS(NS,"path");
+  var d;
+  if(e[4]){
+    var pts2=edgePts({x:a.x,y:a.y},{x:e[4][0],y:e[4][1]});
+    var pts3=edgePts({x:b.x,y:b.y},{x:e[4][0],y:e[4][1]});
+    d="M"+pts2[0][0]+","+pts2[0][1]+" Q"+e[4][0]+","+e[4][1]+" "+pts3[0][0]+","+pts3[0][1];
+  }else{
+    var pts=edgePts(a,b);
+    d="M"+pts[0][0]+","+pts[0][1]+" L"+pts[1][0]+","+pts[1][1];
+  }
+  p.setAttribute("d",d);
+  p.setAttribute("fill","none");p.setAttribute("stroke","#888780");p.setAttribute("stroke-width","1.3");
+  p.setAttribute("marker-end","url(#rgArw)");
+  if(e[2]==="dash")p.setAttribute("stroke-dasharray","5 4");
+  g.appendChild(p);
+  if(e[3]){
+    var mx,my;
+    if(e[4]){mx=(a.x+2*e[4][0]+b.x)/4;my=(a.y+2*e[4][1]+b.y)/4-12;}
+    else{mx=(a.x+b.x)/2;my=(a.y+b.y)/2-5;}
+    var t=document.createElementNS(NS,"text");
+    t.setAttribute("x",mx);t.setAttribute("y",my);
+    t.setAttribute("text-anchor","middle");t.setAttribute("font-size","11");
+    t.setAttribute("fill","#888780");t.setAttribute("font-family","var(--font-sans)");
+    t.textContent=e[3];g.appendChild(t);
+  }
+  svg.appendChild(g);
+});
+N.forEach(function(n){
+  var g=document.createElementNS(NS,"g");
+  g.setAttribute("class","nd g-"+n.g);g.setAttribute("data-id",n.id);
+  var r=document.createElementNS(NS,"rect");
+  r.setAttribute("x",n.x-HW);r.setAttribute("y",n.y-HH);
+  r.setAttribute("width",HW*2);r.setAttribute("height",HH*2);r.setAttribute("rx","9");
+  g.appendChild(r);
+  var t1=document.createElementNS(NS,"text");
+  t1.setAttribute("x",n.x);t1.setAttribute("y",n.y-2);
+  t1.setAttribute("text-anchor","middle");t1.setAttribute("font-size","12.5");
+  t1.setAttribute("font-weight","500");t1.setAttribute("class","tl");
+  t1.setAttribute("font-family","var(--font-sans)");
+  t1.textContent=n.l;g.appendChild(t1);
+  var t2=document.createElementNS(NS,"text");
+  t2.setAttribute("x",n.x);t2.setAttribute("y",n.y+13);
+  t2.setAttribute("text-anchor","middle");t2.setAttribute("font-size","11");
+  t2.setAttribute("class","sb");t2.setAttribute("font-family","var(--font-mono)");
+  t2.textContent=n.s;g.appendChild(t2);
+  svg.appendChild(g);
+});
+var panel=document.getElementById("rgPanel");
+var selected=null,groupSel=null;
+function apply(){
+  var nds=svg.querySelectorAll(".nd"),egs=svg.querySelectorAll(".eg");
+  nds.forEach(function(el){
+    var id=el.getAttribute("data-id"),n=pos[id],on=true;
+    if(groupSel)on=(n.g===groupSel);
+    else if(selected)on=(id===selected||adj[selected][id]);
+    el.classList.toggle("dim",!on);
+  });
+  egs.forEach(function(el){
+    var a=el.getAttribute("data-a"),b=el.getAttribute("data-b"),on=true;
+    if(groupSel)on=(pos[a].g===groupSel&&pos[b].g===groupSel);
+    else if(selected)on=(a===selected||b===selected);
+    el.classList.toggle("dim",!on);
+  });
+}
+function showPanel(n){
+  panel.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+    +'<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-secondary)">'+GROUPS[n.g]+'</span>'
+    +'<span style="font-size:14px;font-weight:500;color:var(--text-primary)">'+n.l+'</span></div>'
+    +'<p style="margin:0 0 6px;font-size:13px;line-height:1.65;color:var(--text-secondary)">'+n.d+'</p>'
+    +'<p style="margin:0;font-size:12px;color:var(--text-muted)"><span style="font-family:var(--font-mono)">'+n.f+'</span></p>';
+}
+svg.addEventListener("click",function(ev){
+  var g=ev.target.closest(".nd");
+  if(g){
+    groupSel=null;
+    document.querySelectorAll("#rgLegend button").forEach(function(b){b.classList.remove("on");});
+    selected=g.getAttribute("data-id");
+    showPanel(pos[selected]);apply();
+  }else{
+    selected=null;groupSel=null;
+    document.querySelectorAll("#rgLegend button").forEach(function(b){b.classList.remove("on");});
+    panel.innerHTML='<p style="margin:0;font-size:13px;color:var(--text-secondary)">노드를 클릭하면 해당 구성요소의 설명이 여기에 표시됩니다. 범례를 누르면 그 계열만 강조됩니다.</p>';
+    apply();
+  }
+});
+var leg=document.getElementById("rgLegend");
+var DOTC={teal:"#1D9E75",purple:"#7F77DD",coral:"#D85A30",red:"#E24B4A",pink:"#D4537E",gray:"#888780"};
+Object.keys(GROUPS).forEach(function(k){
+  var b=document.createElement("button");
+  b.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+DOTC[k]+';margin-right:6px"></span>'+GROUPS[k];
+  b.addEventListener("click",function(){
+    if(groupSel===k){groupSel=null;b.classList.remove("on");}
+    else{
+      groupSel=k;selected=null;
+      document.querySelectorAll("#rgLegend button").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on");
+    }
+    apply();
+  });
+  leg.appendChild(b);
+});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<svg width="680" viewBox="0 0 680 252" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>경계선 설계 — 원시값은 결정적 엔진에서 멈추고 밴드 라벨만 넘어간다</title>
+<desc>원시 측정값 → 결정적 해석 엔진(경계선) → 밴드 라벨. 원시값은 경계선 왼쪽에만 존재하고 LLM·국외에는 밴드 라벨만 전달된다.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans KR',sans-serif}
+.th{font-size:14px;font-weight:500}.ts{font-size:12px}
+</style>
+<defs><marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#73726C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<rect x="34" y="78" width="180" height="76" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.8"/>
+<text class="th" x="124" y="106" text-anchor="middle" dominant-baseline="central" fill="#2C2C2A">원시 측정값</text>
+<text class="ts" x="124" y="126" text-anchor="middle" dominant-baseline="central" fill="#5F5E5A">혈압 152/96 · SpO₂ 97</text>
+
+<line x1="248" y1="34" x2="248" y2="212" stroke="#A32D2D" stroke-width="1" stroke-dasharray="5 4"/>
+<text class="th" x="248" y="24" text-anchor="middle" fill="#A32D2D">경계선</text>
+<text class="ts" x="248" y="230" text-anchor="middle" fill="#A32D2D">원시값은 여기서 멈춤</text>
+
+<line x1="214" y1="116" x2="282" y2="116" stroke="#73726C" stroke-width="1.2" marker-end="url(#ab)"/>
+
+<rect x="282" y="78" width="190" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.8"/>
+<text class="th" x="377" y="106" text-anchor="middle" dominant-baseline="central" fill="#04342C">결정적 해석 엔진</text>
+<text class="ts" x="377" y="126" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">vital_rules · env_rules</text>
+
+<line x1="472" y1="116" x2="500" y2="116" stroke="#73726C" stroke-width="1.2" marker-end="url(#ab)"/>
+
+<rect x="500" y="78" width="150" height="76" rx="8" fill="#E1F5EE" stroke="#1D9E75" stroke-width="0.8"/>
+<text class="th" x="575" y="106" text-anchor="middle" dominant-baseline="central" fill="#04342C">밴드 라벨 → 답변</text>
+<text class="ts" x="575" y="126" text-anchor="middle" dominant-baseline="central" fill="#0F6E56">혈압 = 경고</text>
+</svg>

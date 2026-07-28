@@ -48,8 +48,31 @@ _KW = {
         "의식", "쓰러", "실신", "기절", "편측", "한쪽 마비", "한쪽 팔", "한쪽 다리",
         "발음", "말이 안", "경련", "발작", "심한 출혈", "토혈", "각혈", "아나필락시스",
         "갑자기 심한", "망치로", "심정지",
+        # 뇌졸중(stroke) 구음·안면 신호 보강 (FAST)
+        "어눌", "말이 어눌", "발음이 어눌", "얼굴이 한쪽", "한쪽으로 돌아", "입이 돌아",
+        "한쪽 얼굴", "한쪽이 안 움직", "팔다리가 안 움직",
+        # ── 구어체·띄어쓰기 변형 보강 (reach §9.4 안전 급소) ──
+        # 호흡곤란: "숨을 못 쉬겠어"류 — 기존 "숨이 안"으로 미탐지되던 표현
+        "숨을 못", "숨을 쉴 수 없", "숨을 쉬기", "숨이 턱", "숨넘어", "숨을 헐떡", "헐떡거",
+        # 흉통: 조임·압박 구어
+        "가슴이 조여", "가슴을 쥐어", "가슴이 터질", "가슴이 꽉", "가슴이 찢",
+        # 의식소실: 구어
+        "정신을 잃", "정신이 가물", "까무러", "정신이 혼미",
+        # 출혈: 구어
+        "피를 토", "피가 안 멈", "피가 멈추지 않", "피가 쏟아",
+        # 경련/발작: 구어
+        "온몸이 뻣뻣", "거품을 물", "눈이 돌아가",
+        # 뇌졸중: 구음 구어
+        "말이 꼬", "혀가 꼬",
     ],
-    "mental_health_crisis": ["자살", "자해", "죽고 싶", "목숨", "극단적 선택", "약을 다 먹"],
+    "mental_health_crisis": [
+        "자살", "자해", "죽고 싶", "목숨", "극단적 선택", "약을 다 먹",
+        # 자살사고 완곡·간접 표현 보강
+        "살 이유가 없", "살고 싶지 않", "사라지고 싶", "더는 못 살", "더이상 살",
+        "더 이상 살", "없어지고 싶", "끝내고 싶",
+        # 띄어쓰기 생략·구어 변형 보강 (reach §9.4)
+        "죽고싶", "죽어버리", "자살하고", "목숨을 끊", "살기 싫", "살아서 뭐",
+    ],
     "drug_safety": [
         "약", "복용", "먹어도", "끊어도", "항생제", "진통제", "해열제", "타이레놀",
         "이부프로펜", "아스피린", "와파린", "혈압약", "당뇨약", "인슐린", "스테로이드",
@@ -74,10 +97,35 @@ def _has(text: str, words: List[str]) -> bool:
     return any(w in text for w in words)
 
 
+# 정도·빈도 부사(필러) — 안전신호 키워드 사이에 끼어 substring 탐지를 깨뜨린다.
+# 예: "가슴이 너무 조여요"는 키워드 "가슴이 조여"와 불일치 → 응급 미탐지(위험).
+# 원본과 '필러 제거본'을 함께 스캔하므로 누락만 보강하고 오탐은 만들지 않는다.
+_FILLERS = [
+    "계속해서", "계속", "자꾸만", "자꾸", "지속적으로",
+    "너무너무", "너무", "되게", "엄청", "약간", "조금", "살짝",
+    "심하게", "갑자기", "막", "그냥", "요즘", "방금", "자꾸요",
+]
+
+
+def _strip_fillers(text: str) -> str:
+    """정도·빈도 부사 제거(안전신호 탐지 recall 보조). 원본과 병행 스캔용.
+
+    제거 후 다중 공백을 1개로 정규화해야 "가슴이 조여"(공백1)가
+    "가슴이  조여"(다중공백)와 매칭된다.
+    """
+    out = text or ""
+    for f in _FILLERS:
+        out = out.replace(f, " ")
+    return re.sub(r"\s+", " ", out).strip()
+
+
 def classify_rule_based(text: str) -> Dict:
     """키워드 휴리스틱 분류 (LLM 없이 동작)."""
     t = (text or "").strip()
     tl = t.lower()
+    # 안전신호(crisis/emergency)는 부사삽입 내성을 위해 원본+필러제거본을 함께 스캔.
+    # 경계('\n')를 둬 제거 경계를 넘는 우발적 매칭을 방지한다.
+    t_scan = t + "\n" + _strip_fillers(t)
 
     red_flags: List[str] = []
     intent = "general_health"
@@ -89,23 +137,29 @@ def classify_rule_based(text: str) -> Dict:
     law_risk = False
 
     # 우선순위: crisis > emergency > prescription/diagnosis > drug > infection/vaccination > symptom
-    if _has(t, _KW["mental_health_crisis"]):
+    if _has(t_scan, _KW["mental_health_crisis"]):
         intent, risk, mode = "mental_health_crisis", "crisis", "crisis_guidance"
         red_flags.append("suicidal_ideation")
         clinician = True
         routes = ["LEGAL_POLICY", "KR_GUIDELINE"]
-    elif _has(t, _KW["emergency"]):
+    elif _has(t_scan, _KW["emergency"]):
         intent, risk, mode = "emergency", "very_high", "emergency_guidance"
         clinician = True
         routes = ["KR_GUIDELINE", "KDCA"]
-        for kw in ("흉통", "가슴", "호흡곤란", "숨", "의식", "마비", "경련", "출혈", "아나필락시스"):
-            if kw in t:
-                red_flags.append({
-                    "흉통": "chest_pain", "가슴": "chest_pain", "호흡곤란": "dyspnea",
-                    "숨": "dyspnea", "의식": "loss_of_consciousness", "마비": "stroke_symptoms",
-                    "경련": "seizure", "출혈": "severe_bleeding",
-                    "아나필락시스": "severe_allergic_reaction",
-                }[kw])
+        _RF_MAP = {
+            "흉통": "chest_pain", "가슴": "chest_pain", "호흡곤란": "dyspnea",
+            "숨": "dyspnea", "헐떡": "dyspnea",
+            "의식": "loss_of_consciousness", "정신": "loss_of_consciousness",
+            "까무러": "loss_of_consciousness",
+            "마비": "stroke_symptoms", "어눌": "stroke_symptoms", "혀": "stroke_symptoms",
+            "말이 꼬": "stroke_symptoms",
+            "경련": "seizure", "발작": "seizure", "거품": "seizure",
+            "출혈": "severe_bleeding", "피를 토": "severe_bleeding", "피가": "severe_bleeding",
+            "아나필락시스": "severe_allergic_reaction",
+        }
+        for kw, flag in _RF_MAP.items():
+            if kw in t_scan:
+                red_flags.append(flag)
         red_flags = list(dict.fromkeys(red_flags))
     elif _has(t, _KW["prescription_request"]):
         intent, risk, mode = "prescription_request", "high", "refuse_with_guidance"

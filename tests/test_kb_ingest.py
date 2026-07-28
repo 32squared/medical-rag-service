@@ -49,14 +49,22 @@ def use_temp_db(tmp_path, monkeypatch):
 
 
 def _init_test_db(db_path: str):
-    """테스트용 SQLite DB에 필요한 테이블 생성 및 시드 소스 삽입."""
-    sql_path = REPO_ROOT / "migrations" / "001_rag_tables_sqlite.sql"
+    """테스트용 SQLite DB에 필요한 테이블 생성 및 시드 소스 삽입.
+
+    실제 스키마와 일치하도록 모든 sqlite 마이그레이션(001·003·004·005·…)을
+    파일명 순서대로 적용한다. 001만 적용하면 003 이후 추가된 컬럼
+    (source_url·source_checksum 등)이 없어 kb_ingest INSERT가 실패한다.
+    """
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
 
-    # RAG 테이블 생성 (sqlite migration 파일 실행)
-    if sql_path.exists():
+    # 모든 sqlite 마이그레이션을 순서대로 적용 (additive)
+    migration_files = sorted(
+        (REPO_ROOT / "migrations").glob("*_sqlite.sql"),
+        key=lambda p: p.name,
+    )
+    for sql_path in migration_files:
         sql_text = sql_path.read_text(encoding="utf-8")
         # BEGIN/COMMIT 제거, 세미콜론으로 분할 실행
         for stmt in sql_text.split(";"):
@@ -74,6 +82,7 @@ def _init_test_db(db_path: str):
             try:
                 conn.execute(stmt)
             except Exception:
+                # SQLite ADD COLUMN은 IF NOT EXISTS 미지원 → 중복 컬럼 등 무시(멱등)
                 pass
 
     # 테스트에서 사용하는 kb_sources 시드 INSERT
@@ -306,6 +315,46 @@ class TestIngestDocument:
         ).fetchall()
         assert any("업데이트된 내용" in c[0] for c in chunks)
         conn.close()
+
+    def test_checksum_change_triggers_reingest(self, use_temp_db):
+        """upsert=False여도 source_checksum이 바뀌면 재적재되고 version 증가(변경감지)."""
+        from kb_ingest import ingest_document
+        base = dict(title="체크섬 변경 테스트", source_id="internal_md", metadata={})
+        with patch("kb_ingest._embed_in_batches", side_effect=lambda texts, **kw: _mock_embed(texts)):
+            r1 = ingest_document(**base, content_md="# 원본\n\n원본 내용.",
+                                 source_checksum="aaa", upsert=False)
+            r2 = ingest_document(**base, content_md="# 개정\n\n개정된 내용입니다.",
+                                 source_checksum="bbb", upsert=False)
+        assert r1["status"] == "inserted"
+        assert r2["status"] == "updated", "checksum 변경인데 skip됨(변경감지 실패)"
+        assert r2["document_id"] == r1["document_id"]
+        conn = sqlite3.connect(use_temp_db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT version, content_md FROM kb_documents WHERE id=?",
+            (r1["document_id"],)
+        ).fetchone()
+        conn.close()
+        assert row["version"] == 2, "version이 증가하지 않음(감사 추적)"
+        assert "개정된 내용" in row["content_md"]
+
+    def test_same_checksum_skips_no_version_bump(self, use_temp_db):
+        """같은 source_checksum 재호출은 skip, version 불변(불필요한 재임베딩 방지)."""
+        from kb_ingest import ingest_document
+        base = dict(title="체크섬 동일 테스트", source_id="internal_md", metadata={},
+                    content_md="# 내용\n\n동일한 내용입니다.", source_checksum="same")
+        with patch("kb_ingest._embed_in_batches", side_effect=lambda texts, **kw: _mock_embed(texts)):
+            r1 = ingest_document(**base, upsert=False)
+            r2 = ingest_document(**base, upsert=False)
+        assert r1["status"] == "inserted"
+        assert r2["status"] == "skipped"
+        conn = sqlite3.connect(use_temp_db)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT version FROM kb_documents WHERE id=?", (r1["document_id"],)
+        ).fetchone()
+        conn.close()
+        assert row["version"] == 1, "skip인데 version이 변함"
 
     def test_tsvector_column_filled(self, use_temp_db):
         """content_tsv 컬럼이 비어 있지 않아야 한다."""

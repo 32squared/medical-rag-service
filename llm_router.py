@@ -6,7 +6,7 @@ Anthropic/Vertex는 Phase 3에서 추가.
   LLMProvider         — 추상 기본 인터페이스
   OpenAIProvider      — OpenAI GPT 구현체
   get_llm_provider()  — 프로바이더 팩토리 (환경변수 기반)
-  get_fallback_provider() — 재생성용 저비용 모델 (gpt-5-mini)
+  get_fallback_provider() — 재생성용 저비용 모델 (gpt-5.4-mini)
 """
 
 import os
@@ -187,12 +187,16 @@ class OpenAIProvider(LLMProvider):
                 # 2048이면 reasoning에 다 쓰여서 응답이 비는 경우 발생.
                 # 8192로 늘리고, reasoning_effort='minimal'로 빠른 응답 우선.
                 params["max_completion_tokens"] = max(max_tokens * 4, 8192)
-                # gpt-5 계열 reasoning_effort. 단, gpt-5.4/5.5는 'minimal' 미지원
-                # (지원: none/low/medium/high/xhigh).
-                # 대화형 RAG는 속도 우선 → LLM_REASONING_EFFORT=none 권장(TTFT 단축).
-                # 배치 평가 등 품질 우선은 low/medium. 기본 'low'(배치 무영향).
+                # gpt-5.4-mini 지원값(실측): minimal / low / medium / high.
+                #   ※ 'none'은 미지원 → 보내면 400(reasoning_effort unsupported_value)으로
+                #     전체 응답이 ERROR가 된다(과거 주석이 반대로 적혀 있었음).
+                # 대화형 RAG는 속도 우선 → 'minimal' 권장(첫 토큰 전 추론지연 최소화,
+                # 실측 12.75s→~1s). 배치 평가 등 품질 우선은 low/medium.
                 if mid.startswith("gpt-5"):
-                    params["reasoning_effort"] = os.environ.get("LLM_REASONING_EFFORT", "low")
+                    _eff = os.environ.get("LLM_REASONING_EFFORT", "minimal").lower()
+                    if _eff not in ("minimal", "low", "medium", "high"):
+                        _eff = "minimal"   # 미지원값('none' 등) → fail-safe(400 장애 방지)
+                    params["reasoning_effort"] = _eff
                 # temperature는 1.0만 허용 — 명시적으로 보내지 않음 (기본 1)
             else:
                 params["max_tokens"] = max_tokens
@@ -271,7 +275,7 @@ def get_fallback_provider() -> LLMProvider:
     """
     가드레일 재생성용 저비용 모델 프로바이더를 반환한다.
 
-    기본: gpt-5-mini (환경변수 RAG_LLM_FALLBACK_MODEL로 재정의 가능).
+    기본: gpt-5.4-mini (환경변수 RAG_LLM_FALLBACK_MODEL로 재정의 가능).
     사용자 정상 응답은 get_llm_provider()를 사용할 것.
     """
     model_id = os.environ.get("RAG_LLM_FALLBACK_MODEL", "gpt-5.4-mini")

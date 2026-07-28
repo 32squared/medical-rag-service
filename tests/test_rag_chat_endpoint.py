@@ -41,8 +41,13 @@ if _REPO_ROOT not in sys.path:
 #  소스 코드 grep 헬퍼
 # ════════════════════════════════════════════════════════════
 
+# /api/rag/chat SSE 라우트는 모놀리식 proxy_server.py에서 rag_routes.py로
+# 모듈화됨(strangler). 소스 grep 테스트는 현행 위치인 rag_routes.py를 검사한다.
+_ROUTE_SOURCE_FILE = 'rag_routes.py'
+
+
 def _read_proxy_source() -> str:
-    proxy_path = os.path.join(_REPO_ROOT, 'proxy_server.py')
+    proxy_path = os.path.join(_REPO_ROOT, _ROUTE_SOURCE_FILE)
     with open(proxy_path, 'r', encoding='utf-8') as f:
         return f.read()
 
@@ -242,9 +247,9 @@ def test_sse_format_serialization():
 # ════════════════════════════════════════════════════════════
 
 def test_proxy_server_syntax():
-    """proxy_server.py 문법 오류 없음 확인."""
+    """rag_routes.py(라우트 모듈) 문법 오류 없음 확인."""
     import py_compile
-    proxy_path = os.path.join(_REPO_ROOT, 'proxy_server.py')
+    proxy_path = os.path.join(_REPO_ROOT, _ROUTE_SOURCE_FILE)
     py_compile.compile(proxy_path, doraise=True)
 
 

@@ -1,0 +1,25 @@
+{
+  "description": "멀티턴 후속질의 재작성 골든셋 (06-multiturn-design.md §8). 규칙 재작성 정확도 ≥80% 게이트.",
+  "rewrite_cases": [
+    {"last_symptom": "두통", "followup": "언제 병원 가야 해요?", "method": "rule", "contains": "진료"},
+    {"last_symptom": "두통", "followup": "약은 먹어도 되나요?", "method": "rule", "contains": "의약품"},
+    {"last_symptom": "두통", "followup": "얼마나 가나요?", "method": "rule", "contains": "지속"},
+    {"last_symptom": "두통", "followup": "왜 그런 거예요?", "method": "rule", "contains": "원인"},
+    {"last_symptom": "두통", "followup": "무슨 과 가야 하나요?", "method": "rule", "contains": "과"},
+    {"last_symptom": "복통", "followup": "그거 위험해요?", "method": "rule_pronoun", "contains": "복통"},
+    {"last_symptom": "복통", "followup": "언제 응급실 가야 하나요?", "method": "rule", "contains": "진료"},
+    {"last_symptom": "복통", "followup": "약 먹어도 되나요?", "method": "rule", "contains": "의약품"},
+    {"last_symptom": "기침", "followup": "며칠이나 가요?", "method": "rule", "contains": "지속"},
+    {"last_symptom": "기침", "followup": "원인이 뭐예요?", "method": "rule", "contains": "원인"},
+    {"last_symptom": "기침", "followup": "어느 과예요?", "method": "rule", "contains": "과"},
+    {"last_symptom": "발열", "followup": "이거 위험한가요?", "method": "rule_pronoun", "contains": "발열"},
+    {"last_symptom": "발열", "followup": "언제 진료받아야 해요?", "method": "rule", "contains": "진료"},
+    {"last_symptom": "발열", "followup": "약은 뭐 먹어요?", "method": "rule", "contains": "의약품"},
+    {"last_symptom": "어지럼증", "followup": "왜 생기나요?", "method": "rule", "contains": "원인"},
+    {"last_symptom": "어지럼증", "followup": "얼마나 지속되나요?", "method": "rule", "contains": "지속"}
+  ],
+  "no_rewrite_cases": [
+    {"last_symptom": "두통", "followup": "감사합니다"},
+    {"last_symptom": "두통", "followup": "오늘 날씨 좋네요"}
+  ]
+}

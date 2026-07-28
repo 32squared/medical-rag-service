@@ -11,7 +11,10 @@ param(
     [string]$DbName      = "medical_app_dev",
     [string]$DbPassword  = "",
     [string]$TrustSecret = "",
-    [switch]$Prod
+    [switch]$Prod,
+    # 이미 빌드된 이미지로 배포만 수행 (gcloud 로컬 아카이브가 백신에 잠기는
+    # WinError 32 우회: tar 직접 생성 → gs:// 업로드 → builds submit gs://... 후 사용)
+    [switch]$SkipBuild
 )
 
 if ($Prod) {
@@ -41,14 +44,18 @@ Write-Host "DB Password: ****" -ForegroundColor Green
 $DatabaseUrl = "postgresql://app_user:${DbPassword}@/${DbName}?host=/cloudsql/${SqlConnection}"
 
 # ── 이미지 빌드 ──
-Write-Host "[1/2] Building image..." -ForegroundColor Yellow
-gcloud builds submit --tag $ImageUri .
-if ($LASTEXITCODE -ne 0) { Write-Host "Build failed!" -ForegroundColor Red; exit 1 }
+if ($SkipBuild) {
+    Write-Host "[1/2] Build skipped (-SkipBuild) — 기존 이미지 사용: $ImageUri" -ForegroundColor Yellow
+} else {
+    Write-Host "[1/2] Building image..." -ForegroundColor Yellow
+    gcloud builds submit --tag $ImageUri .
+    if ($LASTEXITCODE -ne 0) { Write-Host "Build failed!" -ForegroundColor Red; exit 1 }
+}
 
 # ── 배포 (RUN_MODE=rag) ──
 Write-Host "[2/2] Deploying RAG service..." -ForegroundColor Yellow
 # 전체 env 변수 레퍼런스: docs/env_reference.md (섹션 3 — RAG 서비스)
-$EnvVars = "DATABASE_URL=$DatabaseUrl,RUN_MODE=rag,RAG_ENABLED=true,RAG_LLM_MODEL=gpt-5.4-mini,RAG_LLM_FALLBACK_MODEL=gpt-5.4-mini,RAG_GUARDRAIL_FP_FILTER=true,LLM_REASONING_EFFORT=low"
+$EnvVars = "DATABASE_URL=$DatabaseUrl,RUN_MODE=rag,RAG_ENABLED=true,RAG_LLM_MODEL=gpt-5.4-mini,RAG_LLM_FALLBACK_MODEL=gpt-5.4-mini,RAG_GUARDRAIL_FP_FILTER=true,LLM_REASONING_EFFORT=minimal"
 if ($TrustSecret) { $EnvVars = "$EnvVars,RAG_TRUST_SECRET=$TrustSecret" }
 
 gcloud run deploy $ServiceName `

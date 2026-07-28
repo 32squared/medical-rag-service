@@ -1,0 +1,100 @@
+# 피드백·개선 루프 온톨로지 (통합 온톨로지 확장) — Turtle/OWL
+# 대화·반응을 메모리화 → 피드백 추출 → 성능 개선의 폐루프.
+# phr-ontology + device + context 와 함께 로드. 품질·평가는 골든셋·LLM judge(내부),
+# 행동분석은 이벤트 스토어(EventStore)+BI(Metabase/Grafana), PostHog는 선택. 원시 건강 텍스트·수치·진단명은 외부 미전송(경계선 상속).
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix phr:  <https://namuh.health/phr#> .
+
+#################################################################
+#  피드백 신호 (대화에서 추출 — 우리 LLM 파이프라인)
+#################################################################
+phr:FeedbackSignal a owl:Class ; rdfs:label "피드백 신호(추상)"@ko ;
+    rdfs:comment "대화 텍스트·행동에서 추출. 건강 자유텍스트 유래 → 민감(E1)."@ko ; phr:sensitivity phr:Sensitive .
+phr:Satisfaction    rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "만족도"@ko ; rdfs:comment "만족/불만 톤"@ko .
+phr:RefusalDemand   rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "거절 수요"@ko ; rdfs:comment "원했으나 합법적으로 못 준 신호 — KB확장·표현개선 입력(E4)"@ko .
+phr:Correction      rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "정정"@ko ; rdfs:comment "‘아니 그게 아니라’ 류 — 답 오류 신호"@ko .
+phr:Reask           rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "재질문"@ko ; rdfs:comment "같은 의도 반복 — 답 부족 신호"@ko .
+phr:ExplicitFeedback rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "명시 피드백(👍/👎)"@ko .
+phr:Abandonment     rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "이탈"@ko .
+phr:DwellSignal     rdfs:subClassOf phr:FeedbackSignal ; rdfs:label "체류/재방문"@ko .
+
+#################################################################
+#  품질 판정 (골든셋·LLM judge)
+#################################################################
+phr:QualityVerdict a owl:Class ; rdfs:label "품질 판정"@ko .
+phr:GroundingVerdict rdfs:subClassOf phr:QualityVerdict ; rdfs:label "근거 일치"@ko .
+phr:SafetyVerdict    rdfs:subClassOf phr:QualityVerdict ; rdfs:label "안전 판정"@ko ; rdfs:comment "진단단정·거짓안심·민감노출 0 검증"@ko .
+phr:UsefulnessScore  rdfs:subClassOf phr:QualityVerdict ; rdfs:label "유용성 점수"@ko .
+phr:CitationAccuracy rdfs:subClassOf phr:QualityVerdict ; rdfs:label "인용 정확도"@ko .
+
+phr:GoldenSet a owl:Class ; rdfs:label "골든셋(회귀 케이스)"@ko ;
+    rdfs:comment "거짓안심·진단단정·과노출 회귀를 박제. 배포 게이트(E3)."@ko .
+
+#################################################################
+#  실험 / 개선 백로그
+#################################################################
+phr:Experiment a owl:Class ; rdfs:label "실험"@ko .
+phr:PromptVersion rdfs:subClassOf phr:Experiment ; rdfs:label "프롬프트 버전"@ko .
+phr:ABTest        rdfs:subClassOf phr:Experiment ; rdfs:label "A/B 테스트"@ko ; rdfs:comment "PostHog 기능플래그·실험으로 분배"@ko .
+
+phr:ImprovementItem a owl:Class ; rdfs:label "개선 항목(백로그)"@ko .
+phr:PromptTune    rdfs:subClassOf phr:ImprovementItem ; rdfs:label "프롬프트 개선"@ko .
+phr:KBExpansion   rdfs:subClassOf phr:ImprovementItem ; rdfs:label "KB 확장"@ko ; rdfs:comment "거절수요·근거부족 보강"@ko .
+phr:RankingFix    rdfs:subClassOf phr:ImprovementItem ; rdfs:label "검색 랭킹 개선"@ko .
+phr:CoverageGap   rdfs:subClassOf phr:ImprovementItem ; rdfs:label "도달/표현 갭"@ko .
+
+#################################################################
+#  관측·분석 레이어
+#################################################################
+phr:EventStore a owl:Class ; rdfs:label "이벤트 스토어"@ko ;
+    rdfs:comment "rag_queries 감사 확장 — 단일 이벤트 허브(Postgres·국내). 비식별 신호·피드백·판정을 모두 여기 기록. 외부 시스템 0."@ko .
+phr:AnalyticsEvent a owl:Class ; rdfs:label "비식별 이벤트"@ko ;
+    rdfs:comment "EventStore에 기록하는 안전 이벤트. 라벨·카운트·불리언만 — 원시 텍스트·수치·진단명·PII 금지(E2)."@ko .
+phr:ObservabilityTrace a owl:Class ; rdfs:label "관측 트레이스"@ko ;
+    rdfs:comment "내부 품질·평가 — 지연·인용·토큰·안전판정 트레이스(국내)."@ko .
+
+# 분석/대시보드 도구 — 데이터는 이벤트 스토어(EventStore)에. 도구는 선택.
+phr:AnalyticsTool a owl:Class ; rdfs:label "분석/대시보드 도구"@ko ; owl:oneOf ( phr:Metabase phr:Grafana phr:PostHog ) .
+phr:Metabase a phr:AnalyticsTool ; rdfs:label "Metabase(이벤트 스토어 위 BI · 기본)"@ko .
+phr:Grafana  a phr:AnalyticsTool ; rdfs:label "Grafana(이벤트 스토어 위 BI · 기본)"@ko .
+phr:PostHog  a phr:AnalyticsTool ; rdfs:label "PostHog(선택 · 나중 · self-hosted · 비식별)"@ko .
+phr:storedIn a owl:ObjectProperty ; rdfs:domain phr:AnalyticsEvent ; rdfs:range phr:EventStore .
+# 참고: wraith는 대화 플랫폼(코드베이스)이라 분석도구 아님.
+
+#################################################################
+#  관계 / 속성
+#################################################################
+phr:derivedFromTurn  a owl:ObjectProperty ; rdfs:domain phr:FeedbackSignal ; rdfs:range phr:Turn .
+phr:triggersItem     a owl:ObjectProperty ; rdfs:domain phr:FeedbackSignal ; rdfs:range phr:ImprovementItem .
+phr:evaluatedBy      a owl:ObjectProperty ; rdfs:domain phr:AssistantResponse ; rdfs:range phr:QualityVerdict .
+phr:partOfExperiment a owl:ObjectProperty ; rdfs:domain phr:AssistantResponse ; rdfs:range phr:Experiment .
+phr:emitsEvent       a owl:ObjectProperty ; rdfs:domain phr:Turn ; rdfs:range phr:AnalyticsEvent .
+phr:sentTo           a owl:ObjectProperty ; rdfs:domain phr:AnalyticsEvent ; rdfs:range phr:AnalyticsTool .
+phr:gatedBy          a owl:ObjectProperty ; rdfs:domain phr:ImprovementItem ; rdfs:range phr:GoldenSet ;
+    rdfs:comment "배포 게이트 — 골든셋 통과 시에만 반영(E3)."@ko .
+phr:reviewedBy       a owl:ObjectProperty ; rdfs:domain phr:FeedbackSignal ; rdfs:range phr:ReviewQueue .
+phr:ReviewQueue a owl:Class ; rdfs:label "검수 큐"@ko ; rdfs:comment "자동 추출 피드백의 사람 검수(E5)."@ko .
+
+phr:eventName  a owl:DatatypeProperty ; rdfs:domain phr:AnalyticsEvent ; rdfs:range xsd:string .
+phr:deidProps  a owl:DatatypeProperty ; rdfs:domain phr:AnalyticsEvent ; rdfs:range xsd:string ;
+    rdfs:comment "허용 속성: intent·path·domain·citations_count·latency_ms·guardrail_action·gate_decision·had_personal_block·gave_referral·is_followup·refusal·thumbs. 금지: 질의텍스트·원시수치·진단명·PII."@ko .
+
+#################################################################
+#  도메인 공리 (개선 루프 = E)
+#################################################################
+phr: skos:note """
+[개선 루프 — E]
+E1  피드백 신호는 건강 자유텍스트 유래 ⇒ 민감 ; 동의·마스킹·국내저장
+E2  이벤트는 이벤트 스토어(국내)에 비식별 신호만 기록 ; 질의텍스트·원시수치·진단명·PII 금지(A5/B7 상속) ; 외부 BI/도구는 선택·self-hosted·비식별
+E3  ImprovementItem ⇒ GoldenSet 게이트 통과 시에만 배포 (안전 회귀 0)
+E4  RefusalDemand(거절수요) = '원했으나 합법적으로 못 준' = KB확장·표현개선 1급 입력(07 D2)
+E5  자동 추출 피드백은 ReviewQueue(사람 검수) 경유 ; 자동 프롬프트/규칙 변경 금지
+E6  매 턴 응급 재평가·안전 불변식(I5·I7)은 실험·개선과 무관하게 항상 유지
+E7  실험(A/B)은 안전 동등성 전제 — 어느 변이도 진단단정·거짓안심·민감노출 0이어야 분배
+[도구] 데이터=이벤트 스토어(EventStore) / 대시보드=Metabase·Grafana / 품질·평가=골든셋·judge(내부) / 피드백 추출=우리 LLM / PostHog=선택(나중)
+""" .
