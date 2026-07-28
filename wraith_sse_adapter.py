@@ -54,6 +54,13 @@ _SOURCE_URL = {
 }
 
 
+# 파이프라인 단계 → 사용자 표시 문구 (프론트가 자체 문구로 대체 가능)
+_STAGE_DISPLAY = {
+    "searching": "근거 자료를 검색하고 있어요",
+    "answering": "답변을 작성하고 있어요",
+}
+
+
 def new_usage_strid(conversation_id: str) -> str:
     """graph_usage_strid 생성 — 원본 예시 형식: '{conversation_uuid}_{uuid}'."""
     return f"{conversation_id}_{uuid.uuid4()}"
@@ -185,6 +192,20 @@ def adapt_event(ev: Dict) -> List[Dict]:
                 "level": 0,
                 "display_message": "검색을 시작합니다",
                 "metadata": {"label": "start"},
+                "result_items": None,
+            }]
+        # 파이프라인 단계(생각 중→검색 중→답변 중) — 파트너 앱 8월 시안의 생성 상태 표시.
+        # 프론트는 strid 로 단계를 교체 표시; 구 프론트엔 무해한 추가 PROGRESS.
+        if data.get("status") == "stage":
+            stage = data.get("stage") or ""
+            display = _STAGE_DISPLAY.get(stage, stage)
+            return [{
+                "type": "PROGRESS",
+                "strid": f"stage_{stage}",
+                "status": "IN_PROGRESS",
+                "level": 0,
+                "display_message": display,
+                "metadata": {"label": stage},
                 "result_items": None,
             }]
         return [{"type": "INFO", "data": data}]

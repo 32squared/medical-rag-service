@@ -1261,6 +1261,8 @@ def generate_response(
         return
 
     # ── 2. Hybrid search ──────────────────────────────────────
+    # 단계 이벤트(파트너 앱 '생각 중→검색 중→답변 중' 표시 계약) — 어댑터가 PROGRESS로 변환
+    yield {"type": "INFO", "data": {"status": "stage", "stage": "searching"}}
     retrieval_start = time.time()
     try:
         chunks = hybrid_search(_retrieval_query, top_k=top_k)
@@ -1366,6 +1368,7 @@ def generate_response(
     # ── 4. LLM 스트리밍 (단일 스레드 — diag로 0.7~0.9초 정상 확인됨) ──
     # 리즈닝 침묵 동안 SSE가 끊겨도(truncation) 서버는 끝까지 생성·저장하고
     # 프론트가 /api/rag/result 로 폴링 복구하므로 별도 스레드 keep-alive 불필요.
+    yield {"type": "INFO", "data": {"status": "stage", "stage": "answering"}}
     llm_start = time.time()
     provider = get_llm_provider(provider_id)
 
