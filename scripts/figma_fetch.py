@@ -146,6 +146,45 @@ def cmd_dump(token: str, key: str, node: str, out: str | None) -> None:
     print(f"저장: {out}  ({os.path.getsize(out):,} bytes)")
 
 
+def cmd_texts(token: str, key: str, node: str, max_chars: int) -> None:
+    """노드 서브트리의 TEXT 레이어를 프레임별로 묶어 출력 — 렌더 불가/스로틀 시 우회.
+
+    이미지 렌더(/v1/images)와 달리 /v1/files/:key/nodes 는 별도 경로라
+    렌더 스로틀에 안 걸린다. 화면 문구·버튼 라벨·상태 메시지 분석용.
+    """
+    data = _get(token, f"/files/{key}/nodes", {"ids": node})
+    printed = 0
+
+    def walk(n, frame_name):
+        nonlocal printed
+        if printed >= max_chars:
+            return
+        t = n.get("type")
+        name = (n.get("name") or "").strip()
+        if t == "FRAME" and name and name != "-":
+            frame_name = name
+            line = f"\n## {name}"
+            print(line)
+            printed += len(line)
+        elif t == "SECTION" and name:
+            line = f"\n# [{name}]"
+            print(line)
+            printed += len(line)
+        if t == "TEXT":
+            chars = (n.get("characters") or "").strip()
+            if chars:
+                line = "  " + chars.replace("\n", " / ")[:300]
+                print(line)
+                printed += len(line)
+        for ch in n.get("children", []) or []:
+            walk(ch, frame_name)
+
+    for nid, entry in (data.get("nodes") or {}).items():
+        walk(entry["document"], "")
+    if printed >= max_chars:
+        print(f"\n... (출력 상한 {max_chars}자 도달 — --max-chars 로 조절)")
+
+
 def cmd_render(token: str, key: str, nodes: list, scale: float, out_dir: str) -> None:
     ids = ",".join(nodes)
     data = _get(token, f"/images/{key}", {"ids": ids, "format": "png", "scale": scale})
@@ -173,6 +212,8 @@ def main() -> None:
     st.add_argument("--depth", type=int, default=3)
     sd = sub.add_parser("dump");   sd.add_argument("file"); sd.add_argument("node")
     sd.add_argument("--out")
+    sx = sub.add_parser("texts");  sx.add_argument("file"); sx.add_argument("node")
+    sx.add_argument("--max-chars", type=int, default=20000)
     sr = sub.add_parser("render"); sr.add_argument("file"); sr.add_argument("nodes", nargs="+")
     sr.add_argument("--scale", type=float, default=2)
     sr.add_argument("--out", default=os.path.join(_REPO_ROOT, "docs", "design", "figma"))
@@ -186,6 +227,8 @@ def main() -> None:
         cmd_tree(token, key, _node_id(a.node) if a.node else None, a.depth)
     elif a.cmd == "dump":
         cmd_dump(token, key, _node_id(a.node), a.out)
+    elif a.cmd == "texts":
+        cmd_texts(token, key, _node_id(a.node), a.max_chars)
     elif a.cmd == "render":
         cmd_render(token, key, [_node_id(n) for n in a.nodes], a.scale, a.out)
 
