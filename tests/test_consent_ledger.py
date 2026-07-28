@@ -98,8 +98,12 @@ def test_grant_revoke_roundtrip(consent_db):
     assert len(cdb.history(s, "sensitive_info")) == 2           # append-only(grant+revoke)
 
 
-def test_history_is_append_only(consent_db):
+def test_history_is_append_only(consent_db, monkeypatch):
     cdb = consent_db
+    # Windows 시계 틱(~15.6ms) 안에서 3연속 insert 가 동일 created_at 을 받으면
+    # 의도된 안전규칙(동시각 동률=revoke 우선)에 걸려 플레이크 → 단조증가 시계 주입
+    _seq = iter(f"2026-06-01T00:00:0{i}+00:00" for i in range(10))
+    monkeypatch.setattr(cdb, "_now_iso", lambda: next(_seq))
     s = "subj-2"
     cdb.grant(s, "location")
     cdb.revoke(s, "location")
@@ -107,6 +111,16 @@ def test_history_is_append_only(consent_db):
     h = cdb.history(s, "location")
     assert [r["action"] for r in h] == ["grant", "revoke", "grant"]  # 시간순 이력 보존
     assert cdb.is_granted(s, "location") is True                     # 최종 grant
+
+
+def test_same_timestamp_tie_revoke_wins(consent_db, monkeypatch):
+    # 동시각 동률이 실제로 나면 안전측(revoke)이 이겨야 한다 — 규칙 자체를 고정
+    monkeypatch.setattr(consent_db, "_now_iso", lambda: "2026-06-01T00:00:00+00:00")
+    s = "subj-tie"
+    consent_db.grant(s, "location")
+    consent_db.revoke(s, "location")
+    consent_db.grant(s, "location")
+    assert consent_db.is_granted(s, "location") is False
 
 
 def test_personalization_allowed_db_reflects_revoke(consent_db):
