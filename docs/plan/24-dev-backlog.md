@@ -14,6 +14,13 @@
 4. ✅ **페르소나 → 개인화 코칭** — 페르소나 worst_band → `generate_plan(track,intake,band)`(밴드 배너·캡) + 게이미피케이션(streak)
 5. ✅ **web 페르소나 화면** — 온보딩 후 선택 카드(이름·이모지·프로필·예시질문) + 홈 '현재 페르소나' 표시 + 페르소나 추천 질문 칩
 
+## 🔵 현재 — 루틴형 전환(Phase 3) · 정본 [25-routine-transition-spec](25-routine-transition-spec.md)
+전략(사용자확대전략 rev6): 정보형(Q&A)은 트리거가 앱 밖 → 자연빈도 월 1회 미만. **상담에서 루틴으로** 카테고리 전환.
+- ✅ **12주 프로그램 엔진**(`routine_engine.py`) — 단계 2/4/4/2, 주차×트랙 36개 기록형 행동(출처 필수), 밴드 캡(경고=0 고정), 전환 판정 70/40
+- ✅ **영속·API**(`routine_repo.py`·`bff/routine_routes.py`·mig023) — 홈 1콜 `/routine/today`, 멱등 체크인(UNIQUE), 서버 KST 날짜 확정, 주간 리포트
+- ✅ **프론트 4탭 재구성**(`web/js/*` 8모듈) — 오늘(행동 1개·1탭 완료)·프로그램(12주 타임라인·히트맵)·상담·내 건강. 안전규칙 8종 전량 적용
+- ⏳ 남음: 12주 완주자 발생 후 **유지 모드(S12)** · 서버 푸시 발송(현재 시각 저장+인앱) · 공단 PHR 실연동(P2)
+
 ## 🟢 P1 — 앱 완성·생산화
 - ✅ **`web/` 정적 호스팅 분리** — GCS 공개버킷(`deploy-web.ps1`), 프론트 변경=Docker 빌드 0·즉시반영. BFF 는 API 전용(CORS `storage.googleapis.com`). config.js 로 BFF URL 런타임 주입(기본 빈값=same-origin 하위호환).
   - 앱: `https://storage.googleapis.com/medical-rag-web-716262961556/index.html` · 검증: cross-origin 전체 여정(인증→동의→페르소나(경고)→코칭) ACAO ALL PASS.
