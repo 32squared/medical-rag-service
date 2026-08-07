@@ -1131,6 +1131,7 @@ def generate_response(
     enable_guardrails: bool = True,
     personal_findings=None,
     personal_consent: bool = False,
+    personal_raw=None,
 ) -> Iterator[Dict]:
     """
     Hybrid search → 프롬프트 빌드 → LLM 스트리밍 → 가드레일 → DB 기록.
@@ -1374,20 +1375,29 @@ def generate_response(
 
     # 방향 2: 비식별 개인 맥락(밴드 라벨만)을 LLM 프롬프트에 주입 — 플래그·동의·국외이전·
     # 응급 게이트로 통제(정본 17). 기본 off → 미설정 시 행동 변화 0. 원시값·진단명 미투입.
-    _personal_injected = []   # 관찰성: 실제 LLM에 주입된 밴드 라벨(없으면 빈 리스트)
+    _personal_injected = []   # 관찰성: 실제 LLM에 주입된 신호(없으면 빈 리스트)
     try:
         import personal_llm_context as _plc
-        _pctx = _plc.build_llm_context(
-            personal_findings, query,
-            consent=personal_consent, provider=provider,
-            is_emergency=((_classification or {}).get("intent") == "emergency"),
-        )
-        if _pctx:
-            system_prompt = system_prompt + "\n\n" + _pctx
-            # 주입된 (표시명, 밴드) → "혈압=경고" 형태로 STOP에 실어 클라이언트가 검증 가능
-            _personal_injected = [f"{d}={l}" for d, l in _plc.candidate_items(personal_findings, query)]
-            logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과): %s",
-                        _personal_injected)
+        _emg = ((_classification or {}).get("intent") == "emergency")
+        # [데모] PERSONAL_RAW_TO_LLM 켜져 있으면 전체 PHR 원시값 주입 우선, 아니면 밴드-온리(방향2).
+        _rawctx = _plc.build_raw_context(
+            personal_raw, consent=personal_consent, provider=provider, is_emergency=_emg,
+        ) if personal_raw else ""
+        if _rawctx:
+            system_prompt = system_prompt + "\n\n" + _rawctx
+            _personal_injected = ["PHR-full"]
+            logger.info("[RAGEngine] 전체 PHR 원시값 LLM 주입(PERSONAL_RAW_TO_LLM, 동의·게이트 통과)")
+        else:
+            _pctx = _plc.build_llm_context(
+                personal_findings, query,
+                consent=personal_consent, provider=provider, is_emergency=_emg,
+            )
+            if _pctx:
+                system_prompt = system_prompt + "\n\n" + _pctx
+                # 주입된 (표시명, 밴드) → "혈압=경고" 형태로 STOP에 실어 클라이언트가 검증 가능
+                _personal_injected = [f"{d}={l}" for d, l in _plc.candidate_items(personal_findings, query)]
+                logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과): %s",
+                            _personal_injected)
     except Exception as _e:
         logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
 

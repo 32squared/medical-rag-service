@@ -25,6 +25,7 @@
 ## 🟡 P2 — 개인화(실데이터)
 - **PHR 공단검진 연동**(검진밴드→vital_rules) — 페르소나 데모를 실데이터로 승격
 - **방향2 라이브**(밴드 라벨 LLM 주입 검증) · **국내 LLM 경로**(국외이전 제거) · personal_record 암호화 영속(mig**023+** — 017~022 점유, LAUNCH-READINESS E1 참조)
+- 🟣 **[데모] 전체 PHR 원시값 LLM 주입** — `PERSONAL_RAW_TO_LLM`(기본 off) 시 밴드-온리(방향2·G6 라벨백스톱) 대신 원시 수치·PHR을 LLM 맥락에 주입(`personal_llm_context.build_raw_context`). 동의·응급·국외이전 게이트 유지. **⚠️ 합성 페르소나 데모 전용 — 실 PHR 운영 전 doc 17 재검토 필수**(원시값 노출은 방향2 컴플라 설계를 되돌림).
 
 ## 🟠 P3 — 운영·품질
 - 모니터링(analytics→Metabase/Grafana) · 레이트리밋·비용/악용 제어

@@ -175,6 +175,7 @@ class ServiceRoutesMixin:
                 enable_guardrails=True,
                 personal_findings=_personal_findings,
                 personal_consent=_personal_consent,
+                personal_raw=personal,   # [데모] 전체 PHR 원시값 주입용(PERSONAL_RAW_TO_LLM 게이트)
             ):
                 wraith_events = adapt_event(event)
                 for pev in wraith_events:
