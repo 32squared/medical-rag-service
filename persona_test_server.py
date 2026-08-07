@@ -1008,12 +1008,34 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # 공개 허브·시각화 정적 페이지 (docs/manual — 이미지에 포함, 1회 로드 캐시)
+    _DOC_PAGES = {
+        "/hub": "public-hub.html",
+        "/graph/system": "마이헬스케어-RAG-시스템그래프.html",
+        "/graph/kb": "마이헬스케어-KB-지식그래프.html",
+    }
+    _doc_cache: dict = {}
+
+    def _serve_doc_page(self, route: str):
+        html = self._doc_cache.get(route)
+        if html is None:
+            try:
+                p = REPO_ROOT / "docs" / "manual" / self._DOC_PAGES[route]
+                html = p.read_text(encoding="utf-8")
+                self._doc_cache[route] = html
+            except Exception as e:
+                return self._send(404, json.dumps({"error": f"page unavailable: {e}"}))
+        return self._send(200, html, "text/html; charset=utf-8")
+
     def do_GET(self):
         if self.path in ("/", "/index.html"):
             html = PAGE.replace("%LIVE%", "true" if self.rag_url else "false")
             return self._send(200, html, "text/html; charset=utf-8")
         if self.path in ("/app", "/app/"):     # 확정 디자인(Warm Light) 앱
             return self._send(200, APP_PAGE, "text/html; charset=utf-8")
+        route = self.path.rstrip("/") or "/"
+        if route in self._DOC_PAGES:           # /hub · /graph/system · /graph/kb
+            return self._serve_doc_page(route)
         if self.path == "/personas":
             return self._send(200, json.dumps(load_personas(), ensure_ascii=False))
         self._send(404, json.dumps({"error": "not found"}))

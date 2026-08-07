@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>마이헬스케어 Phase 3 프로토타이핑</title>
+<style>
+:root{
+  --bg:#F6F4EF; --card:#FFFFFF; --ink:#23302C; --body:#44524D; --mut:#8A938F;
+  --teal:#0E8A6B; --tealdk:#0B5E48; --line:rgba(35,48,44,.13);
+}
+@media (prefers-color-scheme: dark){
+:root{--bg:#141816;--card:#1E2421;--ink:#E8E6DF;--body:#B4BCB7;--mut:#7A837E;
+ --teal:#3DBE97;--tealdk:#9FE1CB;--line:rgba(232,230,223,.14)}
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+ font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.page{max-width:920px;margin:0 auto;padding:40px 22px 64px}
+header h1{font-size:27px;margin:0 0 6px}
+header p{font-size:13.5px;color:var(--mut);margin:0}
+.banner{margin:16px 0 0;font-size:12.5px;color:var(--body);background:var(--card);
+ border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:0 10px 10px 0;padding:10px 14px}
+section{margin:30px 0 0}
+section h2{font-size:16px;margin:0 0 4px;color:var(--teal)}
+section .sd{font-size:12.5px;color:var(--mut);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:15px 17px;text-decoration:none;color:inherit;transition:transform .08s, box-shadow .08s}
+a.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(20,40,32,.10);border-color:var(--teal)}
+.card .tag{display:inline-block;width:auto;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+ padding:2px 8px;border-radius:999px;margin-bottom:8px}
+.t-web{background:#0E8A6B;color:#fff}
+.t-html{background:#E7F2EE;color:#0B5E48}
+@media (prefers-color-scheme: dark){.t-html{background:#0B5E48;color:#CFE6DD}}
+.card b{display:block;font-size:14.5px;margin:0 0 4px;line-height:1.35}
+.card span{font-size:12px;color:var(--body);line-height:1.5;display:block}
+.card em{font-style:normal;font-size:11px;color:var(--mut);display:block;margin-top:7px}
+footer{margin-top:44px;font-size:11.5px;color:var(--mut);border-top:1px solid var(--line);
+ padding-top:14px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+ <h1>마이헬스케어 Phase 3 프로토타이핑</h1>
+ <p>건강 정보 안내 AI 프로토타입 — 데모 서비스와 시스템 시각화 모음</p>
+ <div class="banner">본 페이지의 모든 서비스는 <b>검토용 프로토타입</b>입니다. 합성(가상) 데이터로 동작하며,
+ 제공되는 답변은 <b>의료 자문이 아닙니다</b>. 응급 상황에서는 119 또는 응급실을 이용하세요.</div>
+</header>
+
+<section>
+ <h2>라이브 서비스</h2>
+ <p class="sd">클릭하면 바로 사용해 볼 수 있습니다</p>
+ <div class="grid">
+  <a class="card" href="/app">
+   <span class="tag t-web">WEB</span><b>데모 앱 (Warm Light)</b>
+   <span>온보딩 → 페르소나 선택 → AI 채팅·오늘 챙길 것 카드·웰니스 코칭·가까운 약국 찾기까지 전체 사용자 여정.</span>
+   <em>권장 시작 지점</em></a>
+  <a class="card" href="/">
+   <span class="tag t-web">WEB</span><b>개발 테스트 뷰어</b>
+   <span>가상 사용자(페르소나) 24종을 골라 개인화 해석·안전장치 동작을 미리보기로 확인하는 검증 화면.</span>
+   <em>내부 검증용 UI</em></a>
+  <a class="card" href="https://medical-rag-admin-716262961556.asia-northeast3.run.app/" target="_blank" rel="noopener">
+   <span class="tag t-web">WEB</span><b>운영 어드민 + KB 지식그래프</b>
+   <span>운영 통계와 지식창고(KB) 관계망 그래프. 관리자 전용입니다.</span>
+   <em>비밀번호 로그인 필요 (내부용)</em></a>
+ </div>
+</section>
+
+<section>
+ <h2>인터랙티브 시각화</h2>
+ <p class="sd">드래그 이동 · 휠 줌 · 노드 클릭 상세 — 설치 없이 브라우저에서 바로</p>
+ <div class="grid">
+  <a class="card" href="/graph/system" target="_blank">
+   <span class="tag t-html">HTML</span><b>RAG 시스템 그래프</b>
+   <span>AI가 답을 만드는 실제 구조 — 지식 준비부터 검색·근거 게이트·가드레일·개인화 경계까지 구성요소 23개의 관계망.</span>
+   <em>노드 클릭=설명 · 범례=계열 강조</em></a>
+  <a class="card" href="/graph/kb" target="_blank">
+   <span class="tag t-html">HTML</span><b>KB 지식그래프</b>
+   <span>질문 유형 7종이 어떤 출처로 연결되고, 지식창고에 무엇이 채워져 있고 무엇이 비어 있는지 한눈에.</span>
+   <em>적재 / 비어있음 / 적재 계획 상태 표시</em></a>
+ </div>
+</section>
+
+<footer>
+ 마이헬스케어 Phase 3 프로토타이핑 · 테스트용 합성 데이터 · 의료 자문 아님 · 진단·처방은 반드시 의료진과 상담하세요.
+</footer>
+</div>
+</body>
+</html>
