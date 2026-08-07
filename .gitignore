@@ -69,3 +69,4 @@ package-lock.json
 
 # docs/manual/build 중간 PDF 산출물 (최종본은 docs/manual/ 레벨에 커밋)
 docs/manual/build/*.pdf
+.localdev/

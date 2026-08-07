@@ -9,33 +9,62 @@
 <title>마이헬스케어</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-<!-- 런타임 BFF(API) 베이스 주입(정적 호스팅 분리). 모듈 스크립트보다 먼저 실행되도록 클래식 스크립트. -->
+<!-- 런타임 BFF(API) 베이스 주입(정적 호스팅 분리). 모듈보다 먼저 실행되도록 클래식 스크립트. -->
 <script src="config.js"></script>
 <style>
   :root{
-    --bg:#F6F4EF; --surface:#FFFFFF; --teal:#0E8A6B; --teal-d:#0B6E52;
+    --bg:#F6F4EF; --surface:#FFFFFF; --teal:#0E8A6B; --teal-d:#0B6E52; --teal-l:#E7F3EF;
     --amber:#E0A23E; --red:#C8553D; --ink:#2B2B2B; --muted:#6B6B6B; --line:#E7E3DA;
     --radius:16px; --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(20,40,30,.06);
+    --tabh:62px;
   }
   *{box-sizing:border-box}
+  html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--ink);
     font-family:Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
-    -webkit-font-smoothing:antialiased}
-  #root{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+    -webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+  #root{max-width:480px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+  button{font-family:inherit}
   .pad{padding:20px}
-  .grow{flex:1}
-  h1{font-size:22px;margin:0 0 6px} h2{font-size:17px;margin:0 0 10px}
+  .center{display:flex;flex-direction:column;justify-content:center;min-height:70dvh}
   .muted{color:var(--muted);font-size:14px;line-height:1.55}
+  .note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.55}
+  .err{color:var(--red);font-size:13px;margin-top:10px}
+  h1{font-size:22px;margin:0 0 6px}
+  .sectitle{font-size:12.5px;font-weight:800;color:var(--muted);letter-spacing:.02em;margin-bottom:8px}
   .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
   .dot{width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,var(--teal),#15A982);
     display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
-    padding:16px;box-shadow:var(--shadow)}
+
+  /* 레이아웃 — 탭바 고정, 본문 스크롤 */
+  .screen{flex:1;display:flex;flex-direction:column;min-height:0;padding-bottom:var(--tabh)}
+  .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 18px 0}
+  .bottompad{height:28px}
+
+  /* 헤더 */
+  .hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surface);
+    position:sticky;top:0;z-index:5}
+  .hdrtitle{font-weight:700;font-size:16px;flex:1;text-align:center}
+  .hdrspacer,.hdrright{min-width:52px;display:flex;justify-content:flex-end}
+  .hdrspacer{justify-content:flex-start}
+  .icobtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;
+    padding:7px 10px;font-size:13px;cursor:pointer;color:var(--ink)}
+
+  /* 버튼 */
   .btn{appearance:none;border:0;border-radius:12px;padding:14px 16px;font-size:16px;font-weight:700;
-    width:100%;cursor:pointer;background:var(--teal);color:#fff;transition:.15s}
+    width:100%;cursor:pointer;background:var(--teal);color:#fff;transition:.15s;display:block;text-align:center;
+    text-decoration:none}
   .btn:active{transform:translateY(1px)} .btn:disabled{opacity:.5;cursor:default}
   .btn.ghost{background:transparent;color:var(--teal);border:1px solid var(--teal)}
   .btn.warn{background:transparent;color:var(--red);border:1px solid var(--red)}
+  .btn.small{padding:8px 12px;width:auto;font-size:13px;display:inline-block}
+  .linkbtn{background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 2px;
+    text-decoration:underline;text-underline-offset:2px}
+  .dotsep{color:var(--line);margin:0 6px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:var(--shadow)}
   .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;
     border-bottom:1px solid var(--line)}
   .row:last-child{border-bottom:0}
@@ -47,72 +76,243 @@
   .sw i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
     transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
   .sw.on i{left:21px}
-  .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;
-    border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5}
-  .icobtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;
-    font-size:13px;cursor:pointer;color:var(--ink)}
-  .chat{display:flex;flex-direction:column;gap:10px;padding:16px 20px 0}
-  .msg{max-width:84%;padding:11px 14px;border-radius:14px;font-size:15px;line-height:1.5;white-space:pre-wrap}
+  .stepdots{display:flex;gap:6px;margin-bottom:18px}
+  .stepdots b{width:24px;height:5px;border-radius:99px;background:var(--line)}
+  .stepdots b.on{background:var(--teal)}
+
+  /* 상태 뷰 */
+  .spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--line);
+    border-top-color:var(--teal);animation:spin .8s linear infinite;margin:0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .errbox,.emptybox{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:22px 18px;text-align:center;box-shadow:var(--shadow)}
+  .errtitle,.emptytitle{font-weight:700;font-size:15.5px}
+  .infobox{background:#EEF4FB;border:1px solid #CBDCEC;color:#2A5C8A;border-radius:12px;
+    padding:12px 13px;font-size:13px;line-height:1.6;margin-top:10px}
+  .banner{background:#FFF6E6;border:1px solid #F0DDB0;border-radius:12px;padding:10px 12px;
+    font-size:12.5px;color:#8A5A12;line-height:1.55;margin-bottom:12px}
+  .safetybox{background:#FDF1EE;border:1px solid #E8C4BB;border-radius:var(--radius);padding:18px}
+  .safetytitle{font-weight:800;color:#A23B26;font-size:16px;line-height:1.5}
+
+  /* ── 오늘 탭: 히어로 ── */
+  .hero{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;
+    box-shadow:var(--shadow);border-left:5px solid var(--teal)}
+  .hero-done{border-left-color:#9BC7B7;background:var(--teal-l)}
+  .herotop{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+  .herotag{font-size:11.5px;font-weight:800;color:var(--teal);letter-spacing:.03em}
+  .heromin{font-size:11.5px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:99px}
+  .herotext{font-size:17px;line-height:1.55;font-weight:600}
+  .herocite{font-size:11.5px;color:var(--muted);margin-top:8px}
+  .herobtn{margin-top:14px}
+  .heroopts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .optbtn{flex:1;min-width:88px;border:1.5px solid var(--teal);background:#fff;color:var(--teal);
+    border-radius:12px;padding:13px 10px;font-size:14.5px;font-weight:700;cursor:pointer}
+  .optbtn:active{background:var(--teal);color:#fff} .optbtn:disabled{opacity:.5}
+  .heroDoneRow{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:14px;color:var(--teal-d);font-weight:600}
+  .okmark{width:26px;height:26px;border-radius:50%;background:var(--teal);color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+  .herosub{display:flex;align-items:center;justify-content:center;margin-top:12px}
+  .toast{background:var(--teal);color:#fff;border-radius:12px;padding:11px 14px;font-size:14px;
+    font-weight:600;text-align:center;margin-top:10px;animation:pop .25s ease-out}
+  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
+
+  .evidence{margin-top:12px;font-size:12.5px;color:var(--muted);background:var(--surface);
+    border:1px dashed var(--line);border-radius:12px;padding:10px 12px}
+  .evlabel{font-weight:700;color:var(--teal)}
+  .bandchip{display:inline-block;font-size:12px;font-weight:700;color:var(--teal);
+    background:var(--teal-l);padding:5px 11px;border-radius:99px;margin-bottom:12px}
+  .streakchip{font-size:13px;font-weight:800;color:var(--teal)}
+
+  .themecard{margin-top:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:14px}
+  .themetitle{font-weight:700;font-size:14.5px}
+  .thememission{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+  .themeprog{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .pbar{flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+  .pfill{height:100%;background:var(--teal);border-radius:99px;transition:width .35s}
+  .pnum{font-size:12.5px;font-weight:700;color:var(--teal);flex:none}
+
+  .weekdots{display:flex;justify-content:space-between;gap:4px;margin-top:12px;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 10px}
+  .wd{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+  .wdlabel{font-size:11px;color:var(--muted)}
+  .wddot{width:11px;height:11px;border-radius:50%;background:var(--line)}
+  .wd-done .wddot{background:var(--teal)}
+  .wd-skip .wddot{background:var(--amber)}
+  .wd-na .wddot{background:#C9C9C9}
+  .wd-missed .wddot{background:#EDE9E0}
+  .wd-today .wddot{background:#fff;border:2.5px solid var(--teal)}
+  .wd-future .wddot{background:#F1EEE7}
+
+  .supportwrap{margin-top:16px}
+  .suprow{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);
+    border-radius:12px;padding:12px;margin-bottom:8px}
+  .supmain{flex:1;font-size:14px}
+  .supcite{font-size:11px;color:var(--muted);margin-top:3px}
+  .supstate{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line);flex:none;
+    display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+  .supstate.on{background:var(--teal);border-color:var(--teal)}
+
+  .coach{margin-top:14px;background:var(--teal-l);border-radius:12px;padding:12px 14px;
+    font-size:13.5px;color:var(--teal-d);line-height:1.6}
+  .previewcard{margin-top:14px;background:var(--surface);border:1px dashed var(--line);
+    border-radius:14px;padding:14px}
+  .previewlabel{font-size:11.5px;font-weight:800;color:var(--muted);margin-bottom:6px}
+  .previewtext{font-size:14px;line-height:1.55}
+  .reportcue{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:var(--surface);border:1px solid var(--teal);border-radius:12px;padding:12px 14px;
+    font-size:13.5px;font-weight:600;color:var(--teal-d);cursor:pointer;margin-bottom:12px}
+
+  /* 12주 스트립 */
+  .strip{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:13px;margin-top:16px;cursor:pointer;text-align:left}
+  .striprow{display:flex;gap:3px}
+  .wseg{flex:1;height:9px;border-radius:3px;background:#EDE9E0}
+  .wseg-done{background:var(--teal)}
+  .wseg-past{background:#BFD9D0}
+  .wseg-now{background:var(--amber);box-shadow:0 0 0 2px rgba(224,162,62,.25)}
+  .stripfoot{display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--muted)}
+  .stripmore{color:var(--teal);font-weight:700}
+
+  .askwrap{margin-top:18px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:99px;
+    padding:9px 13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+  .chip.sel{background:var(--teal);color:#fff}
+  .chip.ghost{border-color:var(--line);color:var(--muted)}
+  .chip:disabled{opacity:.5}
+
+  /* ── 프로그램 탭 ── */
+  .pgsummary{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px;margin-bottom:12px}
+  .pgring{width:84px;height:84px;border-radius:50%;border:6px solid var(--teal-l);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;
+    border-top-color:var(--teal);border-right-color:var(--teal)}
+  .pgweek{font-size:26px;font-weight:800;color:var(--teal);line-height:1}
+  .pgweek span{font-size:12px;margin-left:1px}
+  .pgtotal{font-size:11px;color:var(--muted);margin-top:2px}
+  .pgstats{flex:1;display:flex;justify-content:space-between;text-align:center}
+  .pgstats div{display:flex;flex-direction:column;gap:3px}
+  .pgstats b{font-size:15px} .pgstats span{font-size:11px;color:var(--muted)}
+  .badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .badge2{font-size:12px;background:var(--surface);border:1px solid var(--line);
+    border-radius:99px;padding:6px 11px}
+
+  .timeline{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:6px 14px;margin-bottom:14px}
+  .tlrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .tlrow:last-child{border-bottom:0}
+  .tlweek{width:32px;text-align:center;flex:none;color:var(--muted)}
+  .tlweek b{display:block;font-size:15px;color:var(--ink)}
+  .tlweek span{font-size:10px}
+  .tlbody{flex:1;min-width:0}
+  .tlphase{font-size:10.5px;color:var(--teal);font-weight:800}
+  .tltheme{font-size:13.5px;margin-top:2px;line-height:1.4}
+  .tlstat{font-size:12px;color:var(--muted);flex:none}
+  .tl-done .tlweek b{color:var(--teal)}
+  .tl-future{opacity:.5}
+  .tl-now{background:var(--teal-l);margin:0 -14px;padding-left:14px;padding-right:14px;border-radius:10px}
+
+  .heatwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .heat{display:flex;flex-wrap:wrap;gap:3px}
+  .hcell{width:12px;height:12px;border-radius:3px;background:#EDE9E0;display:inline-block}
+  .hcell.h1{background:#BFD9D0} .hcell.h2{background:var(--teal)}
+  .heatlegend{display:flex;align-items:center;gap:5px;margin-top:10px;font-size:11px;color:var(--muted)}
+
+  .rpcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:12px}
+  .rpbig{font-size:32px;font-weight:800;color:var(--teal);line-height:1}
+  .rpbig span{font-size:15px;color:var(--muted);font-weight:600}
+  .rptheme{font-size:13.5px;margin-top:6px}
+  .rprow{display:flex;gap:14px;margin-top:12px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+  .rprow b{color:var(--ink)}
+  .rpdelta{margin-top:10px;font-size:12.5px;color:var(--teal);font-weight:700}
+  .barwrap{display:flex;align-items:flex-end;gap:6px;height:92px;margin-top:4px}
+  .barcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%}
+  .bartrack{flex:1;width:100%;background:#EDE9E0;border-radius:5px;display:flex;align-items:flex-end;overflow:hidden}
+  .barfill{width:100%;background:var(--teal);border-radius:5px;min-height:3px}
+  .barlab{font-size:10px;color:var(--muted)}
+  .trendlab{margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .rpcard.next{border-color:var(--teal);background:var(--teal-l)}
+  .nexttheme{font-size:14.5px;font-weight:700;color:var(--teal-d)}
+
+  /* ── 상담 탭 ── */
+  .chatwrap{flex:1;display:flex;flex-direction:column;min-height:0}
+  .chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:16px 18px 4px}
+  .msg{max-width:86%;padding:11px 14px;border-radius:14px;font-size:15px;line-height:1.55;white-space:pre-wrap}
   .msg.me{align-self:flex-end;background:var(--teal);color:#fff;border-bottom-right-radius:5px}
   .msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
   .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;
     background:rgba(224,162,62,.15);color:#9A6B16;margin-bottom:4px}
-  .citelink{color:var(--teal);font-weight:700;text-decoration:none;font-size:.92em;padding:0 1px}
-  .citelink:hover{text-decoration:underline}
+  .badge.open{background:rgba(14,138,107,.12);color:var(--teal)}
+  .badge.closed{background:rgba(0,0,0,.06);color:var(--muted)}
+  .citelink{color:var(--teal);font-weight:700;text-decoration:none;font-size:.92em}
   .sources{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
   .srctitle{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px}
   .srcrow{display:block;font-size:12.5px;color:var(--ink);text-decoration:none;padding:4px 0;line-height:1.4}
-  .srcrow:hover{color:var(--teal)} .srcrow .ext{color:var(--teal);font-weight:700}
   .iv{background:#FFFDF7;border-color:#EFE3C8}
   .ivintro{font-size:13px;color:var(--muted);margin-bottom:8px;line-height:1.5}
   .ivq{font-size:15px;margin-bottom:10px}
-  .ivopts{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:99px;padding:8px 13px;
-    font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit}
-  .chip:hover{background:rgba(14,138,107,.08)} .chip.ghost{border-color:var(--line);color:var(--muted)}
-  .streak{font-size:12.5px;color:var(--teal);font-weight:700}
-  .banner{background:#FFF6E6;border:1px solid #F0DDB0;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#8A5A12;margin-bottom:10px;line-height:1.5}
-  .ckrow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
-  .ckrow:last-child{border-bottom:0}
-  .ckbtn{border:1px solid var(--teal);background:#fff;color:var(--teal);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;flex:none;font-family:inherit}
-  .ckbtn.done{background:var(--teal);color:#fff;opacity:.85}
-  .trackgrid{display:flex;gap:10px;margin-top:6px}
-  .trackcard{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 8px;text-align:center;cursor:pointer;box-shadow:var(--shadow);font-family:inherit;color:var(--ink)}
-  .trackcard:hover{border-color:var(--teal)}
-  .chip.sel{background:var(--teal);color:#fff;border-color:var(--teal)}
-  .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
-  .segb{flex:1;border:0;background:#fff;padding:11px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);font-family:inherit}
-  .segb.on{background:var(--teal);color:#fff}
-  .faccard{margin-top:10px;padding:13px}
-  .badge.open{background:rgba(14,138,107,.12);color:var(--teal)}
-  .badge.closed{background:rgba(0,0,0,.06);color:var(--muted)}
-  .personacard{display:block;width:100%;text-align:left;padding:14px;margin-bottom:10px;cursor:pointer;font-family:inherit;color:var(--ink)}
-  .personacard:hover{border-color:var(--teal)} .personacard:disabled{opacity:.6}
-  .psbar{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 4px;font-size:13px}
-  .psbar>span{font-weight:700;color:var(--teal)}
-  .pschips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .antic{margin:2px 0 8px;border-left:4px solid var(--amber);background:#FFFBF3}
-  .antic.emg{border-left-color:var(--red);background:#FDF1EE}
-  .anticbadge{font-size:11px;font-weight:800;color:#9A6B16;margin-bottom:5px;letter-spacing:.02em}
-  .antic.emg .anticbadge{color:var(--red)}
-  .antictext{font-size:14.5px;line-height:1.55}
-  .anticnote{font-size:11.5px;color:var(--muted);margin-top:5px}
   .typing{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px}
   .dots{display:inline-flex;gap:4px}
   .dots i{width:6px;height:6px;border-radius:50%;background:var(--teal);animation:blink 1.2s infinite}
   .dots i:nth-child(2){animation-delay:.2s} .dots i:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
-  .composer{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);
-    background:var(--surface);position:sticky;bottom:0}
+  .composer{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line);background:var(--surface)}
   .composer input{flex:1;border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;
-    font-family:inherit;outline:none}
-  .stepdots{display:flex;gap:6px;margin-bottom:18px}
-  .stepdots b{width:24px;height:5px;border-radius:99px;background:var(--line)}
-  .stepdots b.on{background:var(--teal)}
-  .note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
-  .err{color:var(--red);font-size:13px;margin-top:8px}
-  .center{display:flex;flex-direction:column;justify-content:center;min-height:100vh}
+    font-family:inherit;outline:none;min-width:0}
+  .sendbtn{width:auto;padding:13px 18px}
+
+  /* ── 내 건강 탭 ── */
+  .dgcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .dgtop{display:flex;align-items:center;justify-content:space-between}
+  .dgband{font-size:17px;font-weight:800;color:var(--teal)}
+  .dgoff{font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:99px}
+  .dgitems{margin-top:12px}
+  .dgrow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
+    border-bottom:1px solid var(--line);font-size:13.5px}
+  .dgrow:last-child{border-bottom:0}
+  .dgstate{font-weight:700;font-size:12.5px}
+  .dgstate.s-안정{color:var(--teal)} .dgstate.s-주의{color:var(--amber)} .dgstate.s-경고{color:var(--red)}
+  .dgnotice{margin-top:12px;font-size:11.5px;color:var(--muted);line-height:1.55}
+  .reccard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:15px;margin-top:12px}
+  .rectext{font-size:13.5px;line-height:1.55}
+  .seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px}
+  .segb{flex:1;border:0;background:#fff;padding:11px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted)}
+  .segb.on{background:var(--teal);color:#fff}
+  .faccard{margin-top:10px;padding:13px}
+  .personacard{display:block;width:100%;text-align:left;padding:14px;margin-bottom:10px;cursor:pointer;color:var(--ink)}
+  .trackcard2{display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:15px;
+    margin-bottom:10px;cursor:pointer;color:var(--ink)}
+  .tkemoji{font-size:27px;flex:none}
+  .tkbody{flex:1;min-width:0}
+  .tkname{font-weight:700;font-size:15px}
+  .rectag{font-size:10.5px;font-weight:800;color:#fff;background:var(--teal);padding:2px 7px;
+    border-radius:99px;margin-left:6px;vertical-align:middle}
+  .tkdesc{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+
+  /* ── 탭바 ── */
+  .tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+    height:var(--tabh);background:var(--surface);border-top:1px solid var(--line);
+    display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+  .tabbtn{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:3px;cursor:pointer;color:var(--muted);padding:0}
+  .tabbtn.on{color:var(--teal)}
+  .tabicon{font-size:19px;line-height:1}
+  .tablabel{font-size:10.5px;font-weight:700}
 </style>
+</head>
+<body>
+<div id="root">
+  <!-- 정적 로딩 셸: 모듈 로드 실패와 렌더 실패를 구분하기 위한 최소 표시 -->
+  <div class="pad center" id="bootshell">
+    <div class="spinner"></div>
+    <p class="muted" style="margin-top:10px;text-align:center">불러오는 중…</p>
+  </div>
+</div>
+<noscript><div class="pad">이 앱은 자바스크립트가 필요합니다.</div></noscript>
+
 <script type="importmap">
 {
   "imports": {
@@ -122,507 +322,18 @@
   }
 }
 </script>
-</head>
-<body>
-<div id="root"></div>
-<script type="module">
-import { h, render, Fragment } from 'preact';
-import { useState, useEffect, useRef } from 'preact/hooks';
-import htm from 'htm';
-const html = htm.bind(h);
-
-// ── BFF 클라이언트 ────────────────────────────────────────────
-// 우선순위: 수동 오버라이드(localStorage) > 빌드주입(config.js: window.__MHC_BFF__) > same-origin('').
-const BFF = (localStorage.getItem('mhc_bff') || window.__MHC_BFF__ || '').replace(/\/$/, '');
-const TK = 'mhc_tokens';
-const getTok = () => { try { return JSON.parse(localStorage.getItem(TK) || 'null'); } catch { return null; } };
-const setTok = (t) => t ? localStorage.setItem(TK, JSON.stringify(t)) : localStorage.removeItem(TK);
-
-async function refresh() {
-  const t = getTok();
-  if (!t || !t.refresh_token) return false;
-  const r = await fetch(BFF + '/auth/refresh', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: t.session_id, refresh_token: t.refresh_token }),
-  });
-  if (!r.ok) { setTok(null); return false; }
-  const d = await r.json();
-  setTok({ ...t, access_token: d.access_token, refresh_token: d.refresh_token });
-  return true;
-}
-
-async function api(path, { method = 'GET', body, auth = true, retry = true } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  const t = getTok();
-  if (auth && t) headers['Authorization'] = 'Bearer ' + t.access_token;
-  const res = await fetch(BFF + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (res.status === 401 && auth && retry && await refresh())
-    return api(path, { method, body, auth, retry: false });
-  return res;
-}
-
-// 안정적 데모 본인인증 식별자(같은 기기=같은 계정)
-function deviceIdentity() {
-  let v = localStorage.getItem('mhc_devid');
-  if (!v) { v = 'mhc-' + Math.random().toString(36).slice(2, 11); localStorage.setItem('mhc_devid', v); }
-  return v;
-}
-
-const ITEM_DESC = {
-  personal_info: '서비스 이용을 위한 기본 개인정보',
-  sensitive_info: '맞춤 안내를 위한 건강·검진 정보(민감)',
-  cross_border: '국외 LLM 이용 시 개인정보 국외이전',
-  location: '가까운 병원·약국 찾기(위치)',
-  push: '코칭 리마인더 등 알림(정보통신망법)',
-  phr_link: '공단 건강검진 연동',
-};
-
-// ── 토글 ──────────────────────────────────────────────────────
-function Toggle({ on, lock, onClick }) {
-  return html`<div class=${'sw' + (on ? ' on' : '') + (lock ? ' lock' : '')}
-    onClick=${lock ? null : onClick}><i></i></div>`;
-}
-
-// ── 온보딩 ────────────────────────────────────────────────────
-function Onboarding({ onDone }) {
-  const [step, setStep] = useState(0);
-  const [items, setItems] = useState([]);
-  const [sel, setSel] = useState({ personal_info: true });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-
-  useEffect(() => {
-    api('/consent/items', { auth: false }).then(r => r.json())
-      .then(d => setItems(d.items || [])).catch(() => setErr('서버에 연결할 수 없습니다.'));
-  }, []);
-
-  const toggle = (k) => setSel(s => ({ ...s, [k]: !s[k] }));
-
-  async function finish() {
-    setBusy(true); setErr('');
-    try {
-      const s = await (await api('/auth/pass/start', { auth: false, method: 'POST', body: {} })).json();
-      const cb = await api('/auth/pass/callback', {
-        auth: false, method: 'POST', body: { tx_id: s.tx_id, mock_identity: deviceIdentity() },
-      });
-      if (!cb.ok) throw new Error('본인인증 실패');
-      setTok(await cb.json());
-      for (const it of items)
-        if (sel[it.item_key])
-          await api('/consent', { method: 'POST', body: { item_key: it.item_key, action: 'grant', source: 'onboarding' } });
-      onDone();
-    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
-  }
-
-  if (step === 0) return html`<div class="pad center">
-    <div class="brand" style="font-size:26px"><span class="dot">+</span> 마이헬스케어</div>
-    <p class="muted" style="margin-top:14px">의료법을 지키며 믿을 수 있는 건강 정보를 안내하고,
-      매일의 건강 습관을 함께 만들어가는 코칭까지. 시작해볼까요?</p>
-    <div style="height:24px"></div>
-    <button class="btn" onClick=${() => setStep(1)}>시작하기</button>
-    <p class="note">테스트용 프로토타입 · 합성 데이터 · 의료자문 아님</p>
-  </div>`;
-
-  return html`<div class="pad">
-    <div class="stepdots"><b class="on"></b><b class="on"></b></div>
-    <h1>이용 동의</h1>
-    <p class="muted">필수 항목에 동의하면 시작할 수 있어요. 선택 항목은 언제든 설정에서 바꿀 수 있습니다.</p>
-    <div style="height:14px"></div>
-    <div class="card">
-      ${items.map(it => html`<div class="row" key=${it.item_key}>
-        <div style="flex:1">
-          <div style="font-weight:600">${it.title}${it.required ? html`<span class="req">필수</span>` : ''}</div>
-          <div class="muted" style="font-size:12.5px">${ITEM_DESC[it.item_key] || ''}</div>
-        </div>
-        <${Toggle} on=${it.required || !!sel[it.item_key]} lock=${it.required} onClick=${() => toggle(it.item_key)} />
-      </div>`)}
-    </div>
-    ${err && html`<div class="err">${err}</div>`}
-    <div style="height:16px"></div>
-    <button class="btn" disabled=${busy || !items.length} onClick=${finish}>
-      ${busy ? '처리 중…' : '동의하고 본인인증(PASS)'}</button>
-    <p class="note">본인인증은 데모(mock)입니다. CI/DI 는 해시로만 저장되며 원문은 보관하지 않습니다.</p>
-  </div>`;
-}
-
-// 답변 본문의 [n] 마커 → 클릭형 출처 링크(citations[n-1].url)
-function renderAnswer(text, cites) {
-  return String(text || '').split(/(\[\d+\])/g).map((p, i) => {
-    const m = p.match(/^\[(\d+)\]$/);
-    if (!m) return p;
-    const c = cites && cites[+m[1] - 1];
-    return (c && c.url)
-      ? html`<a key=${i} class="citelink" href=${c.url} target="_blank" rel="noopener" title=${c.source}>${p}</a>`
-      : html`<span key=${i} class="citelink">${p}</span>`;
-  });
-}
-
-// ── 홈(채팅) ──────────────────────────────────────────────────
-function Home({ go }) {
-  const [msgs, setMsgs] = useState([{ ai: true, text: '안녕하세요, 마이헬스케어입니다. 건강에 대해 궁금한 점을 물어보세요.' }]);
-  const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [iv, setIv] = useState(null);     // 상황 되묻기(문진): {base, questions, idx, answers, intro}
-  const [home, setHome] = useState(null); // {cards, suggested, persona, personalization}
-  const endRef = useRef(null);
-  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [msgs, iv]);
-  useEffect(() => { api('/home').then(r => r.ok ? r.json() : null).then(setHome).catch(() => {}); }, []);
-  useEffect(() => {   // 재로그인 시 이전 대화 복원(있으면 인사말 대체)
-    api('/chat/history').then(r => r.ok ? r.json() : null).then(d => {
-      if (d && d.messages && d.messages.length)
-        setMsgs(d.messages.map(m => m.role === 'user'
-          ? { me: true, text: m.text }
-          : { ai: true, text: m.text, citations: m.citations || [], personalize: m.personalize }));
-    }).catch(() => {});
-  }, []);
-  const persona = home && home.persona;
-  const card = home && home.cards && home.cards[0];   // 선제 '오늘 챙길 것' 1개
-  const suggested = (home && home.suggested) || [];
-
-  async function send(q) {
-    q = (q != null ? q : text).trim(); if (!q || busy) return;
-    setText(''); setIv(null);
-    setMsgs(m => [...m, { me: true, text: q }]); setBusy(true);
-    try {
-      const r = await api('/chat', { method: 'POST', body: { message: q } });
-      if (r.status === 403) { setMsgs(m => [...m, { ai: true, text: '개인정보 이용 동의가 필요합니다. 설정에서 확인해주세요.' }]); return; }
-      const d = await r.json();
-      const rag = d.rag || {};
-      const answer = rag.answer || rag.echo || (rag.error ? ('답변을 불러오지 못했습니다 (' + rag.error + ')') : JSON.stringify(rag));
-      setMsgs(m => [...m, { ai: true, text: answer, citations: rag.citations || [], personalize: d.personalization }]);
-      const c = d.clarifiers;
-      if (c && c.questions && c.questions.length)
-        setIv({ base: q, questions: c.questions, idx: 0, answers: [], intro: c.intro });
-    } catch { setMsgs(m => [...m, { ai: true, text: '일시적인 오류가 발생했습니다.' }]); }
-    finally { setBusy(false); }
-  }
-
-  function answerIv(opt) {
-    setIv(cur => {
-      if (!cur) return null;
-      const answers = cur.answers.concat(opt);
-      if (cur.idx + 1 < cur.questions.length) return { ...cur, idx: cur.idx + 1, answers };
-      setTimeout(() => send(cur.base + ' / 문진: ' + answers.join(', ')), 0);  // 종합 → 정밀 재안내
-      return null;
-    });
-  }
-
-  return html`<${Fragment}>
-    <div class="hdr">
-      <div class="brand"><span class="dot">+</span> 마이헬스케어</div>
-      <div style="display:flex;gap:6px">
-        <button class="icobtn" onClick=${() => go('coaching')}>💪 코칭</button>
-        <button class="icobtn" onClick=${() => go('finder')}>📍 찾기</button>
-        <button class="icobtn" onClick=${() => go('settings')}>내 정보</button>
-      </div>
-    </div>
-    <div class="grow chat">
-      ${msgs.map((m, i) => html`<div class=${'msg ' + (m.me ? 'me' : 'ai')} key=${i}>
-        ${m.personalize ? html`<div class="badge">맞춤 안내</div>` : ''}
-        ${m.me ? m.text : renderAnswer(m.text, m.citations)}
-        ${(!m.me && m.citations && m.citations.length) ? html`<div class="sources">
-          <div class="srctitle">출처 ${m.citations.length}</div>
-          ${m.citations.map(c => html`<a class="srcrow" key=${c.n} href=${c.url || '#'}
-              target=${c.url ? '_blank' : undefined} rel="noopener">
-            <b>[${c.n}]</b> ${c.source}${c.title ? (' — ' + c.title) : ''}${c.url ? html` <span class="ext">↗</span>` : ''}</a>`)}
-        </div>` : ''}
-      </div>`)}
-      ${msgs.length <= 1 && card ? html`<div class=${'card antic' + (card.kind === 'emergency' ? ' emg' : '')}>
-        <div class="anticbadge">${card.kind === 'emergency' ? '🚨 지금 바로' : card.kind === 'must_attend' ? '⚠️ 오늘 챙길 것' : '💡 안내'}</div>
-        <div class="antictext">${card.text}</div>
-        ${card.note ? html`<div class="anticnote">${card.note}</div>` : ''}
-        ${card.referral === 'hospital' ? html`<button class="chip" style="margin-top:10px" onClick=${() => go('finder')}>📍 병원 찾기</button>` : ''}
-      </div>` : ''}
-      ${persona && msgs.length <= 1 ? html`<div class="psbar">
-        <span>${persona.emoji} ${persona.name}${persona.band ? (' · 혈압 ' + persona.band) : ''}</span>
-        ${suggested.length ? html`<div class="pschips">${suggested.slice(0, 4).map(q => html`<button class="chip" key=${q} onClick=${() => send(q)}>${q}</button>`)}</div>` : ''}
-      </div>` : ''}
-      ${iv ? html`<div class="msg ai iv">
-        <div class="ivintro">🩺 ${iv.intro || '더 정확히 좁혀 드릴까요? 답해 주시면 위 답변을 상황에 맞게 다시 안내드려요.'}</div>
-        <div class="ivq"><b>(${iv.idx + 1}/${iv.questions.length})</b> ${iv.questions[iv.idx].q}</div>
-        <div class="ivopts">
-          ${iv.questions[iv.idx].options.map(o => html`<button class="chip" key=${o} onClick=${() => answerIv(o)}>${o}</button>`)}
-          <button class="chip ghost" onClick=${() => setIv(null)}>괜찮아요</button>
-        </div>
-      </div>` : ''}
-      ${busy ? html`<div class="msg ai typing">
-        <span class="dots"><i></i><i></i><i></i></span><span>답변을 준비하고 있어요…</span>
-      </div>` : ''}
-      <div ref=${endRef}></div>
-    </div>
-    <div class="composer">
-      <input value=${text} placeholder="증상이나 건강 질문을 입력하세요"
-        onInput=${e => setText(e.target.value)} onKeyDown=${e => e.key === 'Enter' && send()} />
-      <button class="btn" style="width:auto;padding:13px 18px" disabled=${busy} onClick=${() => send()}>전송</button>
-    </div>
-  </${Fragment}>`;
-}
-
-// ── 설정(동의 관리·로그아웃·탈퇴) ─────────────────────────────
-function Settings({ go }) {
-  const [me, setMe] = useState(null);
-  const [busy, setBusy] = useState('');
-  const load = () => api('/me').then(r => r.ok ? r.json() : null).then(setMe);
-  useEffect(() => { load(); }, []);
-
-  async function toggle(it) {
-    if (it.required) return;
-    setBusy(it.item_key);
-    await api('/consent', { method: 'POST', body: { item_key: it.item_key, action: it.granted ? 'revoke' : 'grant', source: 'settings' } });
-    await load(); setBusy('');
-  }
-  async function logout() { await api('/auth/logout', { method: 'POST' }); setTok(null); go('onboarding'); }
-  async function withdraw() {
-    if (!confirm('회원 탈퇴하시겠어요? 동의가 모두 해제됩니다.')) return;
-    await api('/me', { method: 'DELETE' }); setTok(null); go('onboarding');
-  }
-
-  if (!me) return html`<div class="pad center"><p class="muted">불러오는 중…</p></div>`;
-  return html`<${Fragment}>
-    <div class="hdr">
-      <button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
-      <div class="brand" style="font-size:16px">내 정보 · 동의 관리</div><span style="width:48px"></span>
-    </div>
-    <div class="pad">
-      <div class="card">
-        ${me.consent.map(it => html`<div class="row" key=${it.item_key}>
-          <div style="flex:1"><div style="font-weight:600">${it.title}${it.required ? html`<span class="req">필수</span>` : ''}</div>
-            <div class="muted" style="font-size:12.5px">${ITEM_DESC[it.item_key] || ''}</div></div>
-          <${Toggle} on=${it.granted} lock=${it.required || busy === it.item_key} onClick=${() => toggle(it)} />
-        </div>`)}
-      </div>
-      <p class="note">동의 철회는 즉시 반영됩니다. 개인화 안내는 민감정보 동의가 있을 때만 제공됩니다.</p>
-      <div style="height:18px"></div>
-      <button class="btn ghost" onClick=${logout}>로그아웃</button>
-      <div style="height:10px"></div>
-      <button class="btn warn" onClick=${withdraw}>회원 탈퇴</button>
-    </div>
-  </${Fragment}>`;
-}
-
-const TRACK_LABEL = { diet: '🥗 식단', exercise: '🏃 운동', habit: '🌙 습관' };
-
-// ── 코칭(개인별 영속) ─────────────────────────────────────────
-function Coaching({ go }) {
-  const [state, setState] = useState(null);   // {plan, stats}
-  const [cfg, setCfg] = useState(null);
-  const [track, setTrack] = useState(null);
-  const [intake, setIntake] = useState({});
-  const [busy, setBusy] = useState(false);
-  const load = () => api('/coaching').then(r => r.json()).then(setState);
-  useEffect(() => { load(); api('/coaching/config').then(r => r.json()).then(setCfg).catch(() => {}); }, []);
-
-  async function makePlan() {
-    setBusy(true);
-    try { await api('/coaching/plan', { method: 'POST', body: { track, intake } }); } catch {}
-    setTrack(null); setIntake({}); await load(); setBusy(false);
-  }
-  async function checkin(it) {
-    await api('/coaching/checkin', { method: 'POST', body: { plan_id: state.plan.plan_id, item_key: it.key, done: true } });
-    await load();
-  }
-
-  const trackPicker = () => track
-    ? (() => {
-        const t = cfg && cfg.tracks.find(x => x.key === track);
-        const qs = (t && t.intake) || [];
-        const ready = qs.every(q => intake[q.id]);
-        return html`<div class="card" key="tp-intake">
-          <div style="font-weight:700;margin-bottom:10px">${TRACK_LABEL[track]} 시작 — 몇 가지만 알려주세요</div>
-          ${qs.map(q => html`<div key=${q.id} style="margin-bottom:12px">
-            <div style="font-size:14px;margin-bottom:6px">${q.q}</div>
-            <div class="ivopts">${q.options.map(o => html`<button class=${'chip' + (intake[q.id] === o ? ' sel' : '')}
-              key=${o} onClick=${() => setIntake(s => ({ ...s, [q.id]: o }))}>${o}</button>`)}</div>
-          </div>`)}
-          <button class="btn" disabled=${!ready || busy} onClick=${makePlan}>${busy ? '생성 중…' : '플랜 만들기'}</button>
-          <div style="height:8px"></div>
-          <button class="btn ghost" onClick=${() => { setTrack(null); setIntake({}); }}>취소</button>
-        </div>`;
-      })()
-    : html`<div class="trackgrid" key="tp-grid">
-        ${['diet', 'exercise', 'habit'].map(t => html`<button class="trackcard" key=${t} onClick=${() => setTrack(t)}>
-          <div style="font-size:26px">${TRACK_LABEL[t].split(' ')[0]}</div>
-          <div style="font-weight:700;margin-top:4px">${TRACK_LABEL[t].split(' ')[1]}</div></button>`)}
-      </div>`;
-
-  return html`<${Fragment}>
-    <div class="hdr"><button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
-      <div class="brand" style="font-size:16px">건강 코칭</div><span style="width:48px"></span></div>
-    <div class="pad grow" style="overflow:auto">
-      ${!state ? html`<p class="muted">불러오는 중…</p>`
-        : state.plan ? html`<${Fragment} key="cg-plan">
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <div style="font-weight:700">${TRACK_LABEL[state.plan.track] || state.plan.track} · ${state.plan.period || ''}</div>
-              <div class="streak">🔥 ${state.stats.streak}일 · ✓ ${state.stats.done}</div>
-            </div>
-            ${state.plan.banner ? html`<div class="banner">${state.plan.banner}</div>` : ''}
-            ${state.plan.items.map(it => html`<div class="ckrow" key=${it.key}>
-              <div style="flex:1"><div>${it.text}</div><div class="muted" style="font-size:11.5px">근거 · ${it.cite || ''}</div></div>
-              <button class=${'ckbtn' + (it.done_today ? ' done' : '')} disabled=${it.done_today} onClick=${() => checkin(it)}>
-                ${it.done_today ? '완료 ✓' : '오늘 실천'}</button>
-            </div>`)}
-          </div>
-          <p class="note">매일 실천을 체크하면 기록이 쌓이고 다시 로그인해도 이어집니다. 새 트랙은 아래에서 선택하세요.</p>
-          ${trackPicker()}
-        </${Fragment}>`
-        : html`<${Fragment} key="cg-empty">
-          <h2>어떤 습관부터 시작할까요?</h2>
-          <p class="muted">트랙을 고르면 공신력 있는 생활수칙으로 실천 플랜을 만들어 드려요.</p>
-          <div style="height:12px"></div>
-          ${trackPicker()}
-        </${Fragment}>`}
-    </div>
-  </${Fragment}>`;
-}
-
-// ── 병원·약국 찾기(실데이터/위치기반) ─────────────────────────
-// 지역 직접 선택용 전국 주요 도시 좌표(GPS 부정확/실내·데스크톱 대비). 선택 시 그 좌표로 실검색.
-// 전 시·도 커버 — 본인 도시를 고르면 그 지역 약국·병원 실데이터(거리순)가 나옴.
-const REGIONS = [
-  { name: '서울 강남', lat: 37.4979, lon: 127.0276 },
-  { name: '서울 시청', lat: 37.5663, lon: 126.9779 },
-  { name: '서울 잠실', lat: 37.5133, lon: 127.1000 },
-  { name: '경기 수원', lat: 37.2636, lon: 127.0286 },
-  { name: '경기 성남', lat: 37.4200, lon: 127.1267 },
-  { name: '경기 고양', lat: 37.6584, lon: 126.8320 },
-  { name: '경기 용인', lat: 37.2411, lon: 127.1776 },
-  { name: '인천', lat: 37.4563, lon: 126.7052 },
-  { name: '부산', lat: 35.1577, lon: 129.0594 },
-  { name: '대구', lat: 35.8693, lon: 128.6062 },
-  { name: '대전', lat: 36.3504, lon: 127.3845 },
-  { name: '광주', lat: 35.1525, lon: 126.8513 },
-  { name: '울산', lat: 35.5384, lon: 129.3114 },
-  { name: '세종', lat: 36.4801, lon: 127.2890 },
-  { name: '강원 춘천', lat: 37.8813, lon: 127.7300 },
-  { name: '강원 강릉', lat: 37.7519, lon: 128.8761 },
-  { name: '충북 청주', lat: 36.6424, lon: 127.4890 },
-  { name: '충남 천안', lat: 36.8151, lon: 127.1139 },
-  { name: '전북 전주', lat: 35.8242, lon: 127.1480 },
-  { name: '전남 순천', lat: 34.9506, lon: 127.4872 },
-  { name: '경북 포항', lat: 36.0190, lon: 129.3435 },
-  { name: '경남 창원', lat: 35.2280, lon: 128.6811 },
-  { name: '제주', lat: 33.4996, lon: 126.5312 },
-];
-
-function Finder({ go }) {
-  const [kind, setKind] = useState('pharmacy');
-  const [res, setRes] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const [where, setWhere] = useState('');     // 검색에 사용된 위치 라벨(투명성)
-  const [pick, setPick] = useState(false);    // 지역 직접 선택 펼침
-
-  async function doSearch(lat, lon, label) {
-    setErr(''); setBusy(true); setRes(null); setWhere(label || '');
-    try {
-      const r = await api('/facilities', { method: 'POST', body: { lat, lon, kind } });
-      setRes(await r.json());
-    } catch { setErr('검색에 실패했어요. 잠시 후 다시 시도해주세요.'); }
-    finally { setBusy(false); }
-  }
-  function locate() {
-    setErr(''); setRes(null);
-    if (!navigator.geolocation) { setErr('이 기기에서 위치를 쓸 수 없어요. 아래에서 지역을 선택하세요.'); setPick(true); return; }
-    setBusy(true);
-    navigator.geolocation.getCurrentPosition(
-      pos => doSearch(pos.coords.latitude, pos.coords.longitude, '현재 위치(GPS)'),
-      e => { setBusy(false); setPick(true);
-             setErr('위치를 가져오지 못했어요' + (e && e.code === 1 ? '(권한 거부)' : '(시간 초과)') + '. 아래에서 지역을 선택해보세요.'); },
-      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 });   // GPS 우선(실내 부정확 대비 지역선택 병행)
-  }
-  const areaOf = (f) => f.addr ? f.addr.split(' ').slice(0, 2).join(' ') : (f.area || '');
-
-  return html`<${Fragment}>
-    <div class="hdr"><button class="icobtn" onClick=${() => go('home')}>‹ 홈</button>
-      <div class="brand" style="font-size:16px">병원·약국 찾기</div><span style="width:48px"></span></div>
-    <div class="pad grow" style="overflow:auto">
-      <div class="seg">
-        <button class=${'segb' + (kind === 'pharmacy' ? ' on' : '')} onClick=${() => setKind('pharmacy')}>약국</button>
-        <button class=${'segb' + (kind === 'hospital' ? ' on' : '')} onClick=${() => setKind('hospital')}>병원</button>
-      </div>
-      <button class="btn" disabled=${busy} onClick=${locate}>${busy ? '찾는 중…' : '📍 내 위치(GPS)로 찾기'}</button>
-      <button class="btn ghost" style="margin-top:8px" onClick=${() => setPick(p => !p)}>위치가 정확하지 않나요? 지역 직접 선택</button>
-      ${pick ? html`<div class="pschips" style="margin-top:10px">
-        ${REGIONS.map(rg => html`<button class="chip" key=${rg.name} disabled=${busy} onClick=${() => doSearch(rg.lat, rg.lon, rg.name)}>${rg.name}</button>`)}
-      </div>` : ''}
-      ${err && html`<div class="err">${err}</div>`}
-      <p class="note">위치는 검색에만 쓰이고 저장하지 않아요 · 거리순 중립 안내(특정 업체 추천 아님). 실내·지하에선 GPS가 부정확할 수 있어요.</p>
-      ${res && kind === 'hospital' && !res.real ? html`<div class="banner" style="background:#EEF4FB;border-color:#CBDCEC;color:#2A5C8A">🏥 <b>병원 실시간 검색은 아직 준비 중이에요.</b> 공공데이터포털의 '병원정보서비스' 승인 후 제공됩니다. 지금은 <b>약국</b> 탭이 실데이터(거리·영업시간)로 동작해요.</div>` : ''}
-      ${res && !res.real && kind !== 'hospital' ? html`<div class="banner" style="background:#FDF1EE;border-color:#E8C4BB;color:#A23B26">⚠️ 실시간 위치 검색에 실패해 예시 데이터를 표시합니다(실제 내 주변 아님). 다시 시도하거나 위에서 지역을 직접 선택하세요.</div>` : ''}
-      ${res && !(kind === 'hospital' && !res.real) ? html`<div>
-        <div class="muted" style="font-size:12px;margin-bottom:6px">${res.real ? '실데이터' : '예시(데모)'}${where ? (' · 📍 ' + where + ' 기준') : ''}${(res.real && res.items && res.items.length) ? (' · ' + areaOf(res.items[0])) : ''}</div>
-        ${(res.items || []).length ? res.items.map((f, i) => html`<div class="card faccard" key=${i}>
-          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
-            <div style="font-weight:700">${f.name}</div>
-            ${f.open_now === true ? html`<span class="badge open">영업중</span>` : f.open_now === false ? html`<span class="badge closed">영업종료</span>` : ''}
-          </div>
-          <div class="muted" style="font-size:12.5px">${f.dist_label || ''}${f.hours ? (' · ' + f.hours) : ''}${f.addr ? (' · ' + f.addr) : (f.area ? (' · ' + f.area) : '')}${f.dept ? (' · ' + f.dept) : ''}</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            ${f.map_url ? html`<a class="btn ghost" style="padding:8px 12px;width:auto" href=${f.map_url} target="_blank" rel="noopener">지도</a>` : ''}
-            ${f.tel_url ? html`<a class="btn ghost" style="padding:8px 12px;width:auto" href=${f.tel_url}>전화</a>` : ''}
-          </div>
-        </div>`) : html`<p class="muted">주변에서 찾지 못했어요.</p>`}
-      </div>` : ''}
-    </div>
-  </${Fragment}>`;
-}
-
-// ── 체험 프로필(페르소나) 선택 ────────────────────────────────
-function Persona({ go }) {
-  const [list, setList] = useState(null);
-  const [busy, setBusy] = useState('');
-  useEffect(() => { api('/personas', { auth: false }).then(r => r.json()).then(d => setList(d.personas || [])); }, []);
-  async function pick(p) {
-    setBusy(p.id);
-    try { await api('/persona/select', { method: 'POST', body: { persona_id: p.id } }); go('home'); }
-    catch { setBusy(''); }
-  }
-  return html`<${Fragment}>
-    <div class="hdr"><span style="width:48px"></span>
-      <div class="brand" style="font-size:16px">체험 프로필 선택</div><span style="width:48px"></span></div>
-    <div class="pad grow" style="overflow:auto">
-      <p class="muted">데모 체험을 위해 가상의 건강 프로필을 하나 골라주세요. 선택한 프로필의 신호로
-        <b>맞춤 안내와 코칭</b>을 경험할 수 있어요. (합성 데이터 · 실제 본인 정보 아님)</p>
-      <div style="height:12px"></div>
-      ${!list ? html`<p class="muted">불러오는 중…</p>` : list.map(p => html`
-        <button class="card personacard" key=${p.id} disabled=${!!busy} onClick=${() => pick(p)}>
-          <div style="display:flex;gap:12px;align-items:center">
-            <div style="font-size:30px">${p.emoji}</div>
-            <div style="flex:1;text-align:left">
-              <div style="font-weight:700">${p.name}</div>
-              <div class="muted" style="font-size:12.5px">${p.profile}</div>
-            </div>
-            <span class="muted">${busy === p.id ? '…' : '›'}</span>
-          </div>
-        </button>`)}
-    </div>
-  </${Fragment}>`;
-}
-
-// ── 앱 루트 ───────────────────────────────────────────────────
-function App() {
-  const [screen, setScreen] = useState('loading');
-  useEffect(() => {
-    if (!getTok()) { setScreen('onboarding'); return; }
-    api('/persona').then(async r => {
-      if (r.status === 401) { setTok(null); setScreen('onboarding'); return; }
-      const d = await r.json();
-      setScreen(d.persona ? 'home' : 'persona');     // 페르소나 미선택 → 선택 화면
-    }).catch(() => setScreen('onboarding'));
-  }, []);
-  if (screen === 'loading') return html`<div class="pad center"><p class="muted">불러오는 중…</p></div>`;
-  if (screen === 'onboarding') return html`<${Onboarding} onDone=${() => setScreen('persona')} />`;
-  if (screen === 'persona') return html`<${Persona} go=${setScreen} />`;
-  if (screen === 'settings') return html`<${Settings} go=${setScreen} />`;
-  if (screen === 'coaching') return html`<${Coaching} go=${setScreen} />`;
-  if (screen === 'finder') return html`<${Finder} go=${setScreen} />`;
-  return html`<${Home} go=${setScreen} />`;
-}
-
-render(html`<${App} />`, document.getElementById('root'));
-if ('serviceWorker' in navigator)
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+<script type="module" src="js/app.js"></script>
+<script>
+  // 모듈 로드 자체가 실패하면(네트워크·CSP·구형 브라우저) 로딩 셸이 영원히 남는다.
+  // 8초 뒤에도 부팅 셸이 그대로면 안내로 교체한다.
+  setTimeout(function () {
+    var s = document.getElementById('bootshell');
+    if (s && s.parentNode) {
+      s.innerHTML = '<div class="errbox"><div class="errtitle">앱을 불러오지 못했습니다.</div>'
+        + '<div class="muted" style="font-size:12.5px;margin-top:6px">네트워크 상태를 확인한 뒤 새로고침 해주세요.</div>'
+        + '</div>';
+    }
+  }, 8000);
 </script>
 </body>
 </html>
