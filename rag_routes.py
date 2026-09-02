@@ -308,7 +308,18 @@ class RagRoutesMixin:
             "conversation_id": "conv-xxx",   (없으면 UUID 자동 생성)
             "provider_id": null,              (없으면 환경변수 기본값)
             "top_k": 5,
-            "enable_guardrails": true
+            "enable_guardrails": true,
+
+            // 개인화 입력(선택) — 테스터 PHR 전달 계약 (COMPAT-run-graph §5 와 동일 해석)
+            "agent_input_field_to_value": {   // 정식 형태
+              "Vital Signs": "[{\"bpm\":72,\"bps\":120,\"bpd\":80,...}]",
+              "Air Quality Score": "55",
+              "PHR": "{...검진·처방 원문...}"
+            },
+            "phr": "...",                     // 축약 형태(정식 필드와 겹치면 축약 우선)
+            "vital_signs": [...],             // 배열 또는 JSON 문자열
+            "air_quality": "55",
+            "personal_consent": true          // 방향2/PERSONAL_RAW_TO_LLM 게이트 동의(G2)
           }
 
         SSE 응답:
@@ -350,6 +361,28 @@ class RagRoutesMixin:
         provider_id = payload.get('provider_id') or None
         top_k = int(payload.get('top_k') or 5)
         enable_guardrails = bool(payload.get('enable_guardrails', True))
+
+        # ── 2.5 개인화 입력 (테스터 PHR 전달 계약) ──
+        # 정식: agent_input_field_to_value {"Vital Signs","Air Quality Score","PHR"}
+        # 축약: 최상위 phr / vital_signs / air_quality (batch_eval 등 테스터 편의)
+        # 해석은 wraith 경로(service_routes)와 동일 파이프라인 — 밴드/추세/환경 findings
+        # + personal_raw(PERSONAL_RAW_TO_LLM 게이트, 기본 off). 실패는 비차단.
+        personal = None
+        personal_findings = None
+        personal_consent = bool(payload.get('personal_consent'))
+        try:
+            from vital_input import (agent_input_from_chat_payload,
+                                     parse_agent_inputs,
+                                     personal_findings_from_parsed,
+                                     summarize_for_audit)
+            _agent_in = agent_input_from_chat_payload(payload)
+            if _agent_in:
+                personal = parse_agent_inputs(_agent_in)
+                personal_findings = personal_findings_from_parsed(
+                    personal, log=self._add_log)
+                self._add_log(f"[RAG-CHAT] 개인화 입력: {summarize_for_audit(personal)}")
+        except Exception as _pe:
+            self._add_log(f"[RAG-CHAT] 개인화 입력 파싱 스킵: {_pe}")
 
         # ── 3. SQLite 모드 차단 ──
         if not db._use_postgres:
@@ -422,6 +455,9 @@ class RagRoutesMixin:
                 provider_id=provider_id,
                 top_k=top_k,
                 enable_guardrails=enable_guardrails,
+                personal_findings=personal_findings,
+                personal_consent=personal_consent,
+                personal_raw=personal,
             ):
                 if client_gone:
                     continue  # 쓰기 없이 생성 완주까지 진행(결과 저장 보장)

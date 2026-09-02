@@ -115,6 +115,64 @@ def parse_agent_inputs(agent_input: Optional[Dict]) -> Dict:
     return out
 
 
+def agent_input_from_chat_payload(payload: Optional[Dict]) -> Optional[Dict]:
+    """/api/rag/chat 요청 바디 → agent_input_field_to_value 병합 (순수 함수).
+
+    테스터(batch_eval 등)가 PHR을 전달하는 두 가지 형태를 하나의 계약으로 수렴:
+      정식: "agent_input_field_to_value": {"Vital Signs":..., "Air Quality Score":..., "PHR":...}
+      축약: 최상위 "phr" / "vital_signs" / "air_quality" 필드 (문자열 또는 객체)
+    축약 필드가 정식 필드와 겹치면 축약이 우선(호출측 명시 의도).
+    수렴 결과가 비면 None (개인화 미사용 — 기존 동작 불변).
+    """
+    if not isinstance(payload, dict):
+        return None
+    base = payload.get("agent_input_field_to_value")
+    out = dict(base) if isinstance(base, dict) else {}
+
+    phr = payload.get("phr")
+    if phr is not None and phr != "":
+        out["PHR"] = phr if isinstance(phr, str) else json.dumps(phr, ensure_ascii=False)
+
+    vs = payload.get("vital_signs")
+    if vs:
+        out["Vital Signs"] = vs if isinstance(vs, str) else json.dumps(vs, ensure_ascii=False)
+
+    aq = payload.get("air_quality")
+    if aq is not None and aq != "":
+        out["Air Quality Score"] = aq
+
+    return out or None
+
+
+def personal_findings_from_parsed(parsed: Optional[Dict], log=None) -> Optional[list]:
+    """parse_agent_inputs 결과 → 개인화 findings (밴드 + 추세 + 환경).
+
+    service_routes/rag_routes 공용 — 결정적 해석(원시값은 LLM 미투입, P1a).
+    각 단계는 fail-closed·비차단: 실패 시 해당 축만 생략하고 나머지는 유지.
+    """
+    findings = None
+    p = parsed or {}
+    try:
+        from vital_rules import run as _run, run_trends as _trends
+        vitals = p.get("vital_signs") or []
+        if vitals:
+            findings = _run(vitals[-1])
+            if len(vitals) >= 3:  # 다회 측정 → 중립 추세 노트 결합
+                findings = (findings or []) + _trends(vitals)
+    except Exception as e:
+        if log:
+            log(f"[vital] 개인화 findings 스킵: {e}")
+    try:
+        from env_rules import air_quality_finding as _aqf
+        aq = _aqf(p.get("air_quality"))
+        if aq:
+            findings = (findings or []) + [aq]
+    except Exception as e:
+        if log:
+            log(f"[vital] 환경 finding 스킵: {e}")
+    return findings
+
+
 def summarize_for_audit(parsed: Dict) -> str:
     """감사 로그용 비식별 요약 — 원시값 대신 '무엇이 왔는지'만."""
     vs = parsed.get("vital_signs", [])

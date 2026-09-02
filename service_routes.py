@@ -87,26 +87,10 @@ class ServiceRoutesMixin:
             f"sources={source_types} agent={agent_strid} {summarize_for_audit(personal)}"
         )
 
-        # 개인화 findings (P1a): 최신 vital 레코드 → 결정적 밴드 해석(원시값은 LLM 미투입).
-        # vital_rules.run은 순수 함수·fail-closed. 실패는 비차단(개인화만 생략).
-        _personal_findings = None
-        try:
-            from vital_rules import run as _vital_run, run_trends as _vital_trends
-            _vitals = personal.get('vital_signs') or []
-            if _vitals:
-                _personal_findings = _vital_run(_vitals[-1])
-                if len(_vitals) >= 3:  # 다회 측정 → 중립 추세 노트 결합
-                    _personal_findings = (_personal_findings or []) + _vital_trends(_vitals)
-        except Exception as _e:
-            self._add_log(f"[SERVICE] 개인화 findings 스킵: {_e}")
-        # 환경(공기질) 비해석적 노트 결합 (5층 환경×건강, B5). 비차단.
-        try:
-            from env_rules import air_quality_finding as _aqf
-            _aq = _aqf(personal.get('air_quality'))
-            if _aq:
-                _personal_findings = (_personal_findings or []) + [_aq]
-        except Exception as _e:
-            self._add_log(f"[SERVICE] 환경 finding 스킵: {_e}")
+        # 개인화 findings (P1a): 밴드+추세+환경 — rag_routes(/api/rag/chat)와 공용 헬퍼.
+        # 결정적 해석(원시값은 LLM 미투입), fail-closed·비차단(실패 시 개인화만 생략).
+        from vital_input import personal_findings_from_parsed
+        _personal_findings = personal_findings_from_parsed(personal, log=self._add_log)
 
         # 3) PostgreSQL 모드 확인
         if not db._use_postgres:
