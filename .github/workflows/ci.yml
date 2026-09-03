@@ -97,6 +97,9 @@ jobs:
   #   test_gap_coverage_demand   — gap 루프 커버리지 확장 수요 신호 (Sprint 2)
   #   test_wraith_compat        — wraith Run Graph 호환(SSE 변환·인증·vital 파서)
   #   test_conversation_serializer — wraith 대화관리 직렬화(Conversation/Chat/snippet)
+  #   test_analytics_events / test_wellness_router / test_routine / test_bff_app / test_bff_tokens
+  #                              — 루틴형 전환·BFF 회귀(오늘의 나 통합 Phase 0 에서 추가)
+  #   test_archetype_engine / test_metrics_routes — 오늘의 나 재미 레이어(Phase 1)
   #
   # EXCLUDED (pre-existing failures / server-required / API-key-required):
   #   test_rag_legal_eval / test_rag_consultation_eval — 평가 모듈은 호스트 잔류(P1 결정), RAG repo 에 없음
@@ -129,7 +132,7 @@ jobs:
 
       - name: Install Python deps
         run: |
-          pip install --quiet pytest
+          pip install --quiet pytest fastapi uvicorn httpx pydantic
           pip install --quiet -e "packages/medical_shared" 2>/dev/null || true
 
       - name: Run RAG-stable tests

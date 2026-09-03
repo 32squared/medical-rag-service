@@ -27,11 +27,16 @@ _LABEL_FIELDS = (
     "guardrail_action", "gate_decision", "evidence_quality",
     "track",                 # 웰니스 코칭 트랙(diet/exercise/habit) — 비식별 라벨
     "consent_item",          # 동의 항목 키(personal_info 등) — 비식별 라벨(P0 BFF)
+    # ── 오늘의 나 재미 레이어(docs/design/todays-me-mockups/02 §8) — 라벨만, 수치·밴드 금지 ──
+    "archetype_id", "type_id", "metric", "method", "trigger", "cta_variant",
+    "channel", "format", "theme_id", "entry", "source", "state", "reason", "bucket",
 )
-_COUNT_FIELDS = ("citations_count", "latency_ms", "streak")
+_COUNT_FIELDS = ("citations_count", "latency_ms", "streak",
+                 "completed_count", "tracks_count", "duration_ms", "dwell_ms", "sticker_count", "length")
 _BOOL_FIELDS = (
     "is_followup", "had_personal_block", "gave_referral", "refusal", "emergency",
     "checkin_done",          # 코칭 일일 체크인 실천 여부(bool)
+    "enabled", "is_replay", "value", "hide_numbers", "has_comment", "fallback_shown", "reduced_motion",
 )
 ALLOWED_PROPS = frozenset(_LABEL_FIELDS + _COUNT_FIELDS + _BOOL_FIELDS)
 
@@ -52,6 +57,20 @@ EVENT_NAMES = frozenset({
     # ── P0 BFF 동의원장(23 §2) — 비식별 라벨(consent_item)만 ──
     "consent_granted",          # 동의 grant
     "consent_revoked",          # 동의 revoke(철회)
+    # ── 루틴형 전환(25 §F) — bff/routine_routes 가 emit 하는데 미등록이라 버려지던 이벤트 ──
+    "routine_checkin",
+    # ── 오늘의 나 재미 레이어(02-dev-requirements §8) — 라벨/카운트/불리언만 ──
+    "tracker_view", "track_input", "track_wake", "track_complete", "archetype_teaser_view",
+    "stats_cta_tap", "steps_sync_delay", "d1_celebration_view",
+    "stats_view", "stats_ring_animation_complete", "stats_metric_card_tap", "stats_conversion_copy_shown",
+    "stats_highlight_shown", "stats_steps_unavailable", "stats_steps_connect_tap", "stats_empty_view", "stats_exit",
+    "reveal_opened", "reveal_animation_completed", "reveal_animation_skipped", "reveal_rarity_shown",
+    "reveal_card_cta_tapped", "reveal_dismissed", "reveal_collection_slot_tapped", "reveal_collection_opened",
+    "reveal_error_shown", "reveal_blocked_by_band",
+    "card_view", "card_format_change", "card_hide_numbers_toggle", "card_theme_select",
+    "card_sticker_add", "card_sticker_remove", "card_sticker_move", "card_comment_submit",
+    "card_share_click", "card_share_result", "card_saved_to_dex", "card_render_error",
+    "wellness_quiz_start", "wellness_quiz_complete", "wellness_type_change", "type_card_share_click",
 })
 
 _MAX_LABEL_LEN = 64
