@@ -147,7 +147,7 @@ def register(app, deps: Dict) -> None:
             return json.loads(plan.get("items_json") or "[]") or []
         return _safe(_load, []) or []
 
-    def _today_payload(sid: str) -> Dict:
+    def _today_payload_base(sid: str) -> Dict:
         persona, band, granted, personalize = _ctx(sid)
         _require_personal(granted)
         today = repo.today_kst()
@@ -243,6 +243,28 @@ def register(app, deps: Dict) -> None:
             "evidence": ({"label": f"{band} 구간 기준", "tone": "personal"} if band and personalize else None),
         })
         _safe(lambda: repo.update_program(program["program_id"], last_seen_on=today))
+        return base
+
+    def _today_payload(sid: str) -> Dict:
+        """홈 1콜 = 기존 페이로드 + 오늘의 나 재미 레이어 블록(02-dev-requirements §4-1).
+        기존 키는 그대로, `safety.fun_layer`·`tracks`·`archetype`·`date_kst` 만 추가한다.
+        응급(S9)은 재미 레이어 전체 차단. 블록 계산 실패가 홈을 깨지 않게 방어."""
+        base = _today_payload_base(sid)
+        try:
+            from . import metrics_routes as mx
+            band = base.get("band")
+            if base.get("state") == "S9_PAUSED_SAFETY":
+                blocks = {"fun_layer": False, "tracks": None, "archetype": None}
+            else:
+                blocks = mx.fun_blocks(sid, band, base.get("server_date"))
+            safety = base.get("safety")
+            base["safety"] = {**(safety or {}), "fun_layer": blocks["fun_layer"]} if isinstance(safety, dict)                 else {"kind": None, "fun_layer": blocks["fun_layer"]}
+            base["tracks"] = blocks["tracks"]
+            base["archetype"] = blocks["archetype"]
+            base["date_kst"] = base.get("server_date")
+        except Exception:                       # noqa: BLE001 — 홈 우선
+            base.setdefault("tracks", None)
+            base.setdefault("archetype", None)
         return base
 
     # ── 라우트 ───────────────────────────────────────────────────

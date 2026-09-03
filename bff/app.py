@@ -550,6 +550,28 @@ def create_app() -> FastAPI:
         import logging
         logging.getLogger(__name__).warning("routine routes 등록 실패: %s", _e)
 
+    # ── 오늘의 나 재미 레이어(3트랙 지표·아키타입·카드·웰니스 타입) — docs/design/todays-me-mockups/02 ──
+    try:
+        from . import metrics_routes
+
+        def _persona_of2(sid):
+            import account_db as _ad
+            return _persona(_ad.get_persona(sid))
+
+        def _consent_ok2(sid):
+            recs = consent_db.get_records(sid)
+            return consent_db.granted_items(recs), consent_db.personalization_allowed(recs)
+
+        metrics_routes.register(app, {
+            "get_subject": get_subject,
+            "persona_of": _persona_of2,
+            "band_of": _persona_band,
+            "consent_ok": _consent_ok2,
+        })
+    except Exception as _e:                     # noqa: BLE001 — 부팅 우선
+        import logging
+        logging.getLogger(__name__).warning("metrics routes 등록 실패: %s", _e)
+
     return app
 
 
