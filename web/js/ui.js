@@ -110,6 +110,18 @@ export const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, num(v, lo)));
 export const str = (v, d = '') => (typeof v === 'string' ? v : d);
 
+/** tracks 블록(서버 파생값). awake/complete 를 프론트에서 재계산하지 않는다. */
+export function normTracks(t) {
+  const x = t && typeof t === 'object' ? t : {};
+  const w = x.water || {}; const s = x.steps || {}; const m = x.mind || {};
+  return {
+    water: { cups: clamp(w.cups, 0, 8), goal: num(w.goal, 6), awake: !!w.awake, complete: !!w.complete },
+    steps: { value: s.value == null ? null : num(s.value), goal: num(s.goal, 6000), source: str(s.source, 'none'),
+      stale: !!s.stale, awake: !!s.awake, complete: !!s.complete },
+    mind: { seconds: num(m.seconds), sessions: num(m.sessions), awake: !!m.awake, complete: !!m.complete },
+  };
+}
+
 /** /routine/today 응답 → 렌더 안전 형태. 원본을 직접 렌더하지 않는다. */
 export function normToday(raw) {
   const r = raw || {};
@@ -158,8 +170,16 @@ export function normToday(raw) {
       ? { action: str(r.coach.action), message: str(r.coach.message) } : null,
     band: r.band == null ? null : str(r.band),
     banner: r.banner == null ? null : str(r.banner),
-    safety: r.safety && typeof r.safety === 'object'
+    // 응급(kind=emergency)만 화면 차단. safety.fun_layer 는 재미 레이어 게이트(02-dev-requirements §4-1).
+    safety: r.safety && typeof r.safety === 'object' && (r.safety.kind === 'emergency' || r.safety.text)
       ? { kind: str(r.safety.kind), text: str(r.safety.text), referral: str(r.safety.referral) } : null,
+    funLayer: !!(r.safety && typeof r.safety === 'object' && r.safety.fun_layer),
+    tracks: normTracks(r.tracks),
+    archetype: {
+      preview: r.archetype && r.archetype.preview ? str(r.archetype.preview) : null,
+      completedCount: clamp(r.archetype && r.archetype.completed_count, 0, 3),
+      seenToday: !!(r.archetype && r.archetype.seen_today),
+    },
     chips: arr(r.ask_chips).filter((x) => typeof x === 'string'),
     reportDue: r.report_due && r.report_due.week ? { week: clamp(r.report_due.week, 1, 12) } : null,
     notify: r.notify && typeof r.notify === 'object'

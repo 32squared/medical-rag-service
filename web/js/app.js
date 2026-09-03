@@ -12,6 +12,8 @@ import { TodayTab } from './today.js';
 import { ProgramTab, ReportView } from './program.js';
 import { ChatTab } from './chat.js';
 import { HealthTab, SettingsView, FinderView } from './health.js';
+import { StatsView } from './stats.js';
+import { RevealView } from './reveal.js';
 
 const TABS = [
   { key: 'today', label: '오늘', icon: '✅' },
@@ -33,7 +35,7 @@ function TabBar({ tab, onTab }) {
 function App() {
   const [phase, setPhase] = useState('boot');   // boot | onboarding | persona | app
   const [tab, setTab] = useState('today');
-  const [view, setView] = useState(null);       // null | report | settings | finder | start
+  const [view, setView] = useState(null);       // null | report | settings | finder | start | stats | reveal
   const [viewArg, setViewArg] = useState({});
   const [prefill, setPrefill] = useState('');
   const [nonce, setNonce] = useState(0);        // 탭 강제 리마운트(데이터 새로고침)
@@ -100,6 +102,10 @@ function App() {
     body = html`<${SettingsView} go=${go} onLoggedOut=${() => { setPhase('onboarding'); setView(null); }} />`;
   } else if (view === 'finder') {
     body = html`<${FinderView} go=${go} />`;
+  } else if (view === 'stats') {
+    body = html`<${StatsView} go=${go} date=${viewArg.date} />`;
+  } else if (view === 'reveal') {
+    body = html`<${RevealView} go=${go} date=${viewArg.date} />`;
   } else if (tab === 'today') {
     body = html`<${TodayTab} key=${'today' + nonce} go=${go} onAsk=${onAsk}
       onStart=${() => setView('start')} />`;

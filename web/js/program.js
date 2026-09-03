@@ -69,15 +69,11 @@ export function ProgramTab({ go }) {
           <div class="pgtotal">/ 12주</div>
         </div>
         <div class="pgstats">
-          <div><b>🔥 ${num(st.streak)}</b><span>연속</span></div>
+          <div><b>${num(st.streak)}</b><span>연속</span></div>
           <div><b>✓ ${num(st.done)}</b><span>총 실천</span></div>
           <div><b>${num(st.adherence)}%</b><span>실천율</span></div>
         </div>
       </div>
-
-      ${arr(st.badges).length ? html`<div class="badges" key="badges">
-        ${arr(st.badges).map((b) => html`<span class="badge2" key=${b}>🏅 ${b}</span>`)}
-      </div>` : null}
 
       <button class="btn ghost" key="reportbtn" style="margin:4px 0 12px"
         onClick=${() => go('report', {})}>주간 리포트 보기</button>

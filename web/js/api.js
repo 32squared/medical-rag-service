@@ -110,6 +110,11 @@ const DETAIL_TEXT = {
   unknown_track: '선택한 트랙을 찾지 못했어요.',
   no_program: '진행 중인 루틴이 없어요.',
   personal_info_consent_required: '개인정보 이용 동의가 필요해요.',
+  band_gate: '지금은 기록만 남겨둘게요.',
+  invalid_value: '입력값을 다시 확인해 주세요.',
+  no_archetype: '오늘은 아직 캐릭터가 없어요.',
+  locked: '이 카드는 더 이상 고칠 수 없어요.',
+  comment_too_long: '한 줄 코멘트는 20자까지예요.',
 };
 
 export function errText(r) {
