@@ -30,6 +30,10 @@ MZ세대 웰니스 루틴 앱 컨셉. 마이헬스케어 루틴 제품(정본 `d
 - 개발은 02-dev-requirements.md에서 시작한다. 화면 기획서는 각 화면의 요소·카피·상태 상세.
 - 기획서 안의 "가정:" 표시는 정본에 없는 값이다. 브리프에 올라간 값은 잠정 확정, 01-cross-review §3의 E 항목은 제품 오너 결정이 필요하다.
 
+## 구현 상태
+
+브랜치 `feat/todays-me-fun-layer` 에 Phase 0~4 구현 완료(04-integration-plan §6). 서버: `archetype_engine.py`·`metrics_repo.py`·`bff/metrics_routes.py`. 프론트: `web/js/tracks.js`·`stats.js`·`reveal.js`·`card.js`·`cardRender.js`·`wellnesstype.js`·`archetypes.js`.
+
 ## 목업 반영 대기
 
 - 화면 1 주간 7점 스트립(스크롤 아래 영역)은 목업에 없음. C11 판정대로 above the fold 밖이라 정적 목업에서는 생략.
