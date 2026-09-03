@@ -97,7 +97,7 @@ export const ARCHETYPES = {
 
 export function archetypeSvg(id, size = 250) {
   const fn = CHAR[id] || CHAR.balance_monk;
-  return `<svg width="${size}" height="${size}" viewBox="0 0 200 200" aria-hidden="true">${fn()}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 200 200" aria-hidden="true">${fn()}</svg>`;
 }
 
 /** 컬렉션 슬롯 글리프 — 아키타입별 원소 조합을 18px 로. */

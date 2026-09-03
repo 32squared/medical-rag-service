@@ -8,7 +8,7 @@ import { GET, POST, errText } from './api.js';
 import { html, Header, Loading, ErrorView, useLoader, arr, str } from './ui.js';
 import { ARCHETYPES, archetypeSvg, slotSvg, ICON } from './archetypes.js';
 
-export const CARD_ENABLED = false;        // Phase 3 에서 true (공유 카드)
+export const CARD_ENABLED = true;         // 공유 카드(Phase 3)
 
 function reducedMotion() {
   try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
@@ -38,13 +38,13 @@ export function RevealView({ go, date }) {
     if (stage !== 'done' || L.state !== 'data') return;
     const d = L.data || {};
     if (!d.seen_today) POST('/archetype/seen', { date: d.date }).catch(() => {});
-    try { if (navigator.vibrate) navigator.vibrate(30); } catch { /* noop */ }
   }, [stage, L.state]);
 
   function skip() {
     if (stage === 'done') return;
     timers.current.forEach(clearTimeout); timers.current = [];
     setStage('done');
+    try { if (navigator.vibrate) navigator.vibrate(30); } catch { /* noop */ }   // 사용자 탭 뒤에만(브라우저 정책)
   }
 
   if (L.state === 'loading') return html`<div key="rl"><${Header} title="오늘의 캐릭터" onBack=${back} /><${Loading} /></div>`;

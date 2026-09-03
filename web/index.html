@@ -460,6 +460,41 @@
   .fl-slot-today{background:var(--c-ink)}
   .fl-revealactions{padding:14px 0 28px}
   @media (prefers-reduced-motion:reduce){.fl-stagecard,.fl-stagechar,.fl-gatherdot,.fl-revealbody,.fl-tilechar,.fl-arc{transition:opacity .12s linear}}
+
+  /* 화면 4 — 공유 카드 · 웰니스 타입 */
+  .fl-bg-mint{background:var(--c-mint)}
+  .fl-chiprow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .fl-rowlabel{font-size:12px;color:#2F4A3A;margin-right:2px}
+  .fl-chip{min-height:var(--tap-min);padding:0 14px;border:0;border-radius:var(--r-pill);background:#fff;font-size:12.5px;color:var(--c-ink);cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+  .fl-chip.on{background:var(--c-ink);color:#fff}
+  .fl-sw{width:34px;height:22px;border-radius:11px;background:var(--c-toggle-off);position:relative;display:inline-block}
+  .fl-sw::after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .18s var(--ease)}
+  .fl-sw.on{background:var(--c-ink)} .fl-sw.on::after{left:15px}
+  .fl-cardprev{margin:12px auto 4px;width:254px;transform:rotate(-2deg);filter:drop-shadow(0 18px 30px rgba(20,20,20,.16))}
+  .fl-cardprev-feed{width:300px}
+  .fl-cardcanvas{min-height:120px}
+  .fl-swatch{width:var(--tap-min);height:var(--tap-min);border-radius:50%;border:3px solid transparent;cursor:pointer;box-sizing:border-box}
+  .fl-swatch.on{border-color:var(--c-ink)}
+  .fl-stkbtn{width:var(--tap-min);height:var(--tap-min);border-radius:50%;border:0;background:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+  .fl-stkclear{background:transparent;border:2px dashed #2F4A3A}
+  .fl-comment{width:100%;min-height:var(--tap-min);margin-top:10px;border:0;border-radius:var(--r-pill);padding:0 16px;font-size:14px;font-family:inherit;background:#fff;color:var(--c-ink)}
+  .fl-comment:disabled{opacity:.6}
+  .fl-btnrow{display:flex;gap:10px;margin-top:10px}
+  .fl-btn-white{flex:1;min-height:46px;border:0;border-radius:var(--r-pill);background:#fff;font-size:13px;color:var(--c-ink);cursor:pointer;font-family:inherit}
+  .fl-btn-white:disabled{opacity:.6}
+  .fl-quizstep{font-family:var(--font-display-latin);font-weight:700;font-size:12px;color:rgba(20,20,20,.6);margin:6px 0 2px}
+  .fl-quizopts{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+  .fl-quizopt{min-height:56px;border:0;border-radius:var(--r-pill);background:#fff;font-size:15px;color:var(--c-ink);cursor:pointer;font-family:inherit;text-align:left;padding:0 20px;transition:transform .15s var(--ease)}
+  .fl-quizopt:active{transform:scale(.99)} .fl-quizopt:disabled{opacity:.6}
+  .fl-typestage{position:relative;height:330px;margin-top:10px}
+  .fl-typeimg{position:absolute;left:23px;top:10px;width:300px;height:300px;border-radius:var(--r-xl);overflow:hidden;background:#fff;transform:rotate(-3deg);box-shadow:var(--shadow-stage)}
+  .fl-typeimg img{width:100%;height:100%;object-fit:cover;display:block}
+  .fl-typerow{width:100%;display:flex;align-items:center;gap:12px;border:0;border-radius:var(--r-md);padding:10px 12px;margin-top:10px;cursor:pointer;text-align:left;font-family:inherit;color:var(--c-ink);position:relative}
+  .fl-typerow.on{outline:3px solid var(--c-ink)}
+  .fl-typerow:disabled{opacity:.6}
+  .fl-typethumb{width:56px;height:56px;border-radius:16px;object-fit:cover;flex:none}
+  .fl-typename{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0} .fl-typename b{font-size:17px;font-weight:400} .fl-typename small{font-size:12px;color:rgba(20,20,20,.65)}
+  .fl-typecheck{width:26px;height:26px;border-radius:50%;background:var(--c-ink);display:inline-flex;align-items:center;justify-content:center;flex:none}
 </style>
 </head>
 <body>

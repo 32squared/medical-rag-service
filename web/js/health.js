@@ -148,6 +148,8 @@ export function SettingsView({ go, onLoggedOut }) {
         </div>`)}
       </div>
       <p class="note">동의 철회는 즉시 반영됩니다. 맞춤 안내는 민감정보 동의가 있을 때만 제공됩니다.</p>
+      <button class="btn ghost" key="wt" onClick=${() => go('typesettings')}>내 웰니스 타입 바꾸기</button>
+      <div style="height:10px"></div>
       <button class="btn ghost" key="lo" onClick=${logout}>로그아웃</button>
       <div style="height:10px"></div>
       <button class="btn warn" key="wd" onClick=${withdraw}>회원 탈퇴</button>

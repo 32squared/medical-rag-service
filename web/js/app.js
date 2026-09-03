@@ -14,6 +14,8 @@ import { ChatTab } from './chat.js';
 import { HealthTab, SettingsView, FinderView } from './health.js';
 import { StatsView } from './stats.js';
 import { RevealView } from './reveal.js';
+import { CardView } from './card.js';
+import { TypeOnboarding, TypeSettings } from './wellnesstype.js';
 
 const TABS = [
   { key: 'today', label: '오늘', icon: '✅' },
@@ -35,7 +37,7 @@ function TabBar({ tab, onTab }) {
 function App() {
   const [phase, setPhase] = useState('boot');   // boot | onboarding | persona | app
   const [tab, setTab] = useState('today');
-  const [view, setView] = useState(null);       // null | report | settings | finder | start | stats | reveal
+  const [view, setView] = useState(null);       // null | report | settings | finder | start | stats | reveal | card | typequiz | typesettings
   const [viewArg, setViewArg] = useState({});
   const [prefill, setPrefill] = useState('');
   const [nonce, setNonce] = useState(0);        // 탭 강제 리마운트(데이터 새로고침)
@@ -90,7 +92,13 @@ function App() {
   // ── 전체화면 오버레이(탭바 숨김) ──
   if (view === 'start') {
     return html`<${Boundary} name="start" onHome=${backToApp}>
-      <${StartRoutine} onStarted=${backToApp} onSkip=${backToApp} />
+      <${StartRoutine} onStarted=${() => setView('typequiz')} onSkip=${backToApp} />
+    </${Boundary}>`;
+  }
+  // 루틴 시작 직후 웰니스 타입 문진(건너뛰기 가능) — 04-integration-plan D4
+  if (view === 'typequiz') {
+    return html`<${Boundary} name="typequiz" onHome=${backToApp}>
+      <${TypeOnboarding} onDone=${backToApp} />
     </${Boundary}>`;
   }
 
@@ -106,6 +114,10 @@ function App() {
     body = html`<${StatsView} go=${go} date=${viewArg.date} />`;
   } else if (view === 'reveal') {
     body = html`<${RevealView} go=${go} date=${viewArg.date} />`;
+  } else if (view === 'card') {
+    body = html`<${CardView} go=${go} date=${viewArg.date} />`;
+  } else if (view === 'typesettings') {
+    body = html`<${TypeSettings} go=${go} />`;
   } else if (tab === 'today') {
     body = html`<${TodayTab} key=${'today' + nonce} go=${go} onAsk=${onAsk}
       onStart=${() => setView('start')} />`;
