@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700;800&family=Jua&family=Gowun+Dodum&display=swap">
+  <style>
+    body { margin: 0; background: #FFD84D; font-family: 'Gowun Dodum', 'Malgun Gothic', system-ui, sans-serif; color: #141414; }
+    .lex { font-family: 'Lexend', 'Malgun Gothic', system-ui, sans-serif; }
+    .jua { font-family: 'Jua', 'Malgun Gothic', system-ui, sans-serif; }
+    a { color: #141414; } a:hover { color: #555555; }
+    svg { display: block; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #FFD84D; box-sizing: border-box;">
+
+  <!-- decorative -->
+  <svg style="position: absolute; right: -60px; top: 120px;" width="150" height="150" viewBox="0 0 100 100"><path d="M50 0C58 30 70 42 100 50 70 58 58 70 50 100 42 70 30 58 0 50 30 42 42 30 50 0Z" fill="#F5A7D6"></path></svg>
+  <div style="position: absolute; left: -50px; top: 420px; width: 130px; height: 130px; border-radius: 50%; background: #AFC9F5;"></div>
+  <div style="position: absolute; left: 60px; top: 130px; width: 10px; height: 10px; border-radius: 50%; background: #141414;"></div>
+  <svg style="position: absolute; left: 34px; top: 480px;" width="22" height="22" viewBox="0 0 24 24"><path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z" fill="#FFFFFF"></path></svg>
+
+  <div style="position: relative; display: flex; flex-direction: column; gap: 14px; padding: 56px 22px 0 22px; box-sizing: border-box;">
+
+    <!-- header -->
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="height: 44px; padding: 0 16px; border-radius: 22px; background: #FFFFFF; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+        <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z" fill="#141414"></path></svg>
+        내 웰니스 타입
+      </div>
+      <div style="width: 44px; height: 44px; border-radius: 22px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </div>
+    </div>
+
+    <!-- stage -->
+    <div style="position: relative; height: 330px;">
+      <div style="position: absolute; left: 34px; top: 22px; width: 278px; height: 296px; border-radius: 32px; background: #FFF3D6; transform: rotate(5deg);"></div>
+      <div style="position: absolute; left: 23px; top: 10px; width: 300px; height: 300px; border-radius: 32px; overflow: hidden; background: #FFFFFF; transform: rotate(-3deg); box-shadow: 0 14px 30px rgba(20,20,20,0.12);">
+        <img src="type-baby.jpg" alt="갓생 신생아 캐릭터" style="width: 100%; height: 100%; object-fit: cover; display: block;">
+      </div>
+    </div>
+
+    <!-- name block -->
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;">
+      <div style="font-size: 13px; color: #5A4A2B;">문진 결과, 당신은</div>
+      <div class="jua" style="font-size: 34px; line-height: 1.1;">갓생 신생아</div>
+      <div class="lex" style="font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: #5A4A2B;">BABY GOD-SAENG</div>
+      <div style="font-size: 14px; margin-top: 6px;">물 한 잔, 비타민 하나에도 뿌듯한 시작 단계</div>
+    </div>
+
+    <!-- traits -->
+    <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+      <div style="height: 36px; padding: 0 14px; border-radius: 18px; background: #FFFFFF; font-size: 13px; display: flex; align-items: center;">작게 시작</div>
+      <div style="height: 36px; padding: 0 14px; border-radius: 18px; background: #FFFFFF; font-size: 13px; display: flex; align-items: center;">스스로 칭찬</div>
+      <div style="height: 36px; padding: 0 14px; border-radius: 18px; background: #FFFFFF; font-size: 13px; display: flex; align-items: center;">기본 테마 코랄</div>
+    </div>
+
+    <div style="font-size: 12px; text-align: center; color: #5A4A2B;">타입은 설정에서 언제든 바꿀 수 있어요</div>
+  </div>
+
+  <!-- actions -->
+  <div style="position: absolute; left: 22px; right: 22px; bottom: 22px; display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    <div style="width: 100%; height: 60px; border-radius: 30px; background: #141414; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px; box-sizing: border-box;">
+      <span class="jua" style="font-size: 17px;">타입 카드 만들기</span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFD84D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+    </div>
+    <div style="height: 44px; font-size: 13px; color: #5A4A2B; display: flex; align-items: center;">바로 시작하기</div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
