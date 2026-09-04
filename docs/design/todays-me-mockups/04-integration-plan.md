@@ -146,9 +146,11 @@
 | 2 프론트 1·2 | 완료 | 0438b8c | 타일·시트·오프라인 큐·기록 화면·리빌, 이모지 제거, sw v4 |
 | 3 카드 | 완료 | f20b6a5 | 클라 canvas 렌더 + Web Share/다운로드, 자동 저장·잠금 |
 | 4 웰니스 타입 | 완료 | f20b6a5 | 문진·결과·설정 변경, 카드 타입 라벨 |
-| 5 하드닝 | 일부 | — | 밴드 게이트·금지 필드·잠금은 pytest 로 고정. 남은 것: 카피 lint CI, 접근성 수동 점검, 스테이징 배포 |
+| 5 하드닝 | 일부 | — | 밴드 게이트·금지 필드·잠금은 pytest 로 고정. 스테이징 배포 완료(아래). 남은 것: 카피 lint CI, 접근성 수동 점검, main PR |
 
 브라우저 E2E(로컬 BFF `/app/`): 온보딩 → 물 6컵 → 수분왕 → 오늘의 기록 → 리빌 → 카드(테마·스티커·코멘트) → 설정에서 타입 변경까지 콘솔 오류 0.
+
+**스테이징 배포 (2026-09-04)**: `deploy-bff.ps1`(기존 BFF_TOKEN_SECRET·ACCOUNT_CI_HMAC_KEY·DATA_GO_KR_KEY 를 그대로 전달해 세션·계정 매핑 유지) → Cloud Run `medical-rag-bff` rev 00016, 이어 `deploy-web.ps1` → GCS 버킷 + CORS 갱신(rev 00017). 온라인 E2E(https://medical-rag-bff-cbtevhmzrq-du.a.run.app/app/): 동의 → 프로필 → 식이 트랙 시작 → 웰니스 문진 4문항(나무늘보) → 물 6컵 → 수분왕 → 기록 → 리빌 → 카드 canvas 1080×1920(타입 기본 테마 forest·타입 라벨) 까지 콘솔 오류 0. 새 테이블은 metrics_repo 의 in-code ensure 로 PG 에 생성되므로 024 마이그레이션 Job 은 별도 실행하지 않았다(러너 --sync 로 나중에 정합 맞추면 됨).
 
 ## 7. 첫 주 실행 순서 (당초 계획)
 
