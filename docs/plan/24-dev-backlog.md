@@ -20,6 +20,7 @@
 - ✅ **영속·API**(`routine_repo.py`·`bff/routine_routes.py`·mig023) — 홈 1콜 `/routine/today`, 멱등 체크인(UNIQUE), 서버 KST 날짜 확정, 주간 리포트
 - ✅ **프론트 4탭 재구성**(`web/js/*` 8모듈) — 오늘(행동 1개·1탭 완료)·프로그램(12주 타임라인·히트맵)·상담·내 건강. 안전규칙 8종 전량 적용
 - ⏳ 남음: 12주 완주자 발생 후 **유지 모드(S12)** · 서버 푸시 발송(현재 시각 저장+인앱) · 공단 PHR 실연동(P2)
+- 🟡 **루틴 팩 플랫폼화(승인 대기)** — 정본 [28-routine-pack-platform](28-routine-pack-platform.md). 커리큘럼을 코드 상수에서 팩 JSON 으로, 건강 12주는 `health_12w` 팩 1호(골든 무회귀), 골프 6개월·일본어 6개월 샘플 팩. 결정 D1~D9 승인 후 Phase 0 착수
 
 ## 🟢 P1 — 앱 완성·생산화
 - ✅ **`web/` 정적 호스팅 분리** — GCS 공개버킷(`deploy-web.ps1`), 프론트 변경=Docker 빌드 0·즉시반영. BFF 는 API 전용(CORS `storage.googleapis.com`). config.js 로 BFF URL 런타임 주입(기본 빈값=same-origin 하위호환).
