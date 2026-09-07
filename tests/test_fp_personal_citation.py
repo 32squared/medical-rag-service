@@ -76,3 +76,25 @@ def test_filter_disabled_keeps_everything(monkeypatch):
 
 def test_empty_input():
     assert filt([]) == ([], [])
+
+
+# ── (e) 되묻는 질문 안의 지시형 매칭 ─────────────────────────
+
+def test_interrogative_context_dropped():
+    # 실측 차단 원인: 문진 블록의 후속 질문이 처방으로 오탐됐다
+    v = _v("메트포르민 포함)의 복용",
+           "현재 복용 중인 약(메트포르민 포함)의 복용은 어떻게 되시나요? [1]")
+    kept, dropped = filt(v)
+    assert kept == [] and len(dropped) == 1
+
+
+def test_interrogative_with_dosage_kept():
+    v = _v("복용", "메트포르민 500mg을 하루 2번 복용하시나요?")
+    kept, dropped = filt(v)
+    assert len(kept) == 1, "질문이어도 구체 용량은 보존"
+
+
+def test_interrogative_with_imperative_kept():
+    v = _v("복용", "어떻게 되시나요? 메트포르민을 복용하세요.")
+    kept, dropped = filt(v)
+    assert len(kept) == 1, "질문 문맥이어도 실제 명령형은 보존"

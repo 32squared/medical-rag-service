@@ -2019,6 +2019,13 @@ _FP_HARD_IMPERATIVE = (
 _FP_PERSONAL_ATTR = ("알려주", "[내 기록]", "제공해주신", "말씀해주신")
 # 진료·상담 권유 명령형 — 처방 지시가 아니라 우리가 권장하는 안내다.
 # (d) 판정에서만 하드 명령형 계산에서 제외한다(문맥에서 먼저 지운 뒤 검사).
+# (e) 되묻는 질문 신호 — 문진/확인 질문 안의 매칭은 지시가 아니다.
+#     예: "현재 복용 중인 약(메트포르민 포함)의 복용은 어떻게 되시나요?"
+_FP_INTERROGATIVE = (
+    "되시나요", "하시나요", "이신가요", "인가요", "신가요", "있으신가요",
+    "계신가요", "어떠신가요", "될까요", "할까요", "무엇인가요", "어떻게 되",
+    "알려주시면", "알려주세요",
+)
 _FP_CONSULT_IMPERATIVE = (
     "상의하세요", "상의하십시오", "상의하시", "상담하세요", "상담하십시오",
     "상담하시", "문의하세요", "문의하시", "진료를 받으세요", "진료 받으세요",
@@ -2042,6 +2049,7 @@ def _filter_guardrail_false_positives(violations_dicts):
       (b) 매칭 행위가 직접 부정됨('~하지 않' 등)
       (c) 지시형 규칙인데 소프트/교육 프레이밍이고 하드 명령형이 없음
       (d) 사용자가 제공한 개인 기록('알려주신…', [내 기록])을 되짚는 서술
+      (e) 되묻는 질문('…어떻게 되시나요?') 안의 지시형 매칭
     단, 구체적 용량(mg/정/회)이 있으면 (실제 처방) 무조건 보존.
     """
     if not violations_dicts:
@@ -2073,6 +2081,11 @@ def _filter_guardrail_false_positives(violations_dicts):
             for _ci in _FP_CONSULT_IMPERATIVE:   # 진료 권유는 처방 지시가 아니다
                 _c = _c.replace(_ci, "")
             if not any(h in _c for h in _FP_HARD_IMPERATIVE):
+                is_fp = True
+        # (e) 되묻는 질문 안의 지시형 매칭 — 문진은 처방이 아니다.
+        #     용량은 위에서 KEEP, 하드 명령형이 있으면 실제 지시로 보존한다.
+        if not is_fp and any(q in ctx for q in _FP_INTERROGATIVE):
+            if not any(h in ctx for h in _FP_HARD_IMPERATIVE):
                 is_fp = True
         # (c) 지시형 규칙 + 소프트 프레이밍 + 하드 명령형 없음
         if not is_fp and rid in _FP_DIRECTIVE_RULES:
