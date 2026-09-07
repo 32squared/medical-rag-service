@@ -2014,6 +2014,17 @@ _FP_HARD_IMPERATIVE = (
     "드세요", "드십시오", "드셔야", "맞으세요", "찍으세요", "바랍니다",
     "해야 합니다", "복용하세요", "투여하세요", "중단하세요", "시작하세요",
 )
+# (d) 사용자가 제공·동의한 개인 기록을 되짚는 서술 — 지시가 아니라 인용이다.
+#     프롬프트가 '알려주신 기록의 …' + [내 기록] 표기를 의무화하므로 이 신호로 식별한다.
+_FP_PERSONAL_ATTR = ("알려주", "[내 기록]", "제공해주신", "말씀해주신")
+# 진료·상담 권유 명령형 — 처방 지시가 아니라 우리가 권장하는 안내다.
+# (d) 판정에서만 하드 명령형 계산에서 제외한다(문맥에서 먼저 지운 뒤 검사).
+_FP_CONSULT_IMPERATIVE = (
+    "상의하세요", "상의하십시오", "상의하시", "상담하세요", "상담하십시오",
+    "상담하시", "문의하세요", "문의하시", "진료를 받으세요", "진료 받으세요",
+    "진료를 받으시", "방문하세요", "방문하시", "확인하세요", "확인하시",
+)
+
 import re as _re_fp
 # 구체적 용량/용법 — 있으면 실제 처방으로 보고 보존(KEEP)
 _FP_DOSAGE_RE = _re_fp.compile(
@@ -2030,6 +2041,7 @@ def _filter_guardrail_false_positives(violations_dicts):
       (a) 서비스 고정 면책/고지 문장 내부
       (b) 매칭 행위가 직접 부정됨('~하지 않' 등)
       (c) 지시형 규칙인데 소프트/교육 프레이밍이고 하드 명령형이 없음
+      (d) 사용자가 제공한 개인 기록('알려주신…', [내 기록])을 되짚는 서술
     단, 구체적 용량(mg/정/회)이 있으면 (실제 처방) 무조건 보존.
     """
     if not violations_dicts:
@@ -2053,6 +2065,14 @@ def _filter_guardrail_false_positives(violations_dicts):
         if not is_fp and mt and mt in ctx:
             after = ctx.split(mt, 1)[1][:8]
             if any(neg in after for neg in _FP_DIRECT_NEG):
+                is_fp = True
+        # (d) 개인 기록 인용 — 사용자가 알려준 복약·수치를 되짚는 서술은 지시가 아니다.
+        #     용량은 위에서 이미 KEEP 처리됐고, 하드 명령형이 있으면 실제 지시로 보존한다.
+        if not is_fp and any(a in ctx for a in _FP_PERSONAL_ATTR):
+            _c = ctx
+            for _ci in _FP_CONSULT_IMPERATIVE:   # 진료 권유는 처방 지시가 아니다
+                _c = _c.replace(_ci, "")
+            if not any(h in _c for h in _FP_HARD_IMPERATIVE):
                 is_fp = True
         # (c) 지시형 규칙 + 소프트 프레이밍 + 하드 명령형 없음
         if not is_fp and rid in _FP_DIRECTIVE_RULES:
