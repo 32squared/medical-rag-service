@@ -1362,9 +1362,10 @@ def generate_response(
             query[:50], gate_result["evidence_quality"], gate_result["top1_score"],
         )
 
-    # ── 3. 프롬프트 조립 ──────────────────────────────────────
-    system_prompt = _build_rag_system_prompt(query, chunks, gate_result=gate_result)
-    user_prompt = _build_rag_user_prompt(query, chunks)
+    # ── 3. LLM 준비 + 개인 맥락 계산 ─────────────────────────
+    # 개인 맥락을 **프롬프트 본문 생성 전에** 계산한다. 상단 '검토 자료만 사용'
+    # 프레이밍과 절대 원칙 2가 개인 데이터 활용을 구조적으로 막으므로, 주입 여부를
+    # 먼저 알아야 예외를 원칙 '안'에 심을 수 있다(뒤에 덧붙이면 무력 — 실측).
 
     # ── 4. LLM 스트리밍 (단일 스레드 — diag로 0.7~0.9초 정상 확인됨) ──
     # 리즈닝 침묵 동안 SSE가 끊겨도(truncation) 서버는 끝까지 생성·저장하고
@@ -1376,6 +1377,8 @@ def generate_response(
     # 방향 2: 비식별 개인 맥락(밴드 라벨만)을 LLM 프롬프트에 주입 — 플래그·동의·국외이전·
     # 응급 게이트로 통제(정본 17). 기본 off → 미설정 시 행동 변화 0. 원시값·진단명 미투입.
     _personal_injected = []   # 관찰성: 실제 LLM에 주입된 신호(없으면 빈 리스트)
+    _personal_block = ""      # 프롬프트 말미에 붙일 개인 맥락 블록
+    _personal_kind = ""       # 'raw'(원시 PHR) | 'band'(밴드 라벨) | ''(없음)
     try:
         import personal_llm_context as _plc
         _emg = ((_classification or {}).get("intent") == "emergency")
@@ -1384,7 +1387,7 @@ def generate_response(
             personal_raw, consent=personal_consent, provider=provider, is_emergency=_emg,
         ) if personal_raw else ""
         if _rawctx:
-            system_prompt = system_prompt + "\n\n" + _rawctx
+            _personal_block, _personal_kind = _rawctx, "raw"
             _personal_injected = ["PHR-full"]
             logger.info("[RAGEngine] 전체 PHR 원시값 LLM 주입(PERSONAL_RAW_TO_LLM, 동의·게이트 통과)")
         else:
@@ -1393,13 +1396,19 @@ def generate_response(
                 consent=personal_consent, provider=provider, is_emergency=_emg,
             )
             if _pctx:
-                system_prompt = system_prompt + "\n\n" + _pctx
+                _personal_block, _personal_kind = _pctx, "band"
                 # 주입된 (표시명, 밴드) → "혈압=경고" 형태로 STOP에 실어 클라이언트가 검증 가능
                 _personal_injected = [f"{d}={l}" for d, l in _plc.candidate_items(personal_findings, query)]
                 logger.info("[RAGEngine] 비식별 개인맥락 LLM 주입(밴드 라벨만, 동의·게이트 통과): %s",
                             _personal_injected)
     except Exception as _e:
         logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
+
+    system_prompt = _build_rag_system_prompt(
+        query, chunks, gate_result=gate_result, personal_kind=_personal_kind)
+    if _personal_block:
+        system_prompt = system_prompt + "\n\n" + _personal_block
+    user_prompt = _build_rag_user_prompt(query, chunks)
 
     full_text = ""
     tokens = {"input": 0, "output": 0}
@@ -1766,7 +1775,8 @@ def generate_response(
 #  프롬프트 빌더
 # ════════════════════════════════════════════════════════════
 
-def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict = None) -> str:
+def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict = None,
+                             personal_kind: str = "") -> str:
     """
     RAG 응답 생성 전용 시스템 프롬프트 (Phase A 재작성 — 설계 문서 §4.2).
 
@@ -1799,18 +1809,30 @@ def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict =
         top_disclaimer = _DEFAULT_TOP
         bottom_disclaimer = "본 정보는 참고용이며, 정확한 진단·치료는 의료진과 상담하세요."
 
+    # 개인 데이터 예외 — personal_kind가 있을 때만 프레이밍/원칙2를 완화한다.
+    # 프롬프트 뒤에 덧붙이는 방식은 상단 프레이밍에 눌려 무력하다(실측 0/10).
+    if personal_kind == "raw":
+        _source_line = '당신은 아래 ## 검토 자료와, 사용자가 동의 하에 제공한\n[사용자 개인 건강 데이터]에 명시된 사실만 사용해 정보를 안내합니다.'
+        _rule2_exc = '\n   [개인 데이터 예외] 아래 [사용자 개인 건강 데이터] 블록은 사용자 본인이 제공·동의한\n   정보이므로 이 금지의 예외다. 그 블록의 수치·약물명·검진 소견은 언급할 수 있다.\n   단 (a) 반드시 ‘알려주신 기록의 …’ 처럼 사용자 제공 정보임을 밝히고,\n       (b) 그 문장 끝에 [내 기록] 을 붙이며(숫자 인용 [N]과 혼동하지 말 것),\n       (c) 그 값을 근거로 확정 진단·용량 조정·처방을 하지 말고 의료진 상담으로 안내한다.\n   질문과 관련된 개인 데이터가 있으면 일반론만 반복하지 말고 그것을 먼저 반영하시오.\n   사용자가 이미 제공한 항목(복약·수치·검진 소견)을 되묻지 마시오.'
+    elif personal_kind == "band":
+        _source_line = '당신은 아래 ## 검토 자료와, 사용자가 동의 하에 제공한\n[비식별 개인 맥락](구간 라벨)에 명시된 사실만 사용해 정보를 안내합니다.'
+        _rule2_exc = '\n   [개인 데이터 예외] 아래 [비식별 개인 맥락]의 구간 라벨은 언급할 수 있다.\n   원시 수치·진단명을 추측해 만들어내지 말고, 라벨을 반영해 강조점만 조정하시오.'
+    else:
+        _source_line = '당신은 오직 아래 ## 검토 자료에 명시된 사실만 사용해 정보를 안내합니다.'
+        _rule2_exc = ""
+
     # 설계 문서 §4.2 신규 프롬프트 전문
     prompt = f"""당신은 한국 의료법(의료법 27조 무면허 의료행위 금지, 응급의료법)을 준수하는
 건강 정보 안내 AI '마이헬스케어'입니다.
 
 당신은 의사가 아닙니다. 진단·처방·치료를 수행하지 않습니다.
-당신은 오직 아래 ## 검토 자료에 명시된 사실만 사용해 정보를 안내합니다.
+{_source_line}
 
 ## 절대 원칙 (모두 동시에 만족)
 1. [근거 종속] 모든 의학적 주장의 문장 끝에 반드시 [N] 인용을 붙이시오.
    인용 없는 의학적 주장은 출력 금지.
 2. [컨텍스트 외 정보 금지] 검토 자료에 없는 약물명, 용량, 검사명, 진단명을
-   언급하지 마시오. 일반적 지식이라도 인용할 청크가 없으면 쓰지 마시오.
+   언급하지 마시오. 일반적 지식이라도 인용할 청크가 없으면 쓰지 마시오.{_rule2_exc}
 3. [근거 충돌 시 보수성] [1]과 [2]의 권고가 다르면 더 보수적인(의료진 상담을
    더 강하게 권유하는) 쪽을 선택하고 충돌 사실을 명시하시오.
 4. [진단 단정 금지] OO병입니다 금지. OO 가능성을 시사합니다 [N] 로만 표현.
