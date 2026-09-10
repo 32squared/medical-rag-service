@@ -107,3 +107,25 @@ def test_drug_stop_directive_is_kept():
 
 def test_drug_take_directive_is_kept():
     assert not _run("복용하세요", "이 약을 아침마다 복용하세요.")
+
+
+# ── 적대 검증: FP 필터가 실제 위험 지시를 놓치지 않는지 ──────
+#
+# analyzer 가 탐지한 위반은 FP 필터가 절대 지워선 안 된다. (탐지 자체를 못 하는
+# 케이스는 공용 analyzer 의 별개 결함이라 여기서 다루지 않는다 — docs/plan/24 백로그.)
+
+def test_permissive_directive_is_kept():
+    """'…복용하시면 됩니다'도 지시다 — (h) 도입 때 놓쳤던 형태."""
+    assert not _run("복용", "아스피린을 매일 복용하시면 됩니다.")
+
+
+def test_dose_increase_directive_is_kept():
+    assert not _run("올리세요", "메트포르민 용량을 올리세요.")
+
+
+def test_non_hada_imperatives_are_kept():
+    for verb, sent in [("늘리세요", "인슐린 약 용량을 2단위 늘리세요."),
+                       ("줄이세요", "이 약을 반으로 줄이세요."),
+                       ("바꾸세요", "기존 약을 끊고 이 약으로 바꾸세요."),
+                       ("끊으세요", "복용 중인 약을 끊으세요.")]:
+        assert not _run(verb, sent), sent
