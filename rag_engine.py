@@ -2144,6 +2144,13 @@ _FP_DOSAGE_RE = _re_fp.compile(
     r"(?:\d+\s*(?:mg|밀리그램|마이크로그램|IU|cc|㏄|ml|㎖|정|알|캡슐|포)|"
     r"하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)"
 )
+# (g) 빈도만 있는 표현("하루 3회", "8시간마다")은 약물 맥락에서만 용법이다.
+#     "중립자세 연습을 1회 5분, 하루 3회"처럼 비약물 행동에도 그대로 쓰이므로
+#     빈도 단독으로 KEEP을 강제하면 운동·생활 안내가 처방으로 오탐된다.
+_FP_FREQ_ONLY_RE = _re_fp.compile(r"(?:하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)")
+_FP_DRUG_TOKEN = (
+    "약", "정", "캡슐", "복용", "투여", "처방", "제제", "성분", "mg", "밀리그램",
+)
 
 
 def _filter_guardrail_false_positives(violations_dicts):
@@ -2156,7 +2163,10 @@ def _filter_guardrail_false_positives(violations_dicts):
       (c) 지시형 규칙인데 소프트/교육 프레이밍이고 하드 명령형이 없음
       (d) 사용자가 제공한 개인 기록('알려주신…', [내 기록])을 되짚는 서술
       (e) 되묻는 질문('…어떻게 되시나요?') 안의 지시형 매칭
-    단, 구체적 용량(mg/정/회)이 있으면 (실제 처방) 무조건 보존.
+      (f) 매칭 문구 '안'에서 행위가 부정됨('처방약을 임의로 복용하지 마세요')
+    단, 구체적 용량(mg/정/캡슐)이 있으면 (실제 처방) 무조건 보존.
+    (g) 빈도만 있는 표현(하루 N회)은 약물 토큰이 함께 있을 때만 보존한다 —
+        "중립자세 연습을 하루 3회"는 용법이 아니다.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2167,10 +2177,15 @@ def _filter_guardrail_false_positives(violations_dicts):
         ctx = v.get("context") or ""
         mt = v.get("matched_text") or ""
         rid = v.get("rule_id") or ""
-        # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존
-        if _FP_DOSAGE_RE.search(ctx):
-            kept.append(v)
-            continue
+        # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존.
+        # (g) 다만 빈도만 있는 매칭(하루 N회)은 약물 토큰이 함께 있을 때만 —
+        #     없으면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을 받게 둔다.
+        _dose = _FP_DOSAGE_RE.search(ctx)
+        if _dose:
+            _freq_only = (_FP_FREQ_ONLY_RE.fullmatch(_dose.group(0).strip()) is not None)
+            if not _freq_only or any(d in ctx for d in _FP_DRUG_TOKEN):
+                kept.append(v)
+                continue
         is_fp = False
         # (a) 면책/고지 시그니처
         if any(sig in ctx for sig in _FP_DISCLAIMER_SIG):
@@ -2180,6 +2195,23 @@ def _filter_guardrail_false_positives(violations_dicts):
             after = ctx.split(mt, 1)[1][:8]
             if any(neg in after for neg in _FP_DIRECT_NEG):
                 is_fp = True
+        # (g) 매칭이 '빈도 표현 그 자체'인데 문맥에 약물 토큰이 없다 — 용법이 아니다.
+        #     예: "중립자세 연습을 1회 5분, 하루 3회 해보세요" 의 «하루 3회».
+        #     약·복용·mg 등이 문맥에 하나도 없으면 복약 지시로 읽힐 수 없다.
+        if not is_fp and mt and _FP_FREQ_ONLY_RE.fullmatch(mt.strip()):
+            if not any(d in ctx for d in _FP_DRUG_TOKEN):
+                is_fp = True
+        # (f) 매칭 문구 '안'에서 행위가 부정된 경우 — 금지 경고문은 지시가 아니다.
+        #     예: "남은 처방약을 임의로 복용하지 마세요"
+        #     단, 부정 뒤에 하드 명령형이 이어지면(…마시고 …하세요) 실제 지시로 보존.
+        if not is_fp and mt:
+            for neg in _FP_DIRECT_NEG:
+                if neg in mt:
+                    _tail = mt.split(neg, 1)[1] + ctx.split(mt, 1)[-1][:20] if mt in ctx \
+                        else mt.split(neg, 1)[1]
+                    if not any(h in _tail for h in _FP_HARD_IMPERATIVE):
+                        is_fp = True
+                    break
         # (d) 개인 기록 인용 — 사용자가 알려준 복약·수치를 되짚는 서술은 지시가 아니다.
         #     용량은 위에서 이미 KEEP 처리됐고, 하드 명령형이 있으면 실제 지시로 보존한다.
         if not is_fp and any(a in ctx for a in _FP_PERSONAL_ATTR):
