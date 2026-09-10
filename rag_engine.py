@@ -1136,6 +1136,7 @@ def generate_response(
     personal_findings=None,
     personal_consent: bool = False,
     personal_raw=None,
+    answer_style: str = None,
 ) -> Iterator[Dict]:
     """
     Hybrid search → 프롬프트 빌드 → LLM 스트리밍 → 가드레일 → DB 기록.
@@ -1408,8 +1409,11 @@ def generate_response(
     except Exception as _e:
         logger.debug("[RAGEngine] 개인맥락 주입 스킵: %s", _e)
 
+    import answer_style as _style
+    _astyle = _style.resolve(answer_style)
     system_prompt = _build_rag_system_prompt(
-        query, chunks, gate_result=gate_result, personal_kind=_personal_kind)
+        query, chunks, gate_result=gate_result, personal_kind=_personal_kind,
+        style=_astyle)
     if _personal_block:
         system_prompt = system_prompt + "\n\n" + _personal_block
     user_prompt = _build_rag_user_prompt(query, chunks)
@@ -1738,6 +1742,16 @@ def generate_response(
     except Exception:
         _followups = []
 
+    # persly 프로필은 답변 꼬리에 [제안 질문] 두 줄을 남긴다 — 본문에서 떼어
+    # followups 로 보낸다(본문에 마커가 남지 않게).
+    try:
+        _body_text, _sugg = _style.split_suggested(full_text)
+        if _sugg:
+            full_text = _body_text
+            _followups = _sugg
+    except Exception:
+        pass
+
     # ── 핸드오프(웰니스 코칭) 트리거 — 룰 기반·플래그 게이트·STOP 메타만(비차단, P1) ──
     # 정본 18 §3-A. WELLNESS_ROUTER_ENABLED off(기본)면 None → 기존 행동 무변화.
     _handoff = None
@@ -1771,7 +1785,7 @@ def generate_response(
         "gate_decision": gate_result["decision"],
         "followups": _followups,
         "personal_injected": _personal_injected,   # 방향2 주입 밴드(관찰성 — 빈 리스트면 미주입)
-        "prompt_version": PROMPT_VERSION,          # 답변 범위 기준 버전(재측정 구분용)
+        "prompt_version": _style.version_of(_astyle),  # 답변 범위·스타일 버전(재측정 구분용)
         "handoff": _handoff,                        # 핸드오프(코칭 버튼) 메타 — None이면 미노출(P1)
     }
 
@@ -1781,7 +1795,7 @@ def generate_response(
 # ════════════════════════════════════════════════════════════
 
 def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict = None,
-                             personal_kind: str = "") -> str:
+                             personal_kind: str = "", style: str = "default") -> str:
     """
     RAG 응답 생성 전용 시스템 프롬프트 (Phase A 재작성 — 설계 문서 §4.2).
 
@@ -1813,6 +1827,14 @@ def _build_rag_system_prompt(query: str, chunks: List[dict], gate_result: Dict =
     except Exception:
         top_disclaimer = _DEFAULT_TOP
         bottom_disclaimer = "본 정보는 참고용이며, 정확한 진단·치료는 의료진과 상담하세요."
+
+    # 답변 스타일 프로필 — persly-safe는 형식 층만 교체하고 해석 범위(L0~L3)는
+    # answer-scope-260910 그대로 유지한다. default면 아래 기존 경로를 그대로 탄다.
+    if style and style != "default":
+        import answer_style as _style_mod
+        _body = _style_mod.system_prompt(style, bottom_disclaimer)
+        if _body:
+            return _body
 
     # 개인 데이터 예외 — personal_kind가 있을 때만 프레이밍/원칙2를 완화한다.
     # 프롬프트 뒤에 덧붙이는 방식은 상단 프레이밍에 눌려 무력하다(실측 0/10).

@@ -449,6 +449,11 @@ class RagRoutesMixin:
             from rag_engine import generate_response
 
             client_gone = False
+            # 답변 스타일 — body 우선, 없으면 dev 실험용 X-Answer-Style 헤더.
+            # 지원하지 않는 값은 answer_style.resolve가 default로 폴백한다(fail-safe).
+            _hdrs = getattr(self, 'headers', None)
+            _astyle = (payload.get('answer_style')
+                       or (_hdrs.get('X-Answer-Style') if _hdrs else None))
             for event in generate_response(
                 query=query,
                 conversation_id=conversation_id,
@@ -458,6 +463,7 @@ class RagRoutesMixin:
                 personal_findings=personal_findings,
                 personal_consent=personal_consent,
                 personal_raw=personal,
+                answer_style=_astyle,
             ):
                 if client_gone:
                     continue  # 쓰기 없이 생성 완주까지 진행(결과 저장 보장)

@@ -148,7 +148,7 @@ class _FakeChatHandler:
         pass
 
 
-def _run_chat(monkeypatch, body_dict):
+def _run_chat(monkeypatch, body_dict, headers=None):
     import rag_routes
 
     monkeypatch.setattr(rag_routes, "RAG_ENABLED", True)
@@ -173,6 +173,8 @@ def _run_chat(monkeypatch, body_dict):
         pass
 
     h = H()
+    if headers is not None:
+        h.headers = headers
     with patch("rag_engine.generate_response", fake_generate_response):
         h._rag_chat(json.dumps(body_dict).encode("utf-8"))
     return h, captured
@@ -207,3 +209,23 @@ def test_chat_route_without_personal_inputs_unchanged(monkeypatch):
     assert kw["personal_findings"] is None
     assert kw["personal_raw"] is None
     assert kw["personal_consent"] is False
+
+
+# ── 답변 스타일 프로필 전달 (dev 실험용 X-Answer-Style) ──────
+
+def test_chat_route_passes_answer_style_header(monkeypatch):
+    _, kw = _run_chat(monkeypatch, {"query": "허리가 아파요"},
+                      headers={"X-Answer-Style": "persly-safe"})
+    assert kw["answer_style"] == "persly-safe"
+
+
+def test_chat_route_body_style_wins_over_header(monkeypatch):
+    _, kw = _run_chat(monkeypatch, {"query": "허리가 아파요", "answer_style": "default"},
+                      headers={"X-Answer-Style": "persly-safe"})
+    assert kw["answer_style"] == "default"
+
+
+def test_chat_route_without_style_is_none(monkeypatch):
+    """헤더도 body도 없으면 None → 엔진에서 default 로 해석된다."""
+    _, kw = _run_chat(monkeypatch, {"query": "허리가 아파요"})
+    assert kw["answer_style"] is None
