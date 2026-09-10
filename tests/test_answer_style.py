@@ -114,3 +114,10 @@ def test_persly_safe_has_no_literal_placeholder():
     p = B("q", [], personal_kind="raw", style="persly-safe")
     assert "[N]" not in p
     assert "실제\n   자료 번호" in p or "실제 자료 번호" in p.replace("\n   ", " ")
+
+
+def test_persly_safe_bans_record_based_inference():
+    """실측: 처방 기록에서 "혈당 관리 중인 것으로 보입니다"를 만들어냈다(L4)."""
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "인 것으로 보입니다" in p and "금지" in p
+    assert "조제 사실까지만" in p

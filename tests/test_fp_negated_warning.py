@@ -77,3 +77,33 @@ def test_filter_disabled_by_env(monkeypatch):
     """킬 스위치가 살아 있어야 한다 — 필터 자체를 끄면 아무것도 제거하지 않는다."""
     monkeypatch.setenv("RAG_GUARDRAIL_FP_FILTER", "false")
     assert not _run("하루 2회", "가벼운 스트레칭을 하루 2회 해보세요.")
+
+
+# ── (h) prescription = 약물 + 비상담 명령형이 한 문장에 ──────
+
+def test_causal_explanation_is_fp():
+    """"진통제 잦은 복용이 통증 역치를 흔듭니다" — 명령형 없는 인과 설명."""
+    assert _run("진통제 잦은 복용이나 카페인 과다·중단",
+                "약물·카페인 사용 패턴 변화: 진통제 잦은 복용이나 카페인 과다·중단이 "
+                "통증 역치를 흔듭니다. 아침 기상 시 더 심하고")
+
+
+def test_consult_referral_is_fp():
+    """진료에서 논의하라는 권유는 처방 지시가 아니다."""
+    assert _run("진통제 사용",
+                "병용 가능성을 의료진에게 확인하세요. 다음 진료에서 "
+                "\u201c진통제 사용 계획과 위장 증상 악화 가능성\u201d을 함께 논의해 보세요.")
+
+
+def test_non_drug_stop_directive_is_fp():
+    """"음주는 중단하세요"는 생활습관 권고다."""
+    assert _run("중단하세요", "오후 중후반 이후 카페인·에너지음료를 피하고, 음주는 중단하세요 [4].")
+
+
+def test_drug_stop_directive_is_kept():
+    """반대로 약을 끊으라는 지시는 반드시 보존돼야 한다."""
+    assert not _run("중단하세요", "복용 중인 약을 중단하세요.")
+
+
+def test_drug_take_directive_is_kept():
+    assert not _run("복용하세요", "이 약을 아침마다 복용하세요.")

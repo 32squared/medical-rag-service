@@ -2148,6 +2148,8 @@ _FP_DOSAGE_RE = _re_fp.compile(
 #     "중립자세 연습을 1회 5분, 하루 3회"처럼 비약물 행동에도 그대로 쓰이므로
 #     빈도 단독으로 KEEP을 강제하면 운동·생활 안내가 처방으로 오탐된다.
 _FP_FREQ_ONLY_RE = _re_fp.compile(r"(?:하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)")
+# (h) 매칭이 든 '문장'만 떼어 보기 위한 분리기 — context(±30자)는 앞뒤 문장을 물고 온다.
+_FP_SENT_SPLIT_RE = _re_fp.compile(r"[.!?。\n]+")
 _FP_DRUG_TOKEN = (
     "약", "정", "캡슐", "복용", "투여", "처방", "제제", "성분", "mg", "밀리그램",
 )
@@ -2167,6 +2169,12 @@ def _filter_guardrail_false_positives(violations_dicts):
     단, 구체적 용량(mg/정/캡슐)이 있으면 (실제 처방) 무조건 보존.
     (g) 빈도만 있는 표현(하루 N회)은 약물 토큰이 함께 있을 때만 보존한다 —
         "중립자세 연습을 하루 3회"는 용법이 아니다.
+    (h) prescription 은 한 문장 안에 '약물'과 '상담 권유가 아닌 명령형'이 함께
+        있어야 복약 지시다. 셋 중 하나라도 없으면 지시가 아니다:
+          "진통제 잦은 복용이 통증 역치를 흔듭니다"      → 명령형 없음(인과 설명)
+          "진통제 사용 계획을 다음 진료에서 논의해 보세요" → 상담 권유
+          "음주는 중단하세요"                            → 약물 아님
+        용량이 있으면 위에서 이미 KEEP 되므로 여기 오지 않는다.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2224,6 +2232,20 @@ def _filter_guardrail_false_positives(violations_dicts):
         #     용량은 위에서 KEEP, 하드 명령형이 있으면 실제 지시로 보존한다.
         if not is_fp and any(q in ctx for q in _FP_INTERROGATIVE):
             if not any(h in ctx for h in _FP_HARD_IMPERATIVE):
+                is_fp = True
+        # (h) prescription 전용 — 약물 + 비상담 명령형이 한 문장에 같이 있어야 지시.
+        if not is_fp and rid == "prescription" and mt:
+            _sent = ctx
+            for _frag in _FP_SENT_SPLIT_RE.split(ctx):
+                if mt[:12] in _frag or (mt in _frag):
+                    _sent = _frag
+                    break
+            _has_drug = any(d in _sent for d in _FP_DRUG_TOKEN)
+            _bare = _sent
+            for _ci in _FP_CONSULT_IMPERATIVE:      # 진료·상담 권유는 처방 지시가 아니다
+                _bare = _bare.replace(_ci, "")
+            _has_order = any(h in _bare for h in _FP_HARD_IMPERATIVE)
+            if not (_has_drug and _has_order):
                 is_fp = True
         # (c) 지시형 규칙 + 소프트 프레이밍 + 하드 명령형 없음
         if not is_fp and rid in _FP_DIRECTIVE_RULES:
