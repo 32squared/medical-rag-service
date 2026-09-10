@@ -107,3 +107,10 @@ def test_split_suggested_numeric_bullet():
     t = "본문\n[제안 질문]\n1. 첫째인가요?\n2) 둘째인가요?\n"
     _, qs = A.split_suggested(t)
     assert qs == ["첫째인가요?", "둘째인가요?"]
+
+
+def test_persly_safe_has_no_literal_placeholder():
+    """[N]을 그대로 두면 모델이 문자 N을 출력해 인용이 0건이 된다(실측)."""
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "[N]" not in p
+    assert "실제\n   자료 번호" in p or "실제 자료 번호" in p.replace("\n   ", " ")
