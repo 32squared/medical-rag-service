@@ -55,17 +55,30 @@ def test_raw_keeps_diagnosis_and_dose_ban():
     p = _p("raw")
     # (c) 예외가 진단·용량조정·처방 금지를 풀어주지 않아야 한다
     assert "확정 진단·용량 조정·처방을 하지 말고" in p
-    assert "[진단 단정 금지]" in p
+    # 260910 답변범위 적용으로 규칙 4가 [진단 단정 금지] -> [병명 부여 금지]로 강화됨
+    # (기존에 허용하던 "가능성을 시사합니다" 문형까지 금지)
+    assert "[병명 부여 금지]" in p
+    assert "가능성을 시사합니다" in p and "모두 금지" in p
     assert "[처방·검사 지시 금지]" in p
 
 
 # ── band(밴드 라벨만) ────────────────────────────────────────
 
+def _exception_block(kind):
+    """개인 데이터 예외 블록만 잘라낸다(규칙 3 직전까지)."""
+    p = _p(kind)
+    i = p.index("[개인 데이터 예외]")
+    return p[i:p.index("3. [근거 충돌 시 보수성]", i)]
+
+
 def test_band_allows_label_but_not_raw_values():
     p = _p("band")
     assert "[비식별 개인 맥락](구간 라벨)" in p
     assert "원시 수치·진단명을 추측해 만들어내지 말고" in p
-    assert "[내 기록]" not in p   # 마커는 raw 전용
+    # 마커 부여는 raw 전용 — band 예외 블록에는 없어야 한다.
+    # (규칙 4 예시 문장에는 [내 기록]이 등장하므로 프롬프트 전체가 아니라 예외 블록으로 본다)
+    assert "[내 기록]" not in _exception_block("band")
+    assert "[내 기록]" in _exception_block("raw")
 
 
 def test_band_and_raw_differ():
@@ -78,3 +91,25 @@ def test_my_record_marker_not_matched_by_citation_regex():
     from rag_engine import _CITATION_PATTERN
     assert _CITATION_PATTERN.findall("혈압 130/89 [내 기록][2]") == ["2"]
     assert _CITATION_PATTERN.findall("[내 기록]") == []
+
+
+# ── 260910 답변 범위 기준(해석 수준) ─────────────────────────
+
+def test_interpretation_levels_rule_present():
+    p = _p("raw")
+    assert "[개인 기록 해석 수준]" in p
+    for lv in ("L0", "L1", "L2", "L3"):
+        assert lv in p
+    assert "L4" in p and "L6" in p
+
+
+def test_relevance_and_reservation_rules_present():
+    p = _p("raw")
+    assert "[관련성]" in p or "무관" in p       # 규칙 10 — 무관 청크 인용 금지
+    assert "면책" in p                          # 규칙 11 — 면책 반복 금지
+
+
+def test_no_department_directive_allowed():
+    # L6(진료과·시기 지시) 금지가 프롬프트에 남아 있어야 한다
+    p = _p("raw")
+    assert "진료과" in p
