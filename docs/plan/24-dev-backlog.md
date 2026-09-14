@@ -61,3 +61,22 @@ RAG 는 CRITICAL 처방 위반을 하드 차단으로 처리하므로, 탐지 �
 
 수정 위치는 `packages/medical_shared` 의 `violation_rules.json` 이며, RAG 전용
 오탐 필터(`_filter_guardrail_false_positives`)로 보상하면 안 된다(그 필터는 반대 방향).
+
+## [신규 2026-09-14] medical-eval 온톨로지 연동 준비 (대기 — medical-eval Phase 1 이후)
+
+참고 문서: `docs/integration/medical-eval-reference.md` (전달 사본: `medical-eval/docs/integration/rag_reference.md`, 그 저장소에는 미커밋)
+
+medical-eval(온톨로지 기반 평가 v3) 입장에서 RAG 는 추후 연동 대상이다. 연동 시 RAG 쪽 작업:
+
+1. CI: 온톨로지 `rule_example` 로 가드레일·오탐 필터 회귀 테스트 (금지 → 차단, 허용 → 통과)
+2. STOP 메타 `ontology_version`
+3. 규칙 2(d) `[일반 기준]`(모델 기억) → `render_prompt_tables` 표 주입
+4. `render_raw_context` → `allowed_facts` 대체 (기능 플래그 + A/B)
+5. `check_no_cross_import`: `medical_eval.ontology` 만 허용, 판정기 import 금지
+
+연동 조사에서 드러난 RAG 결함 (연동과 무관하게 존재):
+
+- **raw 모드에서 deny 4종(LDL·eGFR·골밀도·요단백) 미적용** — 11번 스펙 §2-B 는 개인 구간 라벨 금지인데, raw 모드는 PHR 원문을 그대로 주고 규칙 9 L1 이 구간 분류를 허용한다. 프롬프트 지시·필터 모두 없음. 선행 조치(프롬프트 지시 또는 원문 필터)로 막을지, 온톨로지 연동 때 해결할지 결정 필요.
+- **`/api/service/conversations` 경로 누락** — `answer_style` 미전달, STOP 에서 `prompt_version`·`guardrail_action`·`gate_decision`·`citations` 누락(wraith 어댑터). 앱 경로에서 관찰·평가가 필요하면 어댑터 STOP 에 추가(additive).
+- **`X-Personalization` 헤더 미소비** — BFF 가 보내지만 RAG 서버가 읽지 않는다. 동의 게이트는 body `personal_consent`. 계약 문서 정리 필요.
+- **검진 7종 밴드(11번 스펙 §2-A) 미구현** — 온톨로지 `reference_range` 도입 시 대체 가능.
