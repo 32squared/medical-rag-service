@@ -80,3 +80,21 @@ def test_persly_safe_has_exclusion():
         assert n in p, n
     assert "범위에 넣지 않습니다" in p
     assert "기준 수치를 사용자의 값 옆에 두지 않으며" in p
+
+
+# ── 과잉 억제 방지 ───────────────────────────────────────────
+# 실측(dev rev 00051): persly-safe 가 '의료진이 판단합니다' 문장을 공복혈당에도 붙여
+# 비 deny 수치의 L1(허용·유용)이 6건 → 0건으로 사라졌다. 예외는 네 항목에만 걸려야 한다.
+
+def test_default_exclusion_scoped_to_four_items():
+    p = _raw()
+    block = p[p.index("· L1 적용 제외"):p.index("· L2 항목별 추세")]
+    assert "네 항목에만 적용" in block
+    assert "공복혈당" in block and "L1대로 분류" in block
+
+
+def test_persly_safe_exclusion_scoped_to_four_items():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "예외는 다음 네 항목뿐" in p
+    assert "이 문장은 네 항목에만 쓰고 다른 수치에는 쓰지 않습니다" in p
+    assert "범위 밖이면 범위 밖이라고 말합니다" in p      # 비 deny 수치의 L1 을 적극 지시
