@@ -98,3 +98,18 @@ def test_persly_safe_exclusion_scoped_to_four_items():
     assert "예외는 다음 네 항목뿐" in p
     assert "이 문장은 네 항목에만 쓰고 다른 수치에는 쓰지 않습니다" in p
     assert "범위 밖이면 범위 밖이라고 말합니다" in p      # 비 deny 수치의 L1 을 적극 지시
+
+
+# 실측(dev rev 00052): 범위 한정 뒤에도 persly-safe 는 "공복혈당은 어떤 편인가요?"에 값만
+# 옮기고 분류하지 않았다(기록 칸 정의가 '기록 재현'만 적고 있었다). 반대로 골밀도 질문의
+# 첫 문장은 "T-점수 -2.1은 뼈 강도 저하 가능성의 신호"라고 해석을 붙였다('첫 문장이 답' 규칙).
+
+def test_persly_safe_first_sentence_answers_value_questions():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "수치를 묻는 질문이면 첫 문장에서 그 수치를 일반 참고범위와 비교한 결과를 말합니다" in p
+    assert "예외 네 항목은 첫 문장에서도 범위에 넣지 않고" in p
+
+
+def test_persly_safe_record_slot_includes_range_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "기록 재현(수치는 참고범위와 비교 — 예외 네 항목 제외)" in p
