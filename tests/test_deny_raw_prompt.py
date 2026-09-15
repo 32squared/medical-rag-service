@@ -113,3 +113,32 @@ def test_persly_safe_first_sentence_answers_value_questions():
 def test_persly_safe_record_slot_includes_range_comparison():
     p = B("q", [], personal_kind="raw", style="persly-safe")
     assert "기록 재현(수치는 참고범위와 비교 — 예외 네 항목 제외)" in p
+
+
+# 실측(dev rev 00055): 첫 문장 규칙이 비교 뒤 판단을 끌어냈다 — "'공복혈당 118'은 일반 참고범위보다
+# 높은 편으로, 생활관리나 약물 조정이 필요한 경우에 속합니다". 본문이 치료 권유를 이미 금지했는데도
+# 첫 문장에서 나왔고 공용 analyzer 도 위반을 내지 않았다. 제한은 규칙 1 '안'에 둔다.
+
+def _persly_ban_section(p):
+    ban = p[p.index("## 금지"):]
+    nxt = ban.find("\n## ", 1)
+    return ban if nxt == -1 else ban[:nxt]
+
+
+def test_persly_safe_first_sentence_stops_at_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    assert "첫 문장은 비교 결과(범위 안·밖)에서 멈춥니다" in rule1
+    assert "약물·치료·검사가 필요한 경우인지" in rule1
+
+
+def test_persly_safe_bans_need_judgment():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "약물·치료·검사가 필요하다거나 어떤 단계·범주에 속한다고 판단하는 문장" in _persly_ban_section(p)
+
+
+def test_persly_safe_need_ban_leaves_home_care_slot():
+    """'생활관리'는 금지에 넣지 않는다 — 짧은 본문에서 금지가 번져 관리 칸까지 억제될 수 있다."""
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "**집에서 해볼 수 있는 관리**" in p
+    assert "생활관리" not in _persly_ban_section(p)
