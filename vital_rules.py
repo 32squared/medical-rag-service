@@ -27,6 +27,22 @@ _SEVERITY = {"안정": 0, "주의": 1, "경고": 2}
 # [I8] 임상 판독 자체가 금지된 신호 (워치 ECG 등) — 밴드 조회 자체를 안 함.
 DENY_SIGNALS = {"ecg", "ecg_waveform", "afib_alert"}
 
+# [11 §2-B] 개인 값에 구간 라벨을 붙이지 않는 검진 항목. 기준이 개인의 위험도·연령·검사 조건에
+# 따라 달라 한 번의 값으로 분류하면 진단이 된다. band 모드는 lookup_band 게이트가, raw 모드는
+# 프롬프트 규칙(rag_engine 규칙 9 'L1 적용 제외', answer_style persly-safe)이 이 목록으로 막는다.
+# 온톨로지(medical-eval) 연동 시 스냅샷의 답변 사용 구분으로 대체할 자리.
+PERSONAL_BAND_DENY = {
+    "ldl_cholesterol": "LDL콜레스테롤",
+    "egfr": "사구체여과율(eGFR)",
+    "bmd_tscore": "골밀도 T-점수",
+    "urine_protein_dipstick": "요단백",
+}
+
+
+def personal_band_deny_names() -> str:
+    """프롬프트 표기용 항목명 나열 — 규칙 문장에 그대로 들어간다."""
+    return ", ".join(PERSONAL_BAND_DENY.values())
+
 Number = Union[int, float]
 
 
@@ -133,8 +149,10 @@ def lookup_band(
         "source_version": None,
     }
 
-    # [I8] deny 게이트 — 임상 판독 금지 신호 또는 웰니스 등급은 임상밴드 조회 자체를 안 함.
-    if signal_key in DENY_SIGNALS or device_grade == "wellness":
+    # [I8] deny 게이트 — 임상 판독 금지 신호(ECG 등)·개인 구간 라벨 금지 검진 항목(11 §2-B)
+    # 또는 웰니스 등급은 임상밴드 조회 자체를 안 함.
+    if (signal_key in DENY_SIGNALS or signal_key in PERSONAL_BAND_DENY
+            or device_grade == "wellness"):
         base["match"] = "denied"
         return base
 
