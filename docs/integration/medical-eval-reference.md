@@ -5,7 +5,7 @@
 | 성격 | **참고 자료.** medical-eval 의 현재 설계와 Phase 0~2 작업을 제약하지 않는다. §3 고려 사항은 요청이 아니라 연동 시점(plan_v3 Phase 3 이후)에 함께 볼 목록이다. |
 | 기준 시점 | medical-rag-service `feat/routine-packs` @ `2ae2a21` · 2026-09-15 (초판 2026-09-14 @ `39a9cde`) |
 | 정본 | `medical-rag-service/docs/integration/medical-eval-reference.md` (RAG 가 갱신, 허브 DOC-0589) |
-| 전달 사본 | `medical-eval/docs/integration/rag_reference.md` — 2026-09-14 초판의 사본(허브 도입 전 직접 전달). 최신은 정본을 볼 것 |
+| 전달 사본 | 없음 — `medical-eval/docs/integration/rag_reference.md` 에 있던 2026-09-14 초판 사본은 2026-09-15 medical-eval 이 정본 링크 스텁으로 교체(REQ-0002) |
 | 작성 | RAG 세션 |
 
 경로 표기: `RAG:` 는 medical-rag-service, `eval:` 은 medical-eval 저장소 기준.
@@ -169,6 +169,8 @@ RAG 11번 스펙 §2-B. 아래 4종은 개인 값에 구간 라벨을 붙이지 
 
 **판정기 참고**: 금지 항목에 대해 RAG 답변은 참고범위를 병기하지 않고 위 대체 문장을 쓴다. 이 항목에 PV-03(참고범위 병기)을 요구하면 올바른 답이 미충족으로 잡힌다(§3 나).
 
+medical-eval 회신(REQ-0002, 2026-09-15): 금지 4항목에는 PV-03 을 요구하지 않는 쪽으로 반영 예정(§3 나). 문장 단위 병치 오검출은 v3 판정기가 claim(삼중항) 단위로 검사해 설계상 생기지 않는다 — 크레아티닌 분류와 eGFR 값은 claim 두 개(L1·L0)로 갈린다. 정규식 보조는 claim 범위로만 쓰고, 위 문장과 §4 사례를 회귀 골든셋에 넣는다(Phase 2 착수 시).
+
 ### 2.7 PHR 입력 형식
 
 `render_raw_context` 는 축약 dict(키 `meds`·`dx`·`checkup`·`ldl` …)를 풀어 쓰도록 만들어졌다. 플랫폼 원문(eval:`data/cases/phr6_260910.json` 형식 — `measurements`·`prescriptions`·`general_judgments` …)은 중첩 dict 가 문자열로 통째로 들어간다. 모델은 읽을 수 있지만 L0~L3 경계 표시는 없다. 바이탈은 마지막 1건만 쓴다.
@@ -199,7 +201,7 @@ RAG:`docs/ontology/phr-ontology.ttl` (+ context·device·feedback) — RDF/OWL �
 | # | 주제 | 선택지 | RAG 쪽 의견 |
 |---|---|---|---|
 | 가 | 참고범위 원천 | 온톨로지로 단일화 / 병존 | 단일화. RAG 는 스냅샷을 읽고, 겹치는 항목 값이 다르면 RAG CI 실패 |
-| 나 | deny 표현 | 온톨로지에 답변 사용 구분 속성을 둔다 / RAG 가 자체 목록으로 `allowed_facts` 결과를 거른다 | 어느 쪽이든 연동 가능. RAG 는 현재 목록을 `vital_rules.PERSONAL_BAND_DENY` 에 두고 프롬프트로 처리한다(§2.6). 온톨로지에 두면 판정기도 같은 기준(deny 항목에는 참고범위 병기를 요구하지 않음)을 쓸 수 있다 |
+| 나 | deny 표현 | 온톨로지에 답변 사용 구분 속성을 둔다 / RAG 가 자체 목록으로 `allowed_facts` 결과를 거른다 | 어느 쪽이든 연동 가능. RAG 는 현재 목록을 `vital_rules.PERSONAL_BAND_DENY` 에 두고 프롬프트로 처리한다(§2.6). 온톨로지에 두면 판정기도 같은 기준(deny 항목에는 참고범위 병기를 요구하지 않음)을 쓸 수 있다. **medical-eval 입장(REQ-0002 회신, 2026-09-15)**: 온톨로지에 두는 쪽 — `measurement` 에 답변 사용 구분 속성(예: `personal_band=deny`)을 v3.1 draft 로 넣고, RAG 대체 문장을 허용 문형으로 must-pass 골든셋에 등록. 들어오면 RAG 는 `allowed_facts` 가 읽는 같은 속성으로 자체 목록을 줄일 수 있다 |
 | 다 | 라벨 체계 | band 모드 유지 / raw + 온톨로지로 일원화 | RAG 가 연동 때 결정 |
 | 라 | `allowed_facts` 입력 | 플랫폼 원문 형식 | RAG 는 받은 PHR 을 그대로 넘긴다. 항목명 정규화는 `measurement.aliases` |
 | 마 | import 경계 | — | RAG 는 `medical_eval.ontology` 만 가져온다. 판정기(`evaluate`·`legal_gate`)는 가져오지 않는다 — 답변기가 채점기를 쓰면 법률 게이트의 독립성이 사라진다 |
@@ -252,3 +254,4 @@ RAG:`docs/ontology/phr-ontology.ttl` (+ context·device·feedback) — RDF/OWL �
 
 - 2026-09-14 초판 (@`39a9cde`)
 - 2026-09-15 §2.4·§2.6 금지 4항목 raw 모드 적용과 실측(두 스타일 최종 수치, rev 00055), §2.8 오탐 필터 (f) 보강·(i)(j)·용량 가드·공용 analyzer 결함·재생성 폴백 결함, §3 나, §4 오탐 사례 4건·실측 L4 사례 1건 (@`2ae2a21`)
+- 2026-09-15 REQ-0002 회신 반영 — 전달 사본 제거 표기, §2.6·§3 나 medical-eval 입장
