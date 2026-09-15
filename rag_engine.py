@@ -2165,6 +2165,14 @@ _FP_DOSAGE_RE = _re_fp.compile(
 #     "중립자세 연습을 1회 5분, 하루 3회"처럼 비약물 행동에도 그대로 쓰이므로
 #     빈도 단독으로 KEEP을 강제하면 운동·생활 안내가 처방으로 오탐된다.
 _FP_FREQ_ONLY_RE = _re_fp.compile(r"(?:하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)")
+# (i) 공용 diagnosis 규칙의 '키워드' 목록에 든 일반 명사구. 키워드 단독 매칭은 문맥에
+#     진단 단정이 없으면 지시·진단이 아니다. 단정 표지·단정 어미가 있으면 보존한다.
+_FP_BARE_DX_KEYWORDS = ("검사 결과", "검사결과")
+_FP_DX_ASSERT = (
+    "진단", "확진", "의심", "가능성", "시사", "이상", "필요", "양성",
+    "소견입니다", "병입니다", "증입니다", "질환입니다",
+)
+_FP_ASSERT_END = ("입니다", "됩니다", "나옵니다", "보입니다", "같습니다")
 # (h) 매칭이 든 '문장'만 떼어 보기 위한 분리기 — context(±30자)는 앞뒤 문장을 물고 온다.
 _FP_SENT_SPLIT_RE = _re_fp.compile(r"[.!?。\n]+")
 _FP_DRUG_TOKEN = (
@@ -2195,6 +2203,8 @@ def _filter_guardrail_false_positives(violations_dicts):
           "진통제 사용 계획을 다음 진료에서 논의해 보세요" → 상담 권유
           "음주는 중단하세요"                            → 약물 아님
         용량이 있으면 위에서 이미 KEEP 되므로 여기 오지 않는다.
+    (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 문맥에 진단 단정 표지가 없고
+        키워드 바로 뒤(15자)에 단정 어미가 없으면 제거. "검사 결과 암입니다"는 보존.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2266,6 +2276,15 @@ def _filter_guardrail_false_positives(violations_dicts):
                 _bare = _bare.replace(_ci, "")
             _has_order = any(h in _bare for h in _FP_HARD_IMPERATIVE)
             if not (_has_drug and _has_order):
+                is_fp = True
+        # (i) 공용 diagnosis 키워드 단독 매칭 — 진단 단정이 붙지 않은 일반 명사구는 오탐.
+        #     예: "이전 검사 결과 유무…는 해석에 참고가 됩니다" / "반복 검사 결과·동반 소견을
+        #     함께 보고 의료진이 판단하도록". 단정 표지나 바로 뒤 단정 어미가 있으면 보존.
+        if (not is_fp and rid == "diagnosis" and mt.strip() in _FP_BARE_DX_KEYWORDS
+                and mt in ctx):
+            _after_kw = ctx.split(mt, 1)[1][:15]
+            if (not any(a in ctx for a in _FP_DX_ASSERT)
+                    and not any(e in _after_kw for e in _FP_ASSERT_END)):
                 is_fp = True
         # (c) 지시형 규칙 + 소프트 프레이밍 + 하드 명령형 없음
         if not is_fp and rid in _FP_DIRECTIVE_RULES:
