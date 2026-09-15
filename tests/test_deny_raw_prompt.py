@@ -128,8 +128,23 @@ def _persly_ban_section(p):
 def test_persly_safe_first_sentence_stops_at_comparison():
     p = B("q", [], personal_kind="raw", style="persly-safe")
     rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
-    assert "첫 문장은 비교 결과(범위 안·밖)에서 멈춥니다" in rule1
+    assert "첫 문장은 그 비교에서 멈춥니다" in rule1
     assert "약물·치료·검사가 필요한 경우인지" in rule1
+
+
+# 실측(dev rev 00056): 멈춤 문장을 비교 지시와 deny 예외 사이에 끼우고 "(범위 안·밖)"을 강조했더니
+# 예외가 비교 지시에서 떨어져, 첫 문장이 골밀도·요단백을 "범위 밖"으로 분류했다(금지 위반 3건,
+# 직전 rev 0건). 예외는 비교 지시 바로 다음 줄에 둔다.
+
+def test_persly_safe_exception_directly_follows_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    head = "비교한 결과를 말합니다."
+    exc = "단 아래 '직접성'의 예외 네 항목은 첫 문장에서도 범위에 넣지 않고"
+    a, b = rule1.index(head), rule1.index(exc)
+    assert rule1[a + len(head):b].strip() == ""
+    assert b < rule1.index("첫 문장은 그 비교에서 멈춥니다")
+    assert "범위 안·밖" not in rule1
 
 
 def test_persly_safe_bans_need_judgment():
