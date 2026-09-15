@@ -2157,8 +2157,10 @@ _FP_CONSULT_IMPERATIVE = (
 
 import re as _re_fp
 # 구체적 용량/용법 — 있으면 실제 처방으로 보고 보존(KEEP)
+# 단 분모가 부피인 검사 농도 단위(200 mg/dL, 1.3 mg/dL, mg/L)는 용량이 아니다 — 이를 용량으로
+# 오인하면 수치를 인용한 L1 문장이 전부 KEEP 강제돼 오탐 규칙이 적용되지 않는다(rev 00053 실측).
 _FP_DOSAGE_RE = _re_fp.compile(
-    r"(?:\d+\s*(?:mg|밀리그램|마이크로그램|IU|cc|㏄|ml|㎖|정|알|캡슐|포)|"
+    r"(?:\d+\s*(?:mg|밀리그램|마이크로그램|IU|cc|㏄|ml|㎖|정|알|캡슐|포)(?!\s*/\s*(?:d[lL]|[lL]|m[lL]))|"
     r"하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)"
 )
 # (g) 빈도만 있는 표현("하루 3회", "8시간마다")은 약물 맥락에서만 용법이다.
@@ -2173,6 +2175,12 @@ _FP_DX_ASSERT = (
     "소견입니다", "병입니다", "증입니다", "질환입니다",
 )
 _FP_ASSERT_END = ("입니다", "됩니다", "나옵니다", "보입니다", "같습니다")
+# (j) 공용 risk_probability 예시 "사망 위험도는 낮습니다/높습니다."가 '/'로 쪼개져 생긴 단독
+#     매칭어. 위험·확률 주어가 문맥에 있으면 실제 위험도 제시로 보고 보존한다.
+_FP_BARE_RISK_PHRASES = ("높습니다", "낮습니다")
+_FP_RISK_WORDS = (
+    "위험", "확률", "가능성", "사망", "발생률", "성공률", "생존율", "%", "퍼센트",
+)
 # (h) 매칭이 든 '문장'만 떼어 보기 위한 분리기 — context(±30자)는 앞뒤 문장을 물고 온다.
 _FP_SENT_SPLIT_RE = _re_fp.compile(r"[.!?。\n]+")
 _FP_DRUG_TOKEN = (
@@ -2205,6 +2213,8 @@ def _filter_guardrail_false_positives(violations_dicts):
         용량이 있으면 위에서 이미 KEEP 되므로 여기 오지 않는다.
     (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 문맥에 진단 단정 표지가 없고
         키워드 바로 뒤(15자)에 단정 어미가 없으면 제거. "검사 결과 암입니다"는 보존.
+    (j) 공용 risk_probability 예시가 '/'로 쪼개져 생긴 단독 매칭어('높습니다') — 문맥에
+        위험·확률·가능성 주어가 없으면 제거. "치매 진행 위험이 매우 높습니다"는 보존.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2286,6 +2296,11 @@ def _filter_guardrail_false_positives(violations_dicts):
             if (not any(a in ctx for a in _FP_DX_ASSERT)
                     and not any(e in _after_kw for e in _FP_ASSERT_END)):
                 is_fp = True
+        # (j) risk_probability 단독 매칭어('높습니다') — 값 비교·일반 양상 문장은 위험도 제시가 아니다.
+        #     예: "참고범위 200 mg/dL 이하보다 높습니다", "전형적으로 중성지방이 높습니다".
+        if (not is_fp and rid == "risk_probability" and mt.strip() in _FP_BARE_RISK_PHRASES
+                and not any(w in ctx for w in _FP_RISK_WORDS)):
+            is_fp = True
         # (c) 지시형 규칙 + 소프트 프레이밍 + 하드 명령형 없음
         if not is_fp and rid in _FP_DIRECTIVE_RULES:
             has_soft = any(s in ctx for s in _FP_SOFT_EDU)
