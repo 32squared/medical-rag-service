@@ -157,3 +157,15 @@ def test_persly_safe_need_ban_leaves_home_care_slot():
     p = B("q", [], personal_kind="raw", style="persly-safe")
     assert "**집에서 해볼 수 있는 관리**" in p
     assert "생활관리" not in _persly_ban_section(p)
+
+
+# 실측(dev rev 00057): 신장 기능 질문의 첫 문장이 "eGFR 58은 일반 참고범위(보통 90 이상)와 비교해
+# 낮은 값"이라고 썼다(15답변 중 1건). 세 리비전 연속으로 이 질문에서만 경계에 걸렸다 — 질문이 금지
+# 항목을 직접 물을 때가 약점이라, 예외 바로 뒤에 그 경우의 예를 붙인다(default 규칙 9 의 공복혈당 예시와 같은 방식).
+
+def test_persly_safe_exception_covers_direct_question():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    assert "질문이 그 항목을 직접 물어도" in rule1
+    assert "eGFR 은 값만" in rule1
+    assert "크레아티닌처럼 예외가 아닌 수치" in rule1
