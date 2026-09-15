@@ -2119,6 +2119,10 @@ _FP_DIRECT_NEG = (
     "하지 않", "하지않", "하지 마", "하지는 않", "하지 못",
     "권하지 않", "권장하지 않", "권유하지 않", "삼가", "않습니다", "않으며",
 )
+# (f) 전용 — 매칭 문구 '안'의 금지 동사. "임의 복용은 피하세요"도 금지 경고문이다(rev 00054 실측).
+#     (b)(매칭 직후 8자)에는 넣지 않는다 — "…복용하세요. 과음은 피하세요"처럼 뒤 문장의 '피하'가
+#     앞의 실제 지시를 풀 수 있다.
+_FP_INNER_NEG = _FP_DIRECT_NEG + ("피하세요", "피하십시오", "피해 주세요", "피하시", "피할", "금물")
 # (c) 소프트/교육적 프레이밍 — 가능성·일반정보(지시 아님)
 _FP_SOFT_EDU = (
     "수 있습니다", "수 있어요", "도움이 될", "도움이 됩니다", "고려",
@@ -2253,7 +2257,7 @@ def _filter_guardrail_false_positives(violations_dicts):
         #     예: "남은 처방약을 임의로 복용하지 마세요"
         #     단, 부정 뒤에 하드 명령형이 이어지면(…마시고 …하세요) 실제 지시로 보존.
         if not is_fp and mt:
-            for neg in _FP_DIRECT_NEG:
+            for neg in _FP_INNER_NEG:
                 if neg in mt:
                     _tail = mt.split(neg, 1)[1] + ctx.split(mt, 1)[-1][:20] if mt in ctx \
                         else mt.split(neg, 1)[1]

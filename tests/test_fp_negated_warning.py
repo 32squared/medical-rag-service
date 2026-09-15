@@ -129,3 +129,22 @@ def test_non_hada_imperatives_are_kept():
                        ("바꾸세요", "기존 약을 끊고 이 약으로 바꾸세요."),
                        ("끊으세요", "복용 중인 약을 끊으세요.")]:
         assert not _run(verb, sent), sent
+
+
+# ── (f) 보강: '피하세요' 류 금지 동사 ─────────────────────────
+# 실측(dev rev 00054): "남은 처방약이 있더라도 임의 복용은 피하세요" 가 CRITICAL 차단됐다.
+
+def test_avoid_warning_is_fp():
+    assert _run("처방약이 있더라도 임의 복용은 피하세요",
+                "- 남은 처방약이 있더라도 임의 복용은 피하세요; 약 사용은 의료진·약사와 상담이 필요합니다.")
+
+
+def test_avoid_then_directive_is_kept():
+    """피하시고 … 복용하세요 는 복용 시점 지시다 — 보존."""
+    assert not _run("저녁 복용은 피하시고 아침에 복용하세요",
+                    "이 약은 저녁 복용은 피하시고 아침에 복용하세요.")
+
+
+def test_avoid_in_next_sentence_does_not_release_directive():
+    """(b)는 매칭 직후 8자만 본다 — 뒤 문장의 '피하세요'가 앞 지시를 풀면 안 된다."""
+    assert not _run("복용하세요", "이 약을 아침마다 복용하세요. 과음은 피하세요.")
