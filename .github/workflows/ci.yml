@@ -136,6 +136,9 @@ jobs:
           pip install --quiet pytest fastapi uvicorn httpx pydantic
           pip install --quiet -e "packages/medical_shared" 2>/dev/null || true
 
+      - name: Lint routine packs (28 §4-6)
+        run: python scripts/pack_lint.py --all
+
       - name: Run RAG-stable tests
         env:
           DATABASE_URL: ""

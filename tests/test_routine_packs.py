@@ -119,3 +119,71 @@ def test_golden_health_12w_unchanged():
     for block in sorted(expected):
         assert actual.get(block) == expected[block], f"golden block differs: {block}"
     assert set(actual) == set(expected)
+
+
+# ══════════════════════════ 팩별 자동 검사(FR-T3) ══════════════════════════
+def _all_pack_keys():
+    return sorted(rp.load_all())
+
+
+@pytest.mark.parametrize("key", _all_pack_keys(), ids=lambda k: f"{k[0]}-v{k[1]}")
+def test_every_pack_passes_lint(key):
+    p = rp.load_all()[key]
+    errs = rp.lint_errors(p)
+    assert not errs, "\n".join(f"{e['path']} {e['rule']} {e['msg']}" for e in errs)
+
+
+@pytest.mark.parametrize("key", _all_pack_keys(), ids=lambda k: f"{k[0]}-v{k[1]}")
+def test_every_pack_engine_smoke(key):
+    """전 주차 × 트랙 × 밴드에서 엔진이 예외 없이 유효한 값을 낸다."""
+    import routine_engine as eng
+    p = rp.load_all()[key]
+    for w in range(0, p.weeks_total + 2):
+        for t in p.track_ids + ["zzz"]:
+            for b in (None, "안정", "주의", "경고"):
+                a = eng.today_action(w, t, p, b)
+                assert a["id"] and a["text"] and a["cite"]
+                assert 0 <= eng.band_cap(b, w, p) <= 2
+                items = eng.plan_items(t, {}, b, p)
+                assert isinstance(eng.support_items(items, w, b, p), list)
+        assert eng.phase_of(w, p) and eng.goal_days(w, p) >= 1
+    assert len(eng.week_preview(None, p)) == p.weeks_total
+    if p.safety_profile in ("medical", "physical"):
+        assert all(eng.band_cap("경고", w, p) == 0 for w in range(1, p.weeks_total + 1))
+
+
+def test_scaffold_is_valid_but_fails_lint(tmp_path):
+    import pack_new
+    pk = rp.Pack.model_validate(pack_new.scaffold("demo_26w", 26, ["a1", "b2"], "physical", "sport", "데모"))
+    assert pk.weeks_total == 26 and [(x.from_, x.to) for x in pk.phases][-1][1] == 26
+    rules = {i["rule"] for i in rp.lint_errors(pk)}
+    assert "L0" in rules                                  # TODO 가 남아 있으면 배포 불가
+    for n in (4, 5, 12, 26, 52):                          # 단계 분할이 어떤 기간에서도 유효
+        rp.Pack.model_validate(pack_new.scaffold("demo_x", n, ["a1"], "neutral", "custom", "x"))
+
+
+def test_lint_catches_content_rules():
+    d = _health_raw()
+    d["id"] = "lint_demo"
+    d["weeks"][0]["actions"]["diet"]["text"] = "또 못 하셨네요, 오늘은 꼭 하세요"
+    d["weeks"][1]["ask_chips"] = ["하나"]
+    d["weeks"][2]["actions"]["diet"]["input"] = {"kind": "choice", "options": list("가나다라마바")}
+    d["weeks"][0]["support_cap"] = 1
+    d["tracks"][0]["icon"] = "🥗"
+    d["banners"]["habit"].pop("주의")
+    d["sources"][0]["label"] = "개인 블로그"
+    rules = {i["rule"] for i in rp.lint_errors(rp.Pack.model_validate(d))}
+    assert {"L5", "L11", "L7", "L8", "L10", "L9", "L6"} <= rules
+
+
+def test_schema_file_up_to_date():
+    import pack_lint
+    assert pack_lint.SCHEMA_FILE.read_text(encoding="utf-8") == pack_lint.schema_text(), \
+        "python scripts/pack_lint.py --schema 로 갱신"
+
+
+def test_lint_icons_exist_in_frontend():
+    js = (ROOT / "web" / "js" / "archetypes.js").read_text(encoding="utf-8")
+    body = js[js.index("export const ICON"):]
+    missing = [k for k in rp.ICONS if f"\n  {k}:" not in body and f"\n  {k}(" not in body]
+    assert not missing, f"archetypes.js ICON 에 없음: {missing}"

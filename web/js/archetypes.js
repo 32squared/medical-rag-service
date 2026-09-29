@@ -128,4 +128,23 @@ export const ICON = {
   cup: (fill = '#4C86F0', s = 34) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="${fill}"/><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity=".6"/></svg>`,
   cupEmpty: (s = 34) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round" opacity=".35"/></svg>`,
   cloud: (s = 70) => `<svg width="${s}" height="${s * 52 / 80}" viewBox="0 0 80 52" aria-hidden="true"><path d="M20 44a12 12 0 0 1-2-23.8A18 18 0 0 1 52 16a13 13 0 0 1 12 28z" fill="#FFFFFF"/><path d="M30 30q4-3 8 0M44 30q4-3 8 0" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="28" cy="36" r="2.5" fill="${BLUSH}"/><circle cx="54" cy="36" r="2.5" fill="${BLUSH}"/></svg>`,
+  // 루틴 팩 트랙 아이콘(routine_packs.ICONS 와 동기 — tests/test_routine_packs.py 가 확인)
+  bowl: (c = INK, s = 20) => _line(c, s, '<path d="M3 11h18a9 9 0 0 1-18 0zM8 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>'),
+  run: (c = INK, s = 20) => _line(c, s, '<circle cx="14" cy="4" r="2"/><path d="M8 21l3-6 3 2v5M6 11l4-3 4 1 2 3h3M11 15l-1-5"/>'),
+  moon: (c = INK, s = 20) => _line(c, s, '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>'),
+  book: (c = INK, s = 20) => _line(c, s, '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/>'),
+  headphones: (c = INK, s = 20) => _line(c, s, '<path d="M4 16v-4a8 8 0 0 1 16 0v4"/><rect x="3" y="15" width="4" height="6" rx="1.5"/><rect x="17" y="15" width="4" height="6" rx="1.5"/>'),
+  golf: (c = INK, s = 20) => _line(c, s, '<path d="M8 21V3l9 4-9 4"/><path d="M4 21h14"/>'),
+  home: (c = INK, s = 20) => _line(c, s, '<path d="M3 11l9-7 9 7M5 10v10h14V10M10 20v-5h4v5"/>'),
+  pen: (c = INK, s = 20) => _line(c, s, '<path d="M4 20l1-5L16 4l4 4L9 19zM14 6l4 4"/>'),
+  leaf: (c = INK, s = 20) => _line(c, s, '<path d="M5 19C5 9 11 4 20 4c0 9-5 15-15 15zM5 19l8-8"/>'),
+  music: (c = INK, s = 20) => _line(c, s, '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'),
 };
+function _line(c, s, body) {
+  return `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+/** 팩이 준 아이콘 키 → SVG. 모르는 키는 star(오래된 클라이언트가 새 팩을 만나도 깨지지 않게). */
+export function iconOf(key, c, s) {
+  const f = ICON[key];
+  return f && !['cupEmpty', 'cloud', 'arrow', 'check', 'close'].includes(key) ? f(c, s) : ICON.star(c, s);
+}

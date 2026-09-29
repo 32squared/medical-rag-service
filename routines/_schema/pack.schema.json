@@ -1,0 +1,592 @@
+{
+ "$defs": {
+  "Action": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "text": {
+     "title": "Text",
+     "type": "string"
+    },
+    "cite": {
+     "title": "Cite",
+     "type": "string"
+    },
+    "minutes": {
+     "maximum": 60,
+     "minimum": 1,
+     "title": "Minutes",
+     "type": "integer"
+    },
+    "input": {
+     "$ref": "#/$defs/Input"
+    }
+   },
+   "required": [
+    "id",
+    "text",
+    "cite",
+    "minutes",
+    "input"
+   ],
+   "title": "Action",
+   "type": "object"
+  },
+  "Input": {
+   "additionalProperties": false,
+   "properties": {
+    "kind": {
+     "enum": [
+      "tap",
+      "choice",
+      "scale"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "options": {
+     "default": [],
+     "items": {
+      "type": "string"
+     },
+     "title": "Options",
+     "type": "array"
+    }
+   },
+   "required": [
+    "kind"
+   ],
+   "title": "Input",
+   "type": "object"
+  },
+  "IntakeQ": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "q": {
+     "title": "Q",
+     "type": "string"
+    },
+    "options": {
+     "items": {
+      "$ref": "#/$defs/Option"
+     },
+     "title": "Options",
+     "type": "array"
+    },
+    "why": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Why"
+    }
+   },
+   "required": [
+    "id",
+    "q",
+    "options"
+   ],
+   "title": "IntakeQ",
+   "type": "object"
+  },
+  "Option": {
+   "additionalProperties": false,
+   "properties": {
+    "label": {
+     "title": "Label",
+     "type": "string"
+    },
+    "value": {
+     "title": "Value",
+     "type": "string"
+    }
+   },
+   "required": [
+    "label",
+    "value"
+   ],
+   "title": "Option",
+   "type": "object"
+  },
+  "Phase": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "name": {
+     "title": "Name",
+     "type": "string"
+    },
+    "from": {
+     "minimum": 1,
+     "title": "From",
+     "type": "integer"
+    },
+    "to": {
+     "minimum": 1,
+     "title": "To",
+     "type": "integer"
+    },
+    "desc": {
+     "default": "",
+     "title": "Desc",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "from",
+    "to"
+   ],
+   "title": "Phase",
+   "type": "object"
+  },
+  "Source": {
+   "additionalProperties": false,
+   "properties": {
+    "key": {
+     "title": "Key",
+     "type": "string"
+    },
+    "label": {
+     "title": "Label",
+     "type": "string"
+    },
+    "url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Url"
+    }
+   },
+   "required": [
+    "key",
+    "label"
+   ],
+   "title": "Source",
+   "type": "object"
+  },
+  "SupportItem": {
+   "additionalProperties": false,
+   "properties": {
+    "key": {
+     "title": "Key",
+     "type": "string"
+    },
+    "text": {
+     "title": "Text",
+     "type": "string"
+    },
+    "cite": {
+     "title": "Cite",
+     "type": "string"
+    },
+    "tags": {
+     "default": [],
+     "items": {
+      "type": "string"
+     },
+     "title": "Tags",
+     "type": "array"
+    }
+   },
+   "required": [
+    "key",
+    "text",
+    "cite"
+   ],
+   "title": "SupportItem",
+   "type": "object"
+  },
+  "SupportRule": {
+   "additionalProperties": false,
+   "description": "누적 규칙: 조건이 맞으면 `add` 를 순서대로 붙인다(첫 매치가 아님).\n\nwhen   : {문항 id: [허용 value...]}  — 모두 만족해야(AND). 값 목록의 null = 미응답.\nunless : {문항 id: [value...]}       — 하나라도 해당하면 제외.\n조건이 둘 다 없으면 항상 적용.",
+   "properties": {
+    "when": {
+     "additionalProperties": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "array"
+     },
+     "default": {},
+     "title": "When",
+     "type": "object"
+    },
+    "unless": {
+     "additionalProperties": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "array"
+     },
+     "default": {},
+     "title": "Unless",
+     "type": "object"
+    },
+    "add": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Add",
+     "type": "array"
+    }
+   },
+   "required": [
+    "add"
+   ],
+   "title": "SupportRule",
+   "type": "object"
+  },
+  "Track": {
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "title": "Id",
+     "type": "string"
+    },
+    "name": {
+     "title": "Name",
+     "type": "string"
+    },
+    "icon": {
+     "default": "star",
+     "title": "Icon",
+     "type": "string"
+    },
+    "desc": {
+     "default": "",
+     "title": "Desc",
+     "type": "string"
+    },
+    "target_noun": {
+     "default": "",
+     "title": "Target Noun",
+     "type": "string"
+    },
+    "recommend_when": {
+     "default": [],
+     "items": {
+      "type": "string"
+     },
+     "title": "Recommend When",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "name"
+   ],
+   "title": "Track",
+   "type": "object"
+  },
+  "TrackSupport": {
+   "additionalProperties": false,
+   "properties": {
+    "rules": {
+     "default": [],
+     "items": {
+      "$ref": "#/$defs/SupportRule"
+     },
+     "title": "Rules",
+     "type": "array"
+    },
+    "default": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "default": [],
+     "title": "Default"
+    }
+   },
+   "title": "TrackSupport",
+   "type": "object"
+  },
+  "Transition": {
+   "additionalProperties": false,
+   "properties": {
+    "advance": {
+     "default": 0.7,
+     "exclusiveMinimum": 0,
+     "maximum": 1,
+     "title": "Advance",
+     "type": "number"
+    },
+    "simplify": {
+     "default": 0.4,
+     "exclusiveMaximum": 1,
+     "minimum": 0,
+     "title": "Simplify",
+     "type": "number"
+    }
+   },
+   "title": "Transition",
+   "type": "object"
+  },
+  "Week": {
+   "additionalProperties": false,
+   "properties": {
+    "w": {
+     "minimum": 1,
+     "title": "W",
+     "type": "integer"
+    },
+    "theme": {
+     "title": "Theme",
+     "type": "string"
+    },
+    "goal_days": {
+     "maximum": 7,
+     "minimum": 1,
+     "title": "Goal Days",
+     "type": "integer"
+    },
+    "support_cap": {
+     "maximum": 2,
+     "minimum": 0,
+     "title": "Support Cap",
+     "type": "integer"
+    },
+    "mission": {
+     "title": "Mission",
+     "type": "string"
+    },
+    "unlock": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Unlock"
+    },
+    "actions": {
+     "additionalProperties": {
+      "$ref": "#/$defs/Action"
+     },
+     "title": "Actions",
+     "type": "object"
+    },
+    "ask_chips": {
+     "default": [],
+     "items": {
+      "type": "string"
+     },
+     "title": "Ask Chips",
+     "type": "array"
+    },
+    "warning_actions": {
+     "additionalProperties": {
+      "$ref": "#/$defs/Action"
+     },
+     "default": {},
+     "title": "Warning Actions",
+     "type": "object"
+    }
+   },
+   "required": [
+    "w",
+    "theme",
+    "goal_days",
+    "support_cap",
+    "mission",
+    "actions"
+   ],
+   "title": "Week",
+   "type": "object"
+  }
+ },
+ "additionalProperties": false,
+ "properties": {
+  "schema_version": {
+   "const": 1,
+   "default": 1,
+   "title": "Schema Version",
+   "type": "integer"
+  },
+  "id": {
+   "title": "Id",
+   "type": "string"
+  },
+  "version": {
+   "minimum": 1,
+   "title": "Version",
+   "type": "integer"
+  },
+  "name": {
+   "title": "Name",
+   "type": "string"
+  },
+  "tagline": {
+   "default": "",
+   "title": "Tagline",
+   "type": "string"
+  },
+  "domain": {
+   "enum": [
+    "health",
+    "sport",
+    "language",
+    "hobby",
+    "study",
+    "custom"
+   ],
+   "title": "Domain",
+   "type": "string"
+  },
+  "safety_profile": {
+   "enum": [
+    "medical",
+    "physical",
+    "neutral"
+   ],
+   "title": "Safety Profile",
+   "type": "string"
+  },
+  "weeks_total": {
+   "maximum": 52,
+   "minimum": 4,
+   "title": "Weeks Total",
+   "type": "integer"
+  },
+  "phases": {
+   "items": {
+    "$ref": "#/$defs/Phase"
+   },
+   "title": "Phases",
+   "type": "array"
+  },
+  "tracks": {
+   "items": {
+    "$ref": "#/$defs/Track"
+   },
+   "title": "Tracks",
+   "type": "array"
+  },
+  "intake": {
+   "additionalProperties": {
+    "items": {
+     "$ref": "#/$defs/IntakeQ"
+    },
+    "type": "array"
+   },
+   "default": {},
+   "title": "Intake",
+   "type": "object"
+  },
+  "weeks": {
+   "items": {
+    "$ref": "#/$defs/Week"
+   },
+   "title": "Weeks",
+   "type": "array"
+  },
+  "support_pool": {
+   "additionalProperties": {
+    "items": {
+     "$ref": "#/$defs/SupportItem"
+    },
+    "type": "array"
+   },
+   "default": {},
+   "title": "Support Pool",
+   "type": "object"
+  },
+  "support_rules": {
+   "additionalProperties": {
+    "$ref": "#/$defs/TrackSupport"
+   },
+   "default": {},
+   "title": "Support Rules",
+   "type": "object"
+  },
+  "support_pool_cap": {
+   "additionalProperties": {
+    "type": "integer"
+   },
+   "default": {
+    "default": 4
+   },
+   "title": "Support Pool Cap",
+   "type": "object"
+  },
+  "banners": {
+   "additionalProperties": {
+    "additionalProperties": {
+     "type": "string"
+    },
+    "type": "object"
+   },
+   "default": {},
+   "title": "Banners",
+   "type": "object"
+  },
+  "transition": {
+   "$ref": "#/$defs/Transition",
+   "default": {
+    "advance": 0.7,
+    "simplify": 0.4
+   }
+  },
+  "sources": {
+   "items": {
+    "$ref": "#/$defs/Source"
+   },
+   "title": "Sources",
+   "type": "array"
+  }
+ },
+ "required": [
+  "id",
+  "version",
+  "name",
+  "domain",
+  "safety_profile",
+  "weeks_total",
+  "phases",
+  "tracks",
+  "weeks",
+  "sources"
+ ],
+ "title": "Pack",
+ "type": "object"
+}
