@@ -2221,6 +2221,44 @@ _FP_DX_HISTORY = (
 # '시럽'은 간식·음료 목록에서는 음식이다 — "단순당(탄산음료·주스·시럽·과자) 섭취를 줄여 보세요"
 # (rev 00060 CRITICAL prescription 차단 실측). 음식 낱말이 같이 있을 때만 약물 토큰에서 뺀다.
 _FP_FOOD_WORDS = ("탄산음료", "음료", "주스", "과자", "단순당", "설탕", "사탕", "간식", "디저트")
+# (g) 빈도 표현이 약물 용법인지는 그 빈도가 든 문장으로 본다 — 문맥 창(±30자)은 다음 항목까지
+#     물고 온다: "체중 변화를 하루 1회 같은 시간에 메모하세요 [1].\n- 약 확인: 남아 있는 처방약을…"
+#     의 '약'이 기록 지시를 용법으로 만들었다(rev 00064 CRITICAL prescription 차단 실측).
+#     같은 줄의 바로 앞 문장은 함께 본다 — 약물 이름이 앞 문장에 있을 수 있다
+#     ("혈압약은 아침에 드세요. 하루 1회입니다"). 다른 줄(목록의 다른 항목)은 보지 않는다.
+#     빈도 문장의 동사가 복용 동사면 약물 이름이 다른 줄(절 제목 등)에 있어도 용법으로 본다 —
+#     "**복용 안내**\n- 하루 2회 식후에 드세요".
+_FP_DOSING_VERB = (
+    "드세요", "드십시오", "드시", "드실", "먹", "복용", "복약", "투여", "투약",
+    "바르", "발라", "붙이", "붙여", "흡입", "맞으", "사용",
+)
+# 줄 안의 문장 경계 — '1.3' 같은 소수점은 경계가 아니다.
+_FP_FREQ_SENT_BOUNDARY_RE = _re_fp.compile(r"(?:(?<!\d)\.|\.(?!\d)|[!?。;；])+")
+
+
+def _fp_freq_scope(ctx: str, pos: int) -> tuple:
+    """(pos 가 든 문장, 그 문장에 같은 줄의 바로 앞 문장을 더한 범위)."""
+    ls = ctx.rfind("\n", 0, pos) + 1
+    le = ctx.find("\n", pos)
+    line = ctx[ls:(len(ctx) if le < 0 else le)]
+    p = pos - ls
+    starts, end = [0], len(line)
+    for m in _FP_FREQ_SENT_BOUNDARY_RE.finditer(line):
+        if m.end() <= p:
+            starts.append(m.end())
+        elif m.start() >= p:
+            end = m.start()
+            break
+    return line[starts[-1]:end], line[starts[max(len(starts) - 2, 0)]:end]
+
+
+def _fp_freq_is_dosing(ctx: str, pos: int) -> bool:
+    """ctx 의 pos 에 있는 빈도 표현이 약물 용법으로 읽히는지 — 그 문장이나 같은 줄 바로 앞
+    문장에 약물 토큰이 있거나, 그 문장의 동사가 복용 동사이고 문맥 어딘가에 약물 토큰이 있을 때."""
+    sent, scope = _fp_freq_scope(ctx, pos)
+    if _fp_has_drug(scope):
+        return True
+    return any(w in sent for w in _FP_DOSING_VERB) and _fp_has_drug(ctx)
 
 
 def _fp_complete_edges(ctx: str, full_text: str) -> str:
@@ -2266,8 +2304,9 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
       (f) 매칭 문구 '안'에서 행위가 부정됨('처방약을 임의로 복용하지 마세요')
     단, 구체적 용량(mg/정/캡슐)이 있으면 (실제 처방) 무조건 보존.
     full_text 가 있으면 문맥 양 끝에서 잘린 어절을 원문으로 복원한 뒤 본다(_fp_complete_edges).
-    (g) 빈도만 있는 표현(하루 N회)은 약물 토큰이 함께 있을 때만 보존한다 —
-        "중립자세 연습을 하루 3회"는 용법이 아니다.
+    (g) 빈도만 있는 표현(하루 N회)은 그 문장에 약물 토큰이 있거나 그 문장의 동사가 복용
+        동사일 때만 보존한다 — "중립자세 연습을 하루 3회"는 용법이 아니고, 다음 항목의
+        "약 확인"이 앞 항목의 "체중을 하루 1회 메모하세요"를 용법으로 만들지 않는다.
     (h) prescription 은 한 문장 안에 '약물'과 '상담 권유가 아닌 명령형'이 함께
         있어야 복약 지시다. 셋 중 하나라도 없으면 지시가 아니다:
           "진통제 잦은 복용이 통증 역치를 흔듭니다"      → 명령형 없음(인과 설명)
@@ -2291,12 +2330,13 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
         mt = v.get("matched_text") or ""
         rid = v.get("rule_id") or ""
         # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존.
-        # (g) 다만 빈도만 있는 매칭(하루 N회)은 약물·검사 토큰이 함께 있을 때만 —
-        #     없으면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을 받게 둔다.
-        _dose = _FP_DOSAGE_RE.search(ctx)
-        if _dose:
-            _freq_only = (_FP_FREQ_ONLY_RE.fullmatch(_dose.group(0).strip()) is not None)
-            if (not _freq_only or _fp_has_drug(ctx)
+        # (g) 다만 빈도만 있는 매칭(하루 N회)은 그 문장이 약물 용법일 때(_fp_freq_is_dosing)나
+        #     문맥에 검사 토큰이 있을 때만 — 아니면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을
+        #     받게 둔다. 용량(mg·정…)은 문맥 어디에 있든 보존한다.
+        _doses = list(_FP_DOSAGE_RE.finditer(ctx))
+        if _doses:
+            if (any(not _FP_FREQ_ONLY_RE.fullmatch(m.group(0).strip()) for m in _doses)
+                    or any(_fp_freq_is_dosing(ctx, m.start()) for m in _doses)
                     or any(t in ctx for t in _FP_TEST_TOKEN)):
                 kept.append(v)
                 continue
@@ -2309,11 +2349,13 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
             after = ctx.split(mt, 1)[1][:8]
             if any(neg in after for neg in _FP_DIRECT_NEG):
                 is_fp = True
-        # (g) 매칭이 '빈도 표현 그 자체'인데 문맥에 약물 토큰이 없다 — 용법이 아니다.
+        # (g) 매칭이 '빈도 표현 그 자체'인데 그 문장이 약물 용법이 아니다.
         #     예: "중립자세 연습을 1회 5분, 하루 3회 해보세요" 의 «하루 3회».
-        #     약·복용·mg 등이 문맥에 하나도 없으면 복약 지시로 읽힐 수 없다.
+        #     약·복용·mg 등이 그 문장에 없고 복용 동사도 없으면 복약 지시로 읽힐 수 없다.
         if not is_fp and mt and _FP_FREQ_ONLY_RE.fullmatch(mt.strip()):
-            if not _fp_has_drug(ctx) and not any(t in ctx for t in _FP_TEST_TOKEN):
+            _pos = ctx.find(mt)
+            _dosing = _fp_freq_is_dosing(ctx, _pos) if _pos >= 0 else _fp_has_drug(ctx)
+            if not _dosing and not any(t in ctx for t in _FP_TEST_TOKEN):
                 is_fp = True
         # (f) 매칭 문구 '안'에서 행위가 부정된 경우 — 금지 경고문은 지시가 아니다.
         #     예: "남은 처방약을 임의로 복용하지 마세요"

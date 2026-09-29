@@ -144,3 +144,49 @@ def test_guardrail_violations_passes_full_text():
     from rag_engine import _guardrail_violations
     kept, _ = _guardrail_violations(_FULL, "총콜레스테롤이랑 중성지방 수치는 어떤가요?")
     assert not [v for v in kept if v["rule_id"] == "prescription" and v["matched_text"] == "하루 1회"]
+
+
+# ── rev 00064 실측: 문맥 창(±30자)이 다음 목록 항목의 '약 확인'까지 물고 왔다 ───────
+# 빈도 표현이 용법인지는 그 빈도가 든 문장(+ 같은 줄 바로 앞 문장)으로 본다.
+
+_ITEMS = ("- 일상 기록: 1~2주간 소변 색 변화, 부종(발목·눈 주위), 체중 변화를 하루 1회 같은 시간에 "
+          "메모하세요 [1].\n- 약 확인: 남아 있는 처방약을 임의로 복용하거나 증량·감량하지 말고, "
+          "약 사용은 의료진·약사와 상담이 필요합니다 [1].")
+
+
+def test_drug_word_in_next_list_item_does_not_make_frequency_a_dose():
+    """저장된 원답의 analyzer 문맥 그대로(rev 00064 '신장 기능' CRITICAL prescription 차단)."""
+    assert _dropped("하루 1회", "... 소변 색 변화, 부종(발목·눈 주위), 체중 변화를 하루 1회 같은 시간에 "
+                                "메모하세요 [1].\n- 약 확인: 남아 ...")
+    # rev 00060 '공복혈당' 차단도 같은 모양 — 간식 제한 빈도 다음 항목이 복약 경고
+    assert _dropped("하루 1회", "...해진 양으로 하루 1회 이하로 2주간 제한해 보세요 [4].\n- 약 사용은 의료...")
+
+
+def test_drug_word_in_previous_list_item_does_not_make_frequency_a_dose():
+    assert _dropped("하루 1회", "...임의로 복용하지 마세요 [4].\n- 간식은 정해진 양으로 하루 1회 이하로 제한해 보세요")
+
+
+def test_guardrail_violations_next_item_drug_word():
+    """실제 경로(analyzer + 필터) — 저장된 원답 두 항목 그대로."""
+    from rag_engine import _guardrail_violations
+    kept, _ = _guardrail_violations(_ITEMS, "신장 기능 수치는 어떤가요?")
+    assert not [v for v in kept if v["severity"] in ("CRITICAL", "HIGH")]
+
+
+def test_drug_named_in_previous_sentence_of_same_line_is_kept():
+    assert not _dropped("하루 1회", "혈압약은 아침에 드세요. 하루 1회입니다.")
+
+
+def test_dosing_verb_with_drug_in_heading_is_kept():
+    """빈도 문장의 동사가 복용 동사면 약물 이름이 다른 줄(절 제목)에 있어도 용법."""
+    assert not _dropped("하루 2회", "**복용 안내**\n- 하루 2회 식후에 드세요")
+
+
+def test_dose_in_another_sentence_is_kept():
+    """용량(mg)은 빈도와 다른 문장에 있어도, 빈도가 먼저 나와도 보존."""
+    assert not _dropped("하루 1회", "하루 1회 아침에 걸으세요. 아스피린은 100 mg 입니다.")
+
+
+def test_decimal_point_is_not_a_sentence_boundary():
+    """'0.5'·'1.5' 의 점에서 문장을 자르면 같은 문장 앞쪽의 약물 토큰을 놓친다."""
+    assert not _dropped("하루 2회", "주사 용량을 0.5에서 1.5로 올리고 하루 2회 확인하세요")
