@@ -5,6 +5,7 @@
 ComplianceAnalyzer가 사용 가능하면 CRITICAL 위반 0건도 확인한다.
 """
 
+import importlib
 import os
 import sys
 
@@ -102,3 +103,45 @@ def test_kb_content_precheck_passes():
         for d in builder():
             violations = precheck_violations(d["content_md"], source_id=d["source_id"])
             assert not violations, f"{name}/{d['title']}: KB 게재 부적합 {violations}"
+
+
+# ── 시드 문서 식별 — 기관 대표 URL 공유 ─────────────────────────────────
+# 시드 문서들은 기관 대표 URL 을 같이 쓴다. ingest 가 URL 을 정규화하며 '#key' 를 지워
+# URL 로 식별하면 같은 출처 문서들이 서로를 덮는다(dev 실측: '공복혈당' 행에 HbA1c 본문,
+# HbA1c·PM10 행 없음). 그래서 시드는 match_url=False 로 제목을 식별자로 쓴다.
+_SEED_MODULES = [
+    "seed_reference_ranges", "seed_vaccination_kb", "seed_navigation_kb",
+    "seed_lifecycle_kb", "seed_safety_kb",
+]
+
+
+def _run_seed_capturing_ingest(mod_name, monkeypatch):
+    import kb_ingest
+    mod = importlib.import_module(mod_name)
+    calls = []
+    monkeypatch.setattr(mod, "_register_source", lambda: None)
+    if hasattr(mod, "insert_reference_rows"):
+        monkeypatch.setattr(mod, "insert_reference_rows", lambda rows: 0)
+    monkeypatch.setattr(kb_ingest, "ingest_document",
+                        lambda **kw: calls.append(kw) or {"status": "inserted"})
+    summary = getattr(mod, mod_name)(dry_run=False)
+    return calls, summary
+
+
+@pytest.mark.parametrize("mod_name", _SEED_MODULES)
+def test_seed_identifies_docs_by_title(mod_name, monkeypatch):
+    calls, summary = _run_seed_capturing_ingest(mod_name, monkeypatch)
+    assert calls and summary["ingested"] == len(calls)
+    assert all(c.get("match_url") is False for c in calls), f"{mod_name}: match_url=False 누락"
+    keys = [(c["source_id"], c["title"]) for c in calls]
+    assert len(keys) == len(set(keys)), f"{mod_name}: 출처 안 제목 중복 — 제목이 식별자"
+
+
+def test_reference_seed_ingests_cross_docs(monkeypatch):
+    """교차조합 근거 문서(vital_rules._CROSS_WHITELIST 의 cite_doc_id)도 적재한다."""
+    from vital_rules import _CROSS_WHITELIST
+    calls, _ = _run_seed_capturing_ingest("seed_reference_ranges", monkeypatch)
+    cited = {c["metadata"].get("cite_doc_id") for c in calls}
+    for combo in _CROSS_WHITELIST:
+        if combo.get("cite_doc_id"):
+            assert combo["cite_doc_id"] in cited
