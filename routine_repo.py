@@ -430,7 +430,7 @@ def build_week_state(program: Dict, cur_week: int, pack=None) -> List[Dict]:
             st = {"done_days": 0, "goal_days": g, "eff_goal": g, "na_days": 0, "adherence": 0}
             state = "future"
         out.append({"w": w, "state": state, "done_days": st["done_days"],
-                    "goal_days": st["goal_days"]})
+                    "goal_days": st["goal_days"], "theme": eng.week_meta(w, pk).get("theme", "")})
     return out
 
 

@@ -26,18 +26,18 @@ function WeekDots({ days }) {
   </div>`;
 }
 
-// ── 12주 진도 바(순수 CSS) ───────────────────────────────────────
-function ProgramStrip({ weeks, current, onOpen }) {
+// ── 주차 진도 바(순수 CSS) ───────────────────────────────────────
+function ProgramStrip({ weeks, current, total, onOpen }) {
   const list = arr(weeks);
   if (!list.length) return null;
-  return html`<button class="strip" key="strip" onClick=${onOpen} aria-label="12주 프로그램 보기">
-    <div class="striprow">
+  return html`<button class="strip" key="strip" onClick=${onOpen} aria-label=${`${total}주 프로그램 보기`}>
+    <div class=${'striprow' + (list.length > 20 ? ' dense' : '')}>
       ${list.map((w) => html`<span
         class=${'wseg wseg-' + w.state + (w.w === current ? ' wseg-now' : '')}
         key=${'w' + w.w} title=${`${w.w}주 ${w.done}/${w.goal}일`}></span>`)}
     </div>
     <div class="stripfoot">
-      <span>${current}주차 / 12주</span><span class="stripmore">전체 보기 ›</span>
+      <span>${current}주차 / ${total}주</span><span class="stripmore">전체 보기 ›</span>
     </div>
   </button>`;
 }
@@ -235,7 +235,7 @@ export function TodayTab({ go, onAsk, onStart }) {
 
       ${d.coach && d.coach.message ? html`<div class="coach" key="coach">${d.coach.message}</div>` : null}
 
-      <${ProgramStrip} weeks=${d.weeks} current=${p.week} onOpen=${() => go('program')} />
+      <${ProgramStrip} weeks=${d.weeks} current=${p.week} total=${d.weeksTotal} onOpen=${() => go('program')} />
 
       ${d.chips.length ? html`<div class="askwrap" key="ask">
         <div class="sectitle">이번 주 궁금한 것</div>

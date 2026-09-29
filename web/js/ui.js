@@ -122,19 +122,53 @@ export function normTracks(t) {
   };
 }
 
+/** 루틴 팩 블록(28 FR-S8) → 렌더 안전 형태. 없으면(구 서버) 기본 건강 팩으로 본다. */
+export function normPack(x) {
+  const o = x && typeof x === 'object' ? x : {};
+  return {
+    id: str(o.id, 'health_12w'), name: str(o.name), tagline: str(o.tagline),
+    safetyProfile: str(o.safety_profile, 'medical'),
+    weeksTotal: clamp(o.weeks_total || 12, 1, 52),
+    phases: arr(o.phases).map((ph) => ({
+      id: str(ph && ph.id), name: str(ph && ph.name), from: num(ph && ph.from, 1),
+      to: num(ph && ph.to, 1), desc: str(ph && ph.desc),
+    })),
+    tracks: arr(o.tracks).map((t) => ({
+      id: str(t && t.id), name: str(t && t.name), icon: str(t && t.icon, 'star'), desc: str(t && t.desc),
+      intake: arr(t && t.intake).map((q) => ({
+        id: str(q && q.id), q: str(q && q.q), why: str(q && q.why),
+        options: arr(q && q.options).map((op) => (typeof op === 'string'
+          ? { label: op, value: op } : { label: str(op && op.label), value: str(op && op.value) }))
+          .filter((op) => op.label),
+      })),
+    })).filter((t) => t.id),
+    firstWeek: o.first_week && typeof o.first_week === 'object'
+      ? { theme: str(o.first_week.theme), mission: str(o.first_week.mission) } : null,
+    recommended: !!o.recommended, available: o.available !== false, reason: str(o.reason),
+  };
+}
+
+/** 주차 → 단계 이름(팩 phases 기준). */
+export function phaseName(w, phases) {
+  const ph = arr(phases).find((x) => w >= x.from && w <= x.to);
+  return ph ? ph.name : '';
+}
+
 /** /routine/today 응답 → 렌더 안전 형태. 원본을 직접 렌더하지 않는다. */
 export function normToday(raw) {
   const r = raw || {};
   const p = r.program || null;
+  const pk = normPack(r.pack);
+  const W = clamp((p && p.weeks_total) || r.weeks_total || pk.weeksTotal, 1, 52);
   return {
     serverDate: str(r.server_date),
     state: str(r.state, 'S1_NEW'),
     program: p ? {
       id: str(p.program_id), track: str(p.track, 'diet'),
-      week: clamp(p.week_no, 1, 12), day: num(p.day_no, 1),
+      week: clamp(p.week_no, 1, W), day: num(p.day_no, 1),
       phase: str(p.phase), theme: str(p.theme), mission: str(p.mission),
       goalDays: num(p.goal_days, 3), itemCap: num(p.item_cap, 0),
-      status: str(p.status, 'active'), weeksTotal: num(p.weeks_total, 12),
+      status: str(p.status, 'active'), weeksTotal: W, packId: str(p.pack_id, pk.id),
     } : null,
     today: r.today ? {
       id: str(r.today.id || r.today.action_id),
@@ -151,12 +185,12 @@ export function normToday(raw) {
       status: str(s && s.status, 'pending'),
     })).filter((s) => s.text),
     week: r.week ? {
-      w: clamp(r.week.w, 1, 12), done: num(r.week.done_days), goal: num(r.week.goal_days, 1),
+      w: clamp(r.week.w, 1, W), done: num(r.week.done_days), goal: num(r.week.goal_days, 1),
       adherence: clamp(r.week.adherence, 0, 100), na: num(r.week.na_days),
     } : null,
     weeks: arr(r.weeks).map((w) => ({
-      w: clamp(w && w.w, 1, 12), state: str(w && w.state, 'future'),
-      done: num(w && w.done_days), goal: num(w && w.goal_days, 1),
+      w: clamp(w && w.w, 1, W), state: str(w && w.state, 'future'),
+      done: num(w && w.done_days), goal: num(w && w.goal_days, 1), theme: str(w && w.theme),
     })),
     weekDays: arr(r.week_days).map((d) => ({
       date: str(d && d.date), weekday: str(d && d.weekday), state: str(d && d.state, 'future'),
@@ -181,11 +215,12 @@ export function normToday(raw) {
       seenToday: !!(r.archetype && r.archetype.seen_today),
     },
     chips: arr(r.ask_chips).filter((x) => typeof x === 'string'),
-    reportDue: r.report_due && r.report_due.week ? { week: clamp(r.report_due.week, 1, 12) } : null,
+    reportDue: r.report_due && r.report_due.week ? { week: clamp(r.report_due.week, 1, W) } : null,
     notify: r.notify && typeof r.notify === 'object'
       ? { hhmm: r.notify.hhmm == null ? null : str(r.notify.hhmm) } : { hhmm: null },
     evidence: r.evidence && r.evidence.label ? { label: str(r.evidence.label) } : null,
     previewWeeks: arr(r.preview_weeks),
+    pack: pk, weeksTotal: W,
     personalization: !!r.personalization,
   };
 }

@@ -187,3 +187,10 @@ def test_lint_icons_exist_in_frontend():
     body = js[js.index("export const ICON"):]
     missing = [k for k in rp.ICONS if f"\n  {k}:" not in body and f"\n  {k}(" not in body]
     assert not missing, f"archetypes.js ICON 에 없음: {missing}"
+
+
+def test_frontend_has_no_fixed_week_literals():
+    """주차 수는 팩에서 온다(28 FR-F2, §10 리스크 3)."""
+    hits = [f"{f.name}:{i}" for f in (ROOT / "web" / "js").glob("*.js")
+            for i, ln in enumerate(f.read_text(encoding="utf-8").splitlines(), 1) if "12주" in ln]
+    assert not hits, hits
