@@ -169,4 +169,6 @@ def test_existing_program_rows_default_to_health_pack(client):
         conn.commit()
     t = client.get("/routine/today", headers=h).json()
     assert t["program"]["pack_id"] == "health_12w" and t["program"]["weeks_total"] == 12
+    assert t["pack"]["version"] == 1                     # 최신(v2)이 아니라 시작 당시 v1
+    assert t["today"]["text"] == rp.get("health_12w", 1).weeks[0].actions["diet"].text
     assert rr.get_program(pid)["pack_id"] is None

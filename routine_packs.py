@@ -357,6 +357,17 @@ def get(pack_id: Optional[str] = None, version: Optional[int] = None) -> Pack:
     return reg[(pid, latest_version(pid))]
 
 
+def for_program(program: Optional[Dict]) -> Pack:
+    """프로그램이 시작한 (팩, 버전). 프로그램이 없으면 기본 팩 최신.
+
+    버전이 비어 있으면 1 — 025 이전 행은 v1 로 시작했다(DDL 기본값과 같은 뜻).
+    최신으로 폴백하면 새 버전이 나오는 순간 진행 중 프로그램의 문구가 바뀐다.
+    """
+    if not program:
+        return get()
+    return get(program.get("pack_id"), program.get("pack_version") or 1)
+
+
 def catalog() -> List[Pack]:
     """최신 버전만, 기본 팩 먼저."""
     out = [get(pid) for pid in pack_ids()]

@@ -80,8 +80,7 @@ def _safe(fn, default=None):
 
 def _pack_of(program: Optional[Dict]):
     """프로그램이 시작한 (팩, 버전). 프로그램이 없으면 기본 팩."""
-    p = program or {}
-    return rp.get(p.get("pack_id"), p.get("pack_version"))
+    return rp.for_program(program)
 
 
 def _pack_available(pack, band: Optional[str]) -> Optional[str]:
