@@ -230,7 +230,7 @@ export function StartRoutine({ onStarted, onSkip }) {
             <div class="tkmeta">${x.weeksTotal}주 · ${x.phases.length}단계${x.tracks.length > 1 ? ` · 방식 ${x.tracks.length}가지` : ''}</div>
             ${x.available ? null : html`<div class="tkmeta" key="g">${GATE_TEXT[x.reason] || '지금은 시작할 수 없어요'}</div>`}
           </div>
-          <span class="muted">›</span>
+          ${x.available ? html`<span class="muted" key="c">›</span>` : null}
         </button>`)}
         ${skip}
         <div class="bottompad"></div>
@@ -245,7 +245,8 @@ export function StartRoutine({ onStarted, onSkip }) {
       <${Header} title=${single ? '루틴 시작' : pk.name} onBack=${single ? null : back} />
       <div class="scroll">
         ${single ? diag : null}
-        <div class="sectitle" key="t1" style="margin-top:14px">어떤 기록부터 시작할까요?</div>
+        <div class="sectitle" key="t1" style="margin-top:14px">
+          ${pk.safetyProfile === 'medical' ? '어떤 기록부터 시작할까요?' : '어떤 방식으로 시작할까요?'}</div>
         <p class="muted" style="font-size:12.5px;margin-bottom:10px">
           ${pk.weeksTotal}주 동안 하루 한 가지. 언제든 바꿀 수 있어요.</p>
         ${pk.tracks.map((t) => html`<button class="card trackcard2" key=${t.id}

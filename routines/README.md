@@ -21,6 +21,14 @@ python -m pytest tests/test_routine_packs.py # 전 팩 lint + 엔진 스모크(�
 
 lint 가 0 error 가 되면 서버를 재시작하는 것만으로 온보딩 "루틴 고르기" 에 뜬다(`GET /routine/packs`).
 
+## 현재 팩
+
+| id | 프로필 | 기간 | 트랙 | 비고 |
+|---|---|---|---|---|
+| `health_12w` | medical | 12주 | diet · exercise · habit | 기존 코드에서 추출(골든 무회귀). L3·L10 경고 예외 |
+| `golf_6m` | physical | 26주 | range · home | 경고 밴드에선 새로 시작 불가, 진행 중이면 "스윙은 쉬고 몸 상태만" 으로 치환 |
+| `japanese_6m` | neutral | 26주 | reading · listening | 밴드 캡·배너 없음(응급만 중단) |
+
 ## 2. 안전 프로필 — 먼저 고른다
 
 | 프로필 | 쓰는 곳 | 경고 밴드(건강 페르소나) | 추가 금칙 |
