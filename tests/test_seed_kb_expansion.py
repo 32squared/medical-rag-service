@@ -185,3 +185,27 @@ def test_checkup_topics_are_korean():
     for d in build_checkup_documents():
         assert re.search(r"[가-힣]", d["evidence_topic"]), d["evidence_topic"]
         assert "_" not in d["evidence_topic"]
+
+
+def test_checkup_item_docs_do_not_tie_band_to_need():
+    """항목 문서는 판정 구분에 '필요한 구간' 같은 판단을 붙이지 않는다 — 적재 뒤 PHR 답이
+    "두 값 모두 정상B(경계)에 해당하므로 … 필요한 구간으로 안내됩니다"로 옮겼다(dev rev 00061).
+    판정 구분의 뜻은 개요 문서(고시 정의)에만 둔다."""
+    for d in build_checkup_documents()[1:]:
+        for sent in re.split(r"(?<=[.])\s+|\n", d["content_md"]):
+            assert not ("정상B" in sent and "필요" in sent), f"{d['title']}: {sent}"
+
+
+def test_checkup_footer_points_to_result_sheet():
+    """개인의 판정은 결과통보서의 판정 — 모든 문서의 마지막 청크(꼬리말)에 들어간다."""
+    for d in build_checkup_documents():
+        assert "결과통보서에 적힌 판정" in d["content_md"].rsplit("\n\n", 1)[-1]
+
+
+def test_checkup_chunks_fit_prompt_window():
+    """프롬프트는 청크 본문을 500자에서 자른다 — 넘치면 꼬리말(출처·판정 안내)이 잘린다."""
+    from kb_ingest import chunk_markdown
+    for d in build_checkup_documents():
+        for c in chunk_markdown(d["content_md"]):
+            body = c["content"] if isinstance(c, dict) else getattr(c, "content", str(c))
+            assert len(body) < 500, f"{d['title']}: {len(body)}자"
