@@ -14,7 +14,7 @@ T5 추가 (generate_response):
   generate_response()      — Hybrid search → 프롬프트 → LLM 스트리밍 → 가드레일 → DB 기록
   _build_rag_system_prompt()   — 4단 응답 구조 강제 시스템 프롬프트
   _build_rag_user_prompt()     — 인용 번호 부여 사용자 프롬프트
-  _regenerate_with_warning()   — HIGH 위반 시 gpt-5-mini 재생성
+  _regenerate_with_warning()   — HIGH 위반 시 폴백 모델로 재생성(결과는 재검사)
   _validate_and_fix_citations() — 인용 번호 검증
   _ensure_disclaimer()          — 면책조항 자동 부착
   _ensure_four_section_structure() — 4단 응답 구조 헤더 검증
@@ -1450,23 +1450,9 @@ def generate_response(
 
     if enable_guardrails:
         try:
-            from analyzer import ComplianceAnalyzer
-            analyzer = ComplianceAnalyzer()
-            analysis = analyzer.analyze(full_text, user_input=query)
-            violations = analysis.violations if hasattr(analysis, "violations") else []
-            # AnalysisResult 객체 → dict 리스트로 변환 (context 포함 — FP 필터용)
-            violations_dicts = []
-            for v in violations:
-                violations_dicts.append({
-                    "rule_id": v.rule_id,
-                    "severity": v.severity,
-                    "matched_text": v.matched_text,
-                    "context": getattr(v, "context", "") or "",
-                })
-
-            # RAG 전용 오탐 필터 — 교육적/면책/부정 문맥 위반 제거 (재생성·오차단 감소)
-            # 공용 analyzer 무변경. 실제 지시/용량/단정진단은 보존.
-            violations_dicts, _fp_dropped = _filter_guardrail_false_positives(violations_dicts)
+            # 공용 analyzer + RAG 전용 오탐 필터 — 교육적/면책/부정 문맥 위반 제거
+            # (재생성·오차단 감소). 공용 analyzer 무변경. 실제 지시/용량/단정진단은 보존.
+            violations_dicts, _fp_dropped = _guardrail_violations(full_text, query)
             if _fp_dropped:
                 logger.info(
                     "[RAGEngine] 가드레일 오탐 필터 제거=%s (재생성/차단 방지)",
@@ -1489,28 +1475,42 @@ def generate_response(
                     guardrail_result["violations"],
                 )
 
-            # HIGH 재생성 1회
+            # HIGH 재생성 1회 — 재생성 답도 같은 검사를 거친다. 실패하거나 다시 걸리면
+            # 사과문(차단)으로 끝낸다: 검사하지 않은 텍스트는 내보내지 않는다.
             elif any(v.get("severity") == "HIGH" for v in violations_dicts):
-                high_violations = [v for v in violations_dicts if v.get("severity") == "HIGH"]
+                high_ids = [v["rule_id"] for v in violations_dicts if v.get("severity") == "HIGH"]
                 _regen_start = time.time()
-                full_text = _regenerate_with_warning(
+                _regen = _regenerate_with_warning(
                     provider, system_prompt, user_prompt, violations_dicts
                 )
                 _regen_ms = int((time.time() - _regen_start) * 1000)
-                guardrail_result = {
-                    "action": "regenerated",
-                    "violations": [v["rule_id"] for v in high_violations],
-                }
-                logger.info(
-                    "[RAGEngine] 가드레일 HIGH 재생성 violations=%s 재생성=%dms (gen=%dms, 총지연 2배 영향)",
-                    guardrail_result["violations"], _regen_ms, llm_ms,
-                )
+                _left = _unsafe_rule_ids(_regen, query) if _regen else ["regen_failed"]
+                if not _left:
+                    full_text = _regen
+                    guardrail_result = {"action": "regenerated", "violations": high_ids}
+                    logger.info(
+                        "[RAGEngine] 가드레일 HIGH 재생성 violations=%s 재생성=%dms (gen=%dms, 총지연 2배 영향)",
+                        high_ids, _regen_ms, llm_ms,
+                    )
+                else:
+                    full_text = _REGEN_BLOCKED_TEXT
+                    guardrail_result = {
+                        "action": "blocked",
+                        "violations": high_ids + [r for r in _left if r not in high_ids],
+                    }
+                    logger.warning(
+                        "[RAGEngine] 가드레일 HIGH 재생성 불가 → 차단 violations=%s 재검사=%s 재생성=%dms",
+                        high_ids, _left, _regen_ms,
+                    )
 
             # 인용 검증 — INSUFFICIENT면 이미 헤지 답변이므로 '인용 0건 재생성'
             # (꼬리 LLM 추가 호출)을 생략해 마무리 지연을 줄인다. 범위 밖 [N] 제거는 유지.
+            # 차단된 답(사과문)은 인용이 없어도 재생성하지 않는다 — 재생성하면 차단이 풀린다.
             full_text, citations_action = _validate_and_fix_citations(
                 full_text, chunks, system_prompt, user_prompt,
-                allow_regen=(gate_result["decision"] != "INSUFFICIENT"),
+                allow_regen=(gate_result["decision"] != "INSUFFICIENT"
+                             and guardrail_result["action"] != "blocked"),
+                is_safe=lambda t: not _unsafe_rule_ids(t, query),
             )
             if citations_action == "regenerated":
                 guardrail_result["action"] = "regenerated_citation"
@@ -2351,10 +2351,40 @@ def _regenerate_with_warning(
     except Exception as e:
         logger.error("[RAGEngine] 재생성 예외: %s", e)
 
-    return full_text or (
-        "죄송합니다. 현재 안전한 응답을 제공하기 어렵습니다. "
-        "의료진과 직접 상담해 주세요."
-    )
+    # 실패하면 "" — 호출부가 사과문으로 바꾸고 차단으로 기록한다.
+    return full_text
+
+
+# HIGH 재생성이 실패하거나 재생성 답도 위반일 때의 답(차단으로 기록).
+_REGEN_BLOCKED_TEXT = (
+    "죄송합니다. 현재 안전한 응답을 제공하기 어렵습니다. "
+    "의료진과 직접 상담해 주세요."
+)
+
+
+def _guardrail_violations(text: str, query: str) -> tuple:
+    """공용 analyzer 결과를 dict 로 바꾸고 RAG 오탐 필터를 거친다 → (남은 위반, 걸러진 위반)."""
+    from analyzer import ComplianceAnalyzer
+    analysis = ComplianceAnalyzer().analyze(text, user_input=query)
+    violations = analysis.violations if hasattr(analysis, "violations") else []
+    # AnalysisResult 객체 → dict 리스트로 변환 (context 포함 — FP 필터용)
+    dicts = [{
+        "rule_id": v.rule_id,
+        "severity": v.severity,
+        "matched_text": v.matched_text,
+        "context": getattr(v, "context", "") or "",
+    } for v in violations]
+    return _filter_guardrail_false_positives(dicts)
+
+
+def _unsafe_rule_ids(text: str, query: str) -> list:
+    """재생성 답 재검사 — 남은 CRITICAL·HIGH 규칙 id. 검사가 실패하면 통과시키지 않는다."""
+    try:
+        kept, _ = _guardrail_violations(text, query)
+    except Exception as e:
+        logger.error("[RAGEngine] 재생성 답 재검사 실패: %s", e)
+        return ["recheck_error"]
+    return [v["rule_id"] for v in kept if v.get("severity") in ("CRITICAL", "HIGH")]
 
 
 def _validate_and_fix_citations(
@@ -2363,6 +2393,7 @@ def _validate_and_fix_citations(
     system_prompt: str = "",
     user_prompt: str = "",
     allow_regen: bool = True,
+    is_safe=None,
 ) -> tuple:
     """
     응답 텍스트의 인용 번호를 검증한다.
@@ -2371,7 +2402,9 @@ def _validate_and_fix_citations(
     - 인용이 0건이면 fallback provider로 재생성 1회 시도(allow_regen=True일 때만)
 
     allow_regen=False면 인용 0건이어도 재생성하지 않는다(예: 근거 INSUFFICIENT —
-    이미 헤지 답변이라 추가 LLM 호출 가치가 낮고 꼬리 지연만 키움).
+    이미 헤지 답변이라 추가 LLM 호출 가치가 낮고 꼬리 지연만 키움, 또는 가드레일 차단).
+    is_safe(text) 가 주어지면 재생성 답이 그 검사를 통과할 때만 쓴다 — 가드레일 검사는
+    이 함수보다 앞에서 끝나므로, 재검사 없이 바꾸면 검사 안 된 답이 나간다.
 
     Returns:
         (수정된 텍스트, 액션) — 액션: "pass" | "fixed" | "regenerated"
@@ -2411,7 +2444,9 @@ def _validate_and_fix_citations(
         except Exception as e:
             logger.error("[RAGEngine] 인용 재생성 오류: %s", e)
 
-        if regen_text:
+        if regen_text and is_safe is not None and not is_safe(regen_text):
+            logger.warning("[RAGEngine] 인용 재생성 답이 가드레일 재검사에 걸려 버림")
+        elif regen_text:
             fixed_text = regen_text
             action = "regenerated"
 
