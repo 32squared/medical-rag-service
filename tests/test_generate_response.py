@@ -54,6 +54,14 @@ def _make_chunk(chunk_id, content="의료 정보", score=0.5):
     }
 
 
+def _gate_passing_chunks():
+    """근거 게이트(WEAK_PASS 이상)를 통과하는 청크 — 인용 0건 재생성 경로가 열린다."""
+    chunks = [_make_chunk("C1"), _make_chunk("C2")]
+    for c in chunks:
+        c["cosine_score"] = 0.7
+    return chunks
+
+
 def _make_provider_mock(response_text="테스트 응답입니다. [1]"):
     """stream_chat 이벤트를 생성하는 mock provider."""
     mock = MagicMock()
@@ -210,6 +218,21 @@ class TestGuardrailCriticalBlock:
         stop_event = next(e for e in events if e["type"] == "STOP")
         assert "자해 충동" not in stop_event["text"]
 
+    def test_critical_block_not_undone_by_citation_regeneration(self):
+        """차단 사과문에는 [N] 이 없지만 인용 재생성을 하지 않는다 — 하면 검사 안 된 답이 나간다.
+
+        근거 게이트를 통과하는 청크(cosine 0.7)여야 인용 재생성 경로가 열린다. 폴백이 400 으로
+        실패하던 동안에는 이 경로가 우연히 막혀 있었다(2026-09-29 확인).
+        """
+        fallback_mock = _make_fallback_mock("메트포르민을 500mg으로 올리세요 [1]")
+        with patch("llm_router.get_fallback_provider", return_value=fallback_mock):
+            events = _run_generate_response(
+                mock_analysis=self._critical_analysis(), mock_chunks=_gate_passing_chunks())
+        stop_event = next(e for e in events if e["type"] == "STOP")
+        assert stop_event["guardrail_action"] == "blocked"
+        assert "500mg" not in stop_event["text"]
+        assert not fallback_mock.stream_chat.called
+
 
 # ════════════════════════════════════════════════════════════
 #  TC-3: 가드레일 재생성 — HIGH 위반
@@ -226,6 +249,33 @@ class TestGuardrailHighRegeneration:
         analysis = MagicMock()
         analysis.violations = [high_v]
         return analysis
+
+    def _clean_analysis(self):
+        analysis = MagicMock()
+        analysis.violations = []
+        return analysis
+
+    def _first_high_then_clean(self, rule_id="emergency_guidance"):
+        """첫 검사(원답)만 HIGH, 이후 검사(재생성 답)는 통과."""
+        calls = []
+
+        def side_effect(*a, **k):
+            calls.append(1)
+            return self._high_analysis(rule_id) if len(calls) == 1 else self._clean_analysis()
+        return side_effect
+
+    def _stop_with(self, fallback_mock, analyze_side_effect, chunks=None):
+        with patch("rag_engine.hybrid_search", return_value=chunks or [_make_chunk("C1")]), \
+             patch("llm_router.get_llm_provider", return_value=_make_provider_mock()), \
+             patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+             patch("rag_engine._set_conversation_state"), \
+             patch("rag_engine._insert_rag_query", return_value="rq-001"), \
+             patch("llm_router.get_fallback_provider", return_value=fallback_mock), \
+             patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
+            MockAnalyzer.return_value.analyze.side_effect = analyze_side_effect
+            from rag_engine import generate_response
+            events = list(generate_response("두통", "conv-001", enable_guardrails=True))
+        return next(e for e in events if e["type"] == "STOP")
 
     def test_high_violation_calls_fallback(self):
         """HIGH 위반 시 fallback provider가 호출된다."""
@@ -259,13 +309,45 @@ class TestGuardrailHighRegeneration:
              patch("llm_router.get_fallback_provider", return_value=fallback_mock), \
              patch("analyzer.ComplianceAnalyzer") as MockAnalyzer:
 
-            MockAnalyzer.return_value.analyze.return_value = self._high_analysis("diagnosis_direct")
+            # 원답은 HIGH, 재생성 답의 재검사는 통과
+            MockAnalyzer.return_value.analyze.side_effect = self._first_high_then_clean("diagnosis_direct")
 
             from rag_engine import generate_response
             events = list(generate_response("두통", "conv-001", enable_guardrails=True))
 
         stop_event = next(e for e in events if e["type"] == "STOP")
         assert "regenerated" in stop_event["guardrail_action"]
+        assert "안전한 재생성 응답" in stop_event["text"]
+
+    def test_regenerated_answer_still_violating_is_blocked(self):
+        """재생성 답도 HIGH 에 걸리면 그 답을 내보내지 않고 차단으로 기록한다."""
+        fallback_mock = _make_fallback_mock("재생성했지만 여전히 위반인 응답 [1]")
+        stop = self._stop_with(fallback_mock, lambda *a, **k: self._high_analysis("diagnosis_direct"))
+        assert stop["guardrail_action"] == "blocked"
+        assert "여전히 위반" not in stop["text"]
+        assert "안전한 응답을 제공하기 어렵습니다" in stop["text"]
+
+    def test_regeneration_failure_is_blocked(self):
+        """폴백 호출이 실패(ERROR)하면 사과문 + 차단 — 'regenerated' 로 오라벨하지 않는다."""
+        fallback_mock = MagicMock()
+        fallback_mock.stream_chat.side_effect = lambda s, u, **k: iter(
+            [{"type": "ERROR", "message": "400 unsupported_value"}])
+        stop = self._stop_with(fallback_mock, lambda *a, **k: self._high_analysis())
+        assert stop["guardrail_action"] == "blocked"
+        assert "안전한 응답을 제공하기 어렵습니다" in stop["text"]
+
+    def test_blocked_regeneration_not_undone_by_citation_regeneration(self):
+        """재생성 실패 사과문도 인용 재생성으로 바뀌지 않는다(근거 게이트 통과 청크)."""
+        fallback_mock = MagicMock()
+        fallback_mock.stream_chat.side_effect = [
+            iter([{"type": "ERROR", "message": "400"}]),
+            iter([{"type": "STOP", "text": "메트포르민을 500mg으로 올리세요 [1]", "tokens": {}}]),
+        ]
+        stop = self._stop_with(fallback_mock, lambda *a, **k: self._high_analysis(),
+                               chunks=_gate_passing_chunks())
+        assert stop["guardrail_action"] == "blocked"
+        assert "500mg" not in stop["text"]
+        assert fallback_mock.stream_chat.call_count == 1
 
 
 # ════════════════════════════════════════════════════════════
@@ -341,6 +423,19 @@ class TestCitationZeroRegeneration:
 
         assert fallback_mock.stream_chat.called
         assert action == "regenerated"
+
+    def test_zero_citations_regen_discarded_when_unsafe(self):
+        """재생성 답이 is_safe 검사에 걸리면 버리고 원래(검사 통과한) 답을 유지한다."""
+        from rag_engine import _validate_and_fix_citations
+        chunks = [_make_chunk("C1")]
+        text = "두통은 여러 원인이 있습니다."
+        fallback_mock = _make_fallback_mock("메트포르민을 500mg으로 올리세요 [1]")
+        with patch("llm_router.get_fallback_provider", return_value=fallback_mock):
+            fixed, action = _validate_and_fix_citations(
+                text, chunks, system_prompt="s", user_prompt="u",
+                is_safe=lambda t: "500mg" not in t)
+        assert fallback_mock.stream_chat.called
+        assert fixed == text and action == "pass"
 
     def test_zero_citations_no_system_prompt_no_regen(self):
         """system_prompt가 없으면 재생성 시도 안 함."""
