@@ -1,7 +1,7 @@
-# 28 — 루틴 팩 플랫폼: 계획과 핵심 요건 (승인용 v0.1)
+# 28 — 루틴 팩 플랫폼: 계획과 핵심 요건 (v1.0 — 구현 완료)
 
 > 목적: "골프 6개월 코스", "일본어 6개월 루틴"처럼 **타당한 루틴을 만들어 꽂아 넣을 수 있는 구조**로 전환한다. 현재 루틴 엔진은 건강 12주 커리큘럼 1개가 코드에 박혀 있다.
-> 상태: **승인 대기.** 이 문서의 결정 항목 D1~D9 를 확정한 뒤 Phase 0 부터 착수한다.
+> 상태: **승인(2026-09-04, D1~D9 권고안 그대로) → Phase 0~3 구현 완료(2026-09-29).** 구현 중 달라진 점은 §12. 브랜치 `feat/routine-pack-platform`.
 > 정본 관계: 이 문서는 [25-routine-transition-spec](25-routine-transition-spec.md)·[27-routine-content](27-routine-content.md)를 **대체하지 않는다.** 건강 12주 커리큘럼의 내용 정본은 27 그대로이고, 이 문서는 그 커리큘럼을 "팩 1호"로 옮겨 담는 **그릇(플랫폼)** 의 정본이다.
 > 작성: 2026-09-04 · 브랜치 `feat/routine-packs`
 
@@ -352,3 +352,43 @@ web/js/*                        ← 주차 수·단계·트랙 카드를 페이�
 1. D1~D9 확정값을 이 문서 §8 에 기록(권고안 그대로면 "승인 2026-09-xx" 한 줄).
 2. Phase 0: 스키마 파일·추출 스크립트·골든 스냅샷·`health_12w/pack.json` 커밋.
 3. Phase 1 착수 전, 골든 108 케이스가 초록인 상태를 CI 에 올린다.
+
+---
+
+## 12. 구현 기록 (2026-09-29)
+
+### 12-1. 계획과 달라진 점
+
+| 항목 | 계획 | 구현 | 이유 |
+|---|---|---|---|
+| 팩 파일 이름 | `routines/packs/<id>/pack.json` + `history[]` | `routines/packs/<id>/v<version>.json`, 버전마다 파일 하나 | 진행 중 프로그램의 버전 고정이 파일 존재만으로 보장된다. 로더가 "디렉터리 = id, 파일 = v<version>" 을 검사 |
+| 보조 행동 규칙(§4-5) | 위에서부터 첫 매치, `pick` | **누적** 규칙: `when`(AND, `null`=미응답) · `unless`(하나라도 걸리면 제외) → `add`, 결과가 비면 `default` | 기존 `_select_keys()` 의 if 누적 로직을 그대로 옮겨야 골든이 같아진다 |
+| 풀 크기 상한 | 없음 | `support_pool_cap` (`{"default": 4, "경고": 2}`) | 기존 코드의 경고 밴드 풀 2개 규칙 |
+| 경고 치환 행동 | `warning_variant` | `weeks[].warning_actions.<track>` | 트랙별 치환이 필요 |
+| `routine_program.phases_json` (FR-S4) | 추가 | **추가 안 함** — `pack_id`·`pack_version` 만 | 단계는 고정된 버전 파일에서 읽으면 된다(중복 저장 불필요) |
+| 추출 스크립트 | 커밋 | 1회 사용 후 삭제. 골든 생성기 `scripts/routine_golden.py` 만 유지 | 팩 JSON 이 정본 |
+| 팩 테스트 파일 | `tests/test_packs.py` | `tests/test_routine_packs.py`(레지스트리·lint·스모크·골든) + `tests/test_routine_packs_runtime.py`(라우트) | 기존 이름 규칙 |
+| lint 추가 | — | L0(TODO 자리표시자), P4 앵커·P5 복구는 경고, physical 경고 치환 행동 누락은 error | 스캐폴드가 lint 에서 떨어지게(FR-T2), physical 안전 |
+| 경고 밴드 physical 신규 시작 | 카탈로그 `available=false` | + `POST /routine/start` 409 `clearance_required` | 우회 방지 |
+| 프론트 | FR-F1~F5 | 팩 1개면 고르기 화면, 트랙 1개면 트랙 화면을 건너뜀(기존 건강 온보딩과 동일 경험). `/routine/today` `weeks[]` 에 `theme` 추가 | 26주 타임라인 가독성 |
+
+### 12-2. 진행
+
+| Phase | 커밋 | 결과 |
+|---|---|---|
+| 0 추출 | `e30216b` | `health_12w/v1.json`, 골든 스냅샷, 로더 |
+| 1 엔진·저장소·API | `766aa19` | 팩 인자화, mig 025(`pack_id`·`pack_version`), `/routine/packs`, 컴플라 프로필. 81개 라우트 페이로드 전후 비교 값 변화 0(키 추가만) |
+| 2a 도구 | `c1ac881` | `pack_lint.py`(CI 게이트)·`pack_new.py`·JSON Schema·작성 가이드 `routines/README.md` |
+| 2b 프론트 | `b079529` | 루틴 고르기, "12주" 리터럴 0건(테스트로 고정) |
+| 3 샘플 팩 | `bc987bb` | `golf_6m`·`japanese_6m` 26주, lint 0 error·0 warning, 코드 변경 0줄 |
+| 4 | — | 스테이징 배포(이미지만 교체, env 보존). D8 초안 도구·D2(b) 동시 2개는 보류 |
+
+전체 테스트 1069 passed / 12 skipped. 로컬 E2E(모바일 375): 경고 밴드 페르소나 → 골프 비활성 → 일본어 시작 → 홈 → 완료 → 프로그램 26주 → 주간 리포트.
+
+### 12-3. 남은 일
+
+- 샘플 팩 내용은 **도메인 전문가 검수 전**이다(골프 코치·일본어 강사). 출처 URL 중 `kgagolf.or.kr` 은 사내망 차단으로 열어 보지 못했다.
+- `health_12w` 의 L3(글자수 48건)·L10(배너 이모지 3건) 경고 → 27 §2 교체본 카피 반영 PR 에서 `LEGACY_WARN_ONLY` 제거.
+- D8 `scripts/pack_draft.py`(LLM 초안 도구) — 선택 항목, 미착수.
+- D2(b) 건강 1 + 비건강 1 동시 진행 — 홈 UX 결정 필요.
+
