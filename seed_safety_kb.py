@@ -205,6 +205,7 @@ def seed_safety_kb(dry_run: bool = False) -> Dict:
                 evidence_topic=d["evidence_topic"], regulatory_korea=d["regulatory_korea"],
                 topic_keywords=d["topic_keywords"], source_url=d.get("source_url", ""),
                 upsert=True, status="active",
+                match_url=False,  # 기관 대표 URL 공유 — 제목으로 식별(kb_ingest 참고)
             )
             summary["ingested"] += 1
         except Exception as e:

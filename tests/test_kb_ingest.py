@@ -316,6 +316,45 @@ class TestIngestDocument:
         assert any("업데이트된 내용" in c[0] for c in chunks)
         conn.close()
 
+    def test_url_match_is_default(self, use_temp_db):
+        """기본은 source_url 로도 같은 문서를 찾는다 — 제목이 바뀐 수집 문서를 제자리 갱신."""
+        from kb_ingest import ingest_document
+
+        url = "https://example.go.kr/page?id=1"
+        with patch("kb_ingest._embed_in_batches", side_effect=lambda texts, **kw: _mock_embed(texts)):
+            r1 = ingest_document(title="원래 제목", content_md="# 원래\n\n원래 내용.",
+                                 source_id="hira_kdca", metadata={}, source_url=url, upsert=True)
+            r2 = ingest_document(title="바뀐 제목", content_md="# 바뀜\n\n바뀐 내용.",
+                                 source_id="hira_kdca", metadata={}, source_url=url, upsert=True)
+        assert r2["document_id"] == r1["document_id"]
+
+    def test_match_url_false_keeps_docs_sharing_url(self, use_temp_db):
+        """match_url=False 면 대표 URL 을 같이 쓰는 문서들이 서로를 덮지 않고, 재적재도 제자리다.
+        (정규화가 '#key' 를 지워 dev 에서 '공복혈당' 행이 HbA1c 본문을 담고 있었다)"""
+        from kb_ingest import ingest_document
+
+        def _seed(suffix):
+            ids = []
+            for key, title in (("glucose", "공복혈당 안내"), ("hba1c", "당화혈색소 안내")):
+                r = ingest_document(title=title, content_md=f"# {title}\n\n{key} 내용{suffix}.",
+                                    source_id="hira_kdca", metadata={},
+                                    source_url=f"https://www.diabetes.or.kr#{key}",
+                                    upsert=True, match_url=False)
+                ids.append(r["document_id"])
+            return ids
+
+        with patch("kb_ingest._embed_in_batches", side_effect=lambda texts, **kw: _mock_embed(texts)):
+            first = _seed("")
+            second = _seed(" v2")
+        assert len(set(first)) == 2
+        assert second == first
+        conn = sqlite3.connect(use_temp_db)
+        rows = dict(conn.execute(
+            "SELECT title, content_md FROM kb_documents WHERE source_id = 'hira_kdca'").fetchall())
+        conn.close()
+        assert rows == {"공복혈당 안내": "# 공복혈당 안내\n\nglucose 내용 v2.",
+                        "당화혈색소 안내": "# 당화혈색소 안내\n\nhba1c 내용 v2."}
+
     def test_checksum_change_triggers_reingest(self, use_temp_db):
         """upsert=False여도 source_checksum이 바뀌면 재적재되고 version 증가(변경감지)."""
         from kb_ingest import ingest_document
