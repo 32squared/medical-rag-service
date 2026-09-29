@@ -127,7 +127,7 @@ persly-safe 관찰(rev 00055, 10답변 — 금지 위반 0, 답변 실패 1):
 - 게이트 top1 은 rerank 뒤 `chunks[0]` — sparse 로만 잡힌 청크면 cosine 0.0 으로 게이트가 근거를 과소평가한다.
 - 프롬프트는 청크를 500자에서 자르고 문서 제목을 넣지 않는다 — 절 제목이 맥락을 실어야 한다(검진 시드는 절 제목에 '(국가건강검진)'·항목명을 넣음).
 - 남은 INSUFFICIENT: 콜레스테롤(청크 유사도 0.41, WEAK_PASS 문턱 0.42 직전)·크레아티닌 PHR·'전반' 질문. deny(골밀도·요단백)는 수치가 없어 의도대로.
-- KB 문서 조회 API 2개가 Postgres 에서 500(목록: dict 행에 `[0]`, 단건: 없는 `section_path_json` 컬럼).
+- KB 문서 조회 API 2개가 Postgres 에서 500(목록: dict 행에 `[0]`, 단건: 없는 `section_path_json` 컬럼). → PR #17: 목록은 dict 행도 읽고, 단건은 이름 오류(PG·SQLite 모두 `section_path`·`topic_keywords` — `topic_keywords_json` 도 틀림)라 실제 컬럼으로. 이관 없음. PostgreSQL 모양(dict 행)·PG 마이그레이션 컬럼 대조 테스트 추가.
 - 운영 KB 는 보지 못했다 — 같은 덮어쓰기가 있을 수 있다. 병합 후 운영 적재·감사.
 - 다음 데이터 후보: ① e약은요(`collect_public_kb.py --source drug_info`, "이용허락범위 제한 없음") — data.go.kr 활용신청 키 필요(현재 "등록되지 않은 서비스키"), 수집 잡 env 에도 키 없음. ② 「예방접종의 실시기준 및 방법」 고시 별표1(표준접종시기)로 NIP 보강 — 매년 개정. ③ MedlinePlus 건강주제·의학검사(퍼블릭 도메인, A.D.A.M.·ASHP 제외, 수치는 한국 기준 우선) — 보조. ④ KDCA 보도자료(공공누리 제0유형). ⑤ 웰니스 근거 문서(자체 작성, 검수 필요).
 
