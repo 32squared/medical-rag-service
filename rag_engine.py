@@ -1537,6 +1537,10 @@ def generate_response(
                 except Exception as _pe:
                     logger.debug("[RAGEngine] 개인화 주입 스킵: %s", _pe)
 
+            # persly-safe 소제목을 모델이 평문 한 줄로 쓰면 굵게 — 구조 라벨보다 먼저.
+            if _astyle == _style.PERSLY_SAFE:
+                full_text = _style.bold_slot_titles(full_text)
+
             # 면책조항 자동 부착 (하단)
             full_text = _ensure_disclaimer(full_text)
             # 상단 고지 자동 부착 (필수 고정 문구 — 119·응급실 문구 포함)

@@ -159,3 +159,22 @@ def split_suggested(text: str):
         if q:
             qs.append(q)
     return head.rstrip(), qs[:2]
+
+
+# ── 소제목 굵게 보정 ─────────────────────────────────────────
+# 명세는 "소제목은 굵게"인데 모델이 네 소제목을 평문 한 줄로 쓰는 일이 있다 — 그러면
+# 헤더가 2개 미만으로 세져 missing_structure 라벨이 붙고 화면에서도 본문과 구분되지 않는다
+# (dev persly-safe PHR 답 rev 00063 35건 중 10건, rev 00064 30건 중 19건). 소제목만 있는
+# 줄만 굵게 바꾼다 — 본문 문장, 이미 굵은 줄, '#' 제목은 건드리지 않는다.
+_SLOT_LINE = re.compile(
+    r"^(?P<indent>[ \t]*)(?P<title>가능한 원인(?:[ \t]*\d+[ \t]*가지)?|지금 당장의 안전 체크|"
+    r"집에서 해볼 수 있는 관리|사용자 기록과 연결해 보면)[ \t]*:?[ \t]*$",
+    re.MULTILINE,
+)
+
+
+def bold_slot_titles(text: str) -> str:
+    """persly-safe 네 소제목이 평문 한 줄로 오면 굵게(**…**) 바꾼다."""
+    if not text:
+        return text
+    return _SLOT_LINE.sub(lambda m: f"{m.group('indent')}**{m.group('title')}**", text)

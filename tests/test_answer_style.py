@@ -121,3 +121,72 @@ def test_persly_safe_bans_record_based_inference():
     p = B("q", [], personal_kind="raw", style="persly-safe")
     assert "인 것으로 보입니다" in p and "금지" in p
     assert "조제 사실까지만" in p
+
+
+# ── 소제목 굵게 보정 (모델이 평문 한 줄로 쓴 네 소제목) ─────────────
+# dev persly-safe PHR 답(rev 00064)에서 소제목이 평문으로 온 모양 그대로.
+
+_PLAIN = ("'공복혈당'은 일반 참고범위(100 미만)와 비교하면 118은 범위 밖(높음)입니다 [1].\n\n"
+          "가능한 원인 2가지\n- 식사·운동 패턴의 영향: 활동량이 줄면 공복 혈당이 오를 수 있습니다 [1].\n\n"
+          "지금 당장의 안전 체크\n- 심한 떨림, 식은땀이 반복될 때\n\n"
+          "집에서 해볼 수 있는 관리\n- 식후 걷기: 식후 30분 이내에 20분 걷기를 4주 해 보세요 [1].\n\n"
+          "사용자 기록과 연결해 보면\n- 공복혈당 118(2025-03)은 참고범위 밖입니다 [내 기록].")
+
+
+def test_bold_slot_titles_fixes_plain_title_lines():
+    from rag_engine import _has_section_structure
+    out = A.bold_slot_titles(_PLAIN)
+    for t in ("**가능한 원인 2가지**", "**지금 당장의 안전 체크**",
+              "**집에서 해볼 수 있는 관리**", "**사용자 기록과 연결해 보면**"):
+        assert t in out
+    assert not _has_section_structure(_PLAIN)
+    assert _has_section_structure(out)
+
+
+def test_bold_slot_titles_leaves_body_bold_and_heading_lines():
+    s = ("**가능한 원인 2가지**\n- 가능한 원인 중 하나는 수면 부족입니다.\n"
+         "집에서 해볼 수 있는 관리를 2주 해 보세요.\n### 지금 당장의 안전 체크")
+    assert A.bold_slot_titles(s) == s
+
+
+def test_bold_slot_titles_accepts_colon_count_and_indent():
+    assert A.bold_slot_titles("가능한 원인 3가지:") == "**가능한 원인 3가지**"
+    assert A.bold_slot_titles("  지금 당장의 안전 체크 ") == "  **지금 당장의 안전 체크**"
+    assert A.bold_slot_titles("") == ""
+
+
+def _stop_event(style, text):
+    from unittest.mock import MagicMock, patch
+    prov = MagicMock()
+    prov.provider_id, prov.model_id = "openai_gpt5", "gpt-5"
+
+    def _stream(system, user, **kw):
+        yield {"type": "GENERATION", "text": text}
+        yield {"type": "STOP", "text": text, "tokens": {"input": 1, "output": 1}}
+
+    prov.stream_chat.side_effect = _stream
+    analysis = MagicMock()
+    analysis.violations = []
+    chunks = [{"chunk_id": c, "document_id": f"doc_{c}", "content": "공복혈당 참고 정보",
+               "section_path": [], "source_id": "test_src", "evidence_level": "B",
+               "evidence_topic": "공복혈당", "severity": None, "score": 0.6, "boost_reasons": []}
+              for c in ("C1", "C2")]
+    with patch("rag_engine.hybrid_search", return_value=chunks), \
+         patch("llm_router.get_llm_provider", return_value=prov), \
+         patch("rag_engine._get_conversation_state", return_value={"emergency_state": "NORMAL"}), \
+         patch("rag_engine._set_conversation_state"), \
+         patch("rag_engine._insert_rag_query", return_value="rq-bold"), \
+         patch("analyzer.ComplianceAnalyzer") as MA:
+        MA.return_value.analyze.return_value = analysis
+        from rag_engine import generate_response
+        events = list(generate_response(query="공복혈당은 어떤 편인가요?",
+                                        conversation_id=f"conv-bold-{style}", answer_style=style))
+    return [e for e in events if e["type"] == "STOP"][-1]
+
+
+def test_generate_response_bolds_slot_titles_for_persly_safe_only():
+    stop = _stop_event("persly-safe", _PLAIN)
+    assert "**가능한 원인 2가지**" in stop["text"]
+    assert stop["guardrail_action"] != "missing_structure"
+    stop = _stop_event("default", _PLAIN)
+    assert "**가능한 원인 2가지**" not in stop["text"]
