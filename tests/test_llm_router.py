@@ -12,7 +12,7 @@ OpenAI API mock으로 실제 API 호출 없이 검증.
   TC-5: OpenAIProvider.stream_chat — usage 토큰 파싱
   TC-6: get_llm_provider 팩토리 — 기본값 / 명시적 provider_id
   TC-7: get_llm_provider 팩토리 — 알 수 없는 provider_id → ValueError
-  TC-8: get_fallback_provider — gpt-5-mini 반환
+  TC-8: get_fallback_provider — gpt-5.4-mini 반환
   TC-9: get_llm_provider — RAG_LLM_DEFAULT_PROVIDER 환경변수 우선
   TC-10: OpenAIProvider API 키 없으면 ValueError
 """
@@ -288,6 +288,116 @@ class TestReasoningEffort:
         events = list(p.stream_chat("s", "u"))
         assert p._client.chat.completions.create.call_count == 1
         assert events[-1]["type"] == "ERROR"
+
+
+# ════════════════════════════════════════════════════════════
+#  reasoning_effort 400 재시도 — SDK 가 실제로 던지는 openai.BadRequestError 로
+#  stream_chat 전체 경로를 본다. create() 는 스트리밍 전에 400 을 던지므로
+#  다시 보내도 이미 나간 출력이 없다.
+# ════════════════════════════════════════════════════════════
+
+def _bad_request(message):
+    """openai SDK 의 400 예외. str() 은 Cloud Run 로그에 찍힌 형식 그대로."""
+    import httpx
+    import openai
+    req = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    return openai.BadRequestError(message, response=httpx.Response(400, request=req), body=None)
+
+
+def _efforts_sent(p):
+    return [c.kwargs.get("reasoning_effort") for c in p._client.chat.completions.create.call_args_list]
+
+
+class TestReasoningEffortRetry:
+    def setup_method(self):
+        import llm_router
+        llm_router._EFFORTS_LEARNED.clear()
+
+    def test_minimal_rejected_retried_with_none_and_streams(self):
+        """'minimal' 400 → 'none' 으로 한 번 다시 보내고 그 스트림이 그대로 나간다.
+        표가 minimal 을 받는다고 보는 gpt-5 로 재현 — gpt-5.4-mini 가 조용히 바뀐 것과 같은 상황."""
+        p = _provider("gpt-5")
+        p._client.chat.completions.create.side_effect = [
+            _bad_request(_UNSUPPORTED_MINIMAL),
+            iter([_make_stream_chunk(content="재생성"), _make_stream_chunk(content=" 답변")]),
+        ]
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            events = list(p.stream_chat("s", "u"))
+        assert _efforts_sent(p) == ["minimal", "none"]
+        assert [e["text"] for e in events if e["type"] == "GENERATION"] == ["재생성", " 답변"]
+        assert events[-1]["type"] == "STOP"
+        assert events[-1]["text"] == "재생성 답변"
+        assert not any(e["type"] == "ERROR" for e in events)
+
+    def test_none_not_supported_retried_with_low(self):
+        """지원값에 'none' 이 없으면 그다음으로 빠른 'low'."""
+        p = _provider("gpt-5")
+        msg = _UNSUPPORTED_MINIMAL.replace(
+            "'none', 'low', 'medium', 'high', and 'xhigh'", "'low', 'medium', and 'high'")
+        assert "'none'" not in msg
+        p._client.chat.completions.create.side_effect = [
+            _bad_request(msg), iter([_make_stream_chunk(content="ok")])]
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            events = list(p.stream_chat("s", "u"))
+        assert _efforts_sent(p) == ["minimal", "low"]
+        assert events[-1]["type"] == "STOP" and events[-1]["text"] == "ok"
+
+    def test_model_accepting_minimal_sends_once(self):
+        """minimal 을 받는 모델(메인 경로 gpt-5)은 한 번에 보낸다 — 메인 경로 지연 그대로."""
+        p = _provider("gpt-5")
+        p._client.chat.completions.create.return_value = iter([_make_stream_chunk(content="답변")])
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            events = list(p.stream_chat("s", "u"))
+        assert _efforts_sent(p) == ["minimal"]
+        assert events[-1]["type"] == "STOP" and events[-1]["text"] == "답변"
+
+    def test_unrelated_400_not_retried(self):
+        """reasoning_effort 와 무관한 400 은 다시 보내지 않고 예전처럼 ERROR 하나."""
+        p = _provider("gpt-5.4-mini")
+        err = _bad_request(
+            "Error code: 400 - {'error': {'message': \"Invalid 'messages[1].content': string too "
+            "long.\", 'type': 'invalid_request_error', 'param': 'messages[1].content', "
+            "'code': 'string_above_max_length'}}")
+        p._client.chat.completions.create.side_effect = err
+        events = list(p.stream_chat("s", "u"))
+        assert p._client.chat.completions.create.call_count == 1
+        assert events == [{"type": "ERROR", "message": str(err)}]
+
+    def test_reasoning_effort_400_without_supported_values_not_retried(self):
+        """reasoning_effort 를 말해도 지원값 목록이 없으면 고를 값이 없어 다시 보내지 않는다."""
+        p = _provider("gpt-5")
+        p._client.chat.completions.create.side_effect = _bad_request(
+            "Error code: 400 - {'error': {'message': \"Unsupported parameter: 'reasoning_effort' "
+            "is not supported with this model.\", 'type': 'invalid_request_error', "
+            "'param': 'reasoning_effort', 'code': 'unsupported_parameter'}}")
+        events = list(p.stream_chat("s", "u"))
+        assert p._client.chat.completions.create.call_count == 1
+        assert events[-1]["type"] == "ERROR"
+
+    def test_retry_rejected_again_stops_with_error(self):
+        """다시 보낸 값도 400 이면 거기서 멈추고 ERROR — 재시도는 한 번뿐."""
+        p = _provider("gpt-5")
+        p._client.chat.completions.create.side_effect = [
+            _bad_request(_UNSUPPORTED_MINIMAL),
+            _bad_request(_UNSUPPORTED_MINIMAL.replace("support 'minimal'", "support 'none'")),
+        ]
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            events = list(p.stream_chat("s", "u"))
+        assert _efforts_sent(p) == ["minimal", "none"]
+        assert events[-1]["type"] == "ERROR"
+
+    def test_learned_value_sent_first_by_next_provider(self):
+        """400 은 모델당 한 번 — 재생성마다 새로 만드는 provider 도 배운 값으로 바로 보낸다."""
+        first = _provider("gpt-5")
+        first._client.chat.completions.create.side_effect = [
+            _bad_request(_UNSUPPORTED_MINIMAL), iter([])]
+        second = _provider("gpt-5")
+        second._client.chat.completions.create.return_value = iter([])
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            list(first.stream_chat("s", "u"))
+            list(second.stream_chat("s", "u"))
+        assert _efforts_sent(first) == ["minimal", "none"]
+        assert _efforts_sent(second) == ["none"]
 
 
 # ════════════════════════════════════════════════════════════
