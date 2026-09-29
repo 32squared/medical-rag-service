@@ -21,6 +21,23 @@ python -m pytest tests/test_routine_packs.py # 전 팩 lint + 엔진 스모크(�
 
 lint 가 0 error 가 되면 서버를 재시작하는 것만으로 온보딩 "루틴 고르기" 에 뜬다(`GET /routine/packs`).
 
+## LLM 초안으로 시작하기 (선택)
+
+문구 수백 줄을 손으로 쓰기 전에 초안을 뽑을 수 있다. **초안은 초안이다** — 사람이 읽고 고친 뒤에만 팩이 된다.
+
+```bash
+# 1) 브리프 작성: routines/briefs/<id>.json (예: running_8w.json). 출처는 사람이 적는다 — LLM 은 이 key 중에서만 고른다
+# 2) 초안 생성(OPENAI_API_KEY 필요, llm_router 기본 프로바이더)
+python scripts/pack_draft.py routines/briefs/running_8w.json
+# → routines/drafts/running_8w/v1.json + review.md (git 에 올라가지 않음)
+# 3) review.md 의 체크리스트대로 읽고 고친 뒤 routines/packs/<id>/v1.json 으로 옮기고 pack_lint → PR
+```
+
+- 구조(주차 수·단계·id·정착기 보조 0)는 스캐폴드가 정하고, LLM 은 문구·입력 보기만 채운다.
+- 조립 뒤 lint 와 초안 점검(질문칩 방향, 배너 첫 문장, 경고 치환의 통증 언급, "해당없음" 보기, tap 쏠림, 복구 주차)에
+  걸린 주차만 오류 메시지와 함께 다시 쓰게 한다(`--rounds`, 기본 3).
+- 남은 문제는 review.md 에 적힌다. 8주 팩 기준 LLM 호출 3~5회, 2~4분.
+
 ## 현재 팩
 
 | id | 프로필 | 기간 | 트랙 | 비고 |

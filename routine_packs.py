@@ -386,6 +386,7 @@ ICONS = {"star", "flame", "cup", "cloud", "bowl", "run", "moon", "book", "headph
 _BLAME = re.compile(r"(실패|미달|놓친|놓쳤|결석|또\s*못|게으|벌칙|낙오|포기했)")
 _EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿️]")
 _TODO = re.compile(r"\bTODO\b")
+TAP_SHARE_MAX = 0.6                     # 트랙별 tap 행동 비율 상한(권고). 기존 팩 25~50%
 _ANCHOR = re.compile(r"(anchor|when|time|언제|시각|시간대)")
 # medical 프로필 출처 화이트리스트(공신력 보건 기관)
 _MEDICAL_SOURCES = re.compile(r"(질병관리청|질병청|식품의약품안전처|식약처|국민건강보험공단|건강보험|"
@@ -492,6 +493,11 @@ def lint(p: Pack) -> List[Dict]:
         for w in p.weeks:
             if first.from_ <= w.w <= first.to and w.support_cap:
                 add("L8", f"weeks[{w.w}].support_cap", "정착기에는 보조 행동을 얹지 않는다(0)")
+    for t in p.track_ids:                             # P1 하고 "남기기" — 느낌·양·상황을 고르는 주차
+        taps = sum(w.actions[t].input.kind == "tap" for w in p.weeks)
+        if p.weeks and taps / len(p.weeks) > TAP_SHARE_MAX:
+            add("L8", f"weeks.*.actions.{t}.input",
+                f"P1 tap 비율 {taps}/{len(p.weeks)} — choice·scale 로 남길 거리를 권고", "warn")
     if len(p.phases) < 4:
         add("L8", "phases", "P3 단계 4개 권고(정착→확장→내재화→유지)", "warn")
     for t, qs in p.intake.items():                   # P4 앵커링 — "언제 할지" 문항

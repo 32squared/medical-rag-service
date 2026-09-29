@@ -174,4 +174,5 @@ jobs:
             tests/test_metrics_routes.py \
             tests/test_routine_packs.py \
             tests/test_routine_packs_runtime.py \
+            tests/test_pack_draft.py \
             -v --tb=short -q
