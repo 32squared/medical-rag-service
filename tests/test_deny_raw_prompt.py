@@ -169,3 +169,38 @@ def test_persly_safe_exception_covers_direct_question():
     assert "질문이 그 항목을 직접 물어도" in rule1
     assert "eGFR 은 값만" in rule1
     assert "크레아티닌처럼 예외가 아닌 수치" in rule1
+
+
+# 실측(dev rev 00061·00062): 검진 판정기준 KB(checkup_std_kr) 적재 뒤 PHR 공복혈당 답이 사용자 값을
+# 검진 판정으로 분류했다 — "118은 국가건강검진 판정기준으로 정상B(경계, 100~125)에 해당합니다"
+# (persly-safe 6/6, 적재 전 1/5). 합성 PHR 에 판정 문구는 없다. 범주 금지 바로 다음 줄에 판정 구분을
+# 짚는다. default 규칙 9 L1 은 값을 기준 범위에 넣는 것을 허용하므로 persly-safe 만 바꾼다.
+
+def test_persly_safe_checkup_band_follows_category_ban():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    head = "어떤 단계·범주에 속하는지는 첫 문장을 포함해 어디에도 쓰지 않습니다."
+    band = "검토 자료에 검진 판정 구분(정상A·정상B·경계·질환의심)이 있어도 사용자의 값에 붙이지 않고"
+    a, b = rule1.index(head), rule1.index(band)
+    assert rule1[a + len(head):b].strip() == ""
+    assert "판정은 기록에 적힌 문구만 옮깁니다" in rule1
+    assert "(검진 판정 구분 포함)" in _persly_ban_section(p)
+
+
+# 실측(dev rev 00063): 판정 구분 줄만으로는 "118은 참고범위 100 미만과 비교해 경계 범위(100~125)에
+# 해당합니다"가 남았다(persly-safe 공복혈당 3/8). eGFR 때처럼 예를 붙인다 — 측정 질문(공복혈당)에
+# 맞추지 않으려고 혈압으로 쓴다.
+
+def test_persly_safe_checkup_band_has_example():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    ex = rule1[rule1.index("판정은 기록에 적힌 문구만 옮깁니다"):]
+    assert "보다 높다고까지만" in ex and "경계 범위나 정상B 에 해당한다고 쓰지 않습니다" in ex
+    assert "공복혈당" not in ex.split("2.")[0]
+
+
+def test_default_keeps_l1_band_placement():
+    """default 규칙 9 L1 은 "…기준 범위이며 이번 수치가 여기에 해당합니다"를 허용한다 — 건드리지 않는다."""
+    p = B("q", [], personal_kind="raw")
+    assert "이번 수치가 여기에 해당합니다" in p
+    assert "검진 판정 구분" not in p
