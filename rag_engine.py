@@ -2165,7 +2165,8 @@ import re as _re_fp
 # 오인하면 수치를 인용한 L1 문장이 전부 KEEP 강제돼 오탐 규칙이 적용되지 않는다(rev 00053 실측).
 _FP_DOSAGE_RE = _re_fp.compile(
     r"(?:\d+\s*(?:mg|밀리그램|마이크로그램|IU|cc|㏄|ml|㎖|정|알|캡슐|포)(?!\s*/\s*(?:d[lL]|[lL]|m[lL]))|"
-    r"하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)"
+    # '하루 0회'(끊기·줄이기 목표)는 용량이 아니다 — "단순당 섭취를 하루 0회로 줄여 보세요"
+    r"하루\s*(?!0\s*(?:번|회))\d+\s*(?:번|회)|\d+\s*시간마다)"
 )
 # (g) 빈도만 있는 표현("하루 3회", "8시간마다")은 약물 맥락에서만 용법이다.
 #     "중립자세 연습을 1회 5분, 하루 3회"처럼 비약물 행동에도 그대로 쓰이므로
@@ -2186,16 +2187,131 @@ _FP_RISK_WORDS = (
     "위험", "확률", "가능성", "사망", "발생률", "성공률", "생존율", "%", "퍼센트",
 )
 # (h) 매칭이 든 '문장'만 떼어 보기 위한 분리기 — context(±30자)는 앞뒤 문장을 물고 온다.
-_FP_SENT_SPLIT_RE = _re_fp.compile(r"[.!?。\n]+")
+#     ';' 도 경계로 본다 — "음주는 가능하면 중단하세요; 남은 처방약은 임의로 복용하지 마세요"가
+#     한 문장으로 읽혀 뒤 절의 '처방약'이 앞 절 명령형을 복약 지시로 만들었다(rev 00062 차단 실측).
+_FP_SENT_SPLIT_RE = _re_fp.compile(r"[.!?。;；\n]+")
 _FP_DRUG_TOKEN = (
     "약", "정", "캡슐", "복용", "투여", "처방", "제제", "성분", "mg", "밀리그램",
     # 약물명을 어휘로 다 담을 수는 없으므로 '용량/투약/주사'처럼 약물을 전제하는
     # 명사도 약물 토큰으로 본다 — "메트포르민 용량을 올리세요"가 여기서 걸린다.
     "용량", "복용량", "투약", "주사", "알약", "물약", "시럽", "연고", "패치",
 )
+# (k) 한 글자 약물 토큰('약'·'정')은 흔한 비약물 낱말 안에도 있다 — "식사 기록을 요약해",
+#     "채혈 일정", "정상 범위", "혈압 측정". 그대로 두면 거의 모든 답변이 약물 문맥으로 읽혀
+#     빈도 표현("하루 1회")이 처방 용법으로 KEEP 강제된다('전반' 질문 CRITICAL prescription
+#     차단 — rev 00055·00058·00059 실측, 원답 재분석으로 확인). 아는 비약물 낱말만 지우고 본다 —
+#     "아스피린정"·"혈압약" 같은 실제 약물 표현은 그대로 남는다.
+_FP_NON_DRUG_WORDS = (
+    "요약", "예약", "절약", "약간", "약속", "계약", "약하", "약해", "약한",
+    "정상", "측정", "일정", "결정", "조정", "적정", "안정", "정도", "정보", "정기", "정리",
+    "정확", "설정", "지정", "인정", "가정", "과정", "규정", "수정", "추정", "판정", "확정",
+    "정해", "정하", "정신", "감정", "걱정",
+)
+# 빈도 표현이 검사와 같이 나오면 검사 지시일 수 있다 — 공용 analyzer 가 검사 지시를 따로 잡지
+# 못하므로("금식 후 채혈 일정을 잡으세요" 미탐) 이 문맥의 빈도 매칭은 풀지 않는다.
+_FP_TEST_TOKEN = ("채혈", "검사", "촬영", "내시경", "초음파", "재검", "금식 후")
+# (i) 보강 — 이미 받은 진단을 묻거나 가리키는 말은 진단 단정이 아니다. 예: 되묻기
+#     "현재 진단받은 질환…, 최근 지질검사 결과…가 있으신가요?"(rev 00059 CRITICAL 차단 실측).
+_FP_DX_HISTORY = (
+    "진단받은", "진단받으신", "진단받았", "진단을 받은", "진단을 받으신", "진단 여부", "진단명",
+    "진단 이력",
+)
 
 
-def _filter_guardrail_false_positives(violations_dicts):
+# '시럽'은 간식·음료 목록에서는 음식이다 — "단순당(탄산음료·주스·시럽·과자) 섭취를 줄여 보세요"
+# (rev 00060 CRITICAL prescription 차단 실측). 음식 낱말이 같이 있을 때만 약물 토큰에서 뺀다.
+_FP_FOOD_WORDS = ("탄산음료", "음료", "주스", "과자", "단순당", "설탕", "사탕", "간식", "디저트")
+# (g) 빈도 표현이 약물 용법인지는 그 빈도가 든 문장으로 본다 — 문맥 창(±30자)은 다음 항목까지
+#     물고 온다: "체중 변화를 하루 1회 같은 시간에 메모하세요 [1].\n- 약 확인: 남아 있는 처방약을…"
+#     의 '약'이 기록 지시를 용법으로 만들었다(rev 00064 CRITICAL prescription 차단 실측).
+#     같은 줄의 바로 앞 문장은 함께 본다 — 약물 이름이 앞 문장에 있을 수 있다
+#     ("혈압약은 아침에 드세요. 하루 1회입니다"). 다른 줄(목록의 다른 항목)은 보지 않는다.
+#     빈도 문장의 동사가 복용 동사면 약물 이름이 다른 줄(절 제목 등)에 있어도 용법으로 본다 —
+#     "**복용 안내**\n- 하루 2회 식후에 드세요".
+_FP_DOSING_VERB = (
+    "드세요", "드십시오", "드시", "드실", "먹", "복용", "복약", "투여", "투약",
+    "바르", "발라", "붙이", "붙여", "흡입", "맞으", "사용",
+)
+# 줄 안의 문장 경계 — '1.3' 같은 소수점은 경계가 아니다.
+_FP_FREQ_SENT_BOUNDARY_RE = _re_fp.compile(r"(?:(?<!\d)\.|\.(?!\d)|[!?。;；])+")
+# 부피 단위(ml·cc)는 마실 것의 양일 수 있다 — "물을 식전 200ml씩 하루 4회 마십니다"
+# (rev 00065 CRITICAL prescription 차단 실측). 그 문장에 마실 것 낱말이 있고 약물 토큰이
+# 없으면 용량으로 보지 않는다('물약'·'시럽'은 약물 토큰이라 그대로 용량).
+_FP_VOLUME_DOSE_RE = _re_fp.compile(r"\d+\s*(?:cc|㏄|ml|㎖)$")
+_FP_DRINK_WORDS = ("물", "수분", "음료", "우유", "주스")
+# (l) 진단 낱말이 '의료진이 판단한다'는 위임 문장의 주어 — "단, 확진은 의료진이 병력·진찰로
+#     판단합니다"(rev 00065 CRITICAL diagnosis 차단 실측). 진단을 하지 않겠다는 문장이다.
+_FP_DX_DEFER_RE = _re_fp.compile(r"\s*(?:여부)?\s*(?:은|는|이|가)?\s*의료진")
+
+
+def _fp_sentence_scope(ctx: str, pos: int) -> tuple:
+    """(pos 가 든 문장, 그 문장에 같은 줄의 바로 앞 문장을 더한 범위)."""
+    ls = ctx.rfind("\n", 0, pos) + 1
+    le = ctx.find("\n", pos)
+    line = ctx[ls:(len(ctx) if le < 0 else le)]
+    p = pos - ls
+    starts, end = [0], len(line)
+    for m in _FP_FREQ_SENT_BOUNDARY_RE.finditer(line):
+        if m.end() <= p:
+            starts.append(m.end())
+        elif m.start() >= p:
+            end = m.start()
+            break
+    return line[starts[-1]:end], line[starts[max(len(starts) - 2, 0)]:end]
+
+
+def _fp_freq_is_dosing(ctx: str, pos: int) -> bool:
+    """ctx 의 pos 에 있는 빈도 표현이 약물 용법으로 읽히는지 — 그 문장이나 같은 줄 바로 앞
+    문장에 약물 토큰이 있거나, 그 문장의 동사가 복용 동사이고 문맥 어딘가에 약물 토큰이 있을 때."""
+    sent, scope = _fp_sentence_scope(ctx, pos)
+    if _fp_has_drug(scope):
+        return True
+    return any(w in sent for w in _FP_DOSING_VERB) and _fp_has_drug(ctx)
+
+
+def _fp_is_drink_volume(ctx: str, m) -> bool:
+    """용량 매칭 m 이 마실 것의 부피인지 — 부피 단위이고, 그 문장에 마실 것 낱말이 있고 약물 토큰이 없다."""
+    if not _FP_VOLUME_DOSE_RE.search(m.group(0).strip()):
+        return False
+    sent = _fp_sentence_scope(ctx, m.start())[0]
+    return any(w in sent for w in _FP_DRINK_WORDS) and not _fp_has_drug(sent)
+
+
+def _fp_complete_edges(ctx: str, full_text: str) -> str:
+    """analyzer 문맥(매칭 ±30자, '...' 로 감쌈)의 양 끝에서 잘린 어절을 원문으로 복원한다.
+
+    창이 낱말 가운데를 자르면 '식사 조정 4주'가 '...정 4주'가 되어 '정'이 약물 토큰으로 읽혔다
+    (rev 00062 CRITICAL prescription 차단 실측). 창 끝 어절을 버리면 '...린정'(아스피린정) 같은
+    실제 약물명도 잃으므로, 버리지 않고 원문에서 어절 경계까지 이어 붙인다. 원문에서 찾지 못하면
+    그대로 둔다.
+    """
+    core = ctx[3:] if ctx.startswith("...") else ctx
+    core = core[:-3] if core.endswith("...") else core
+    i = full_text.find(core) if core else -1
+    if i < 0:
+        return ctx
+    j = i + len(core)
+    # 창 끝이 공백이면 어절을 자른 게 아니다 — 앞 어절까지 끌어오지 않는다
+    # ("... 단정하지 않고"가 "정상/이상처럼 단정하지 않고"가 되어 '이상'이 단정 표지로 읽혔다).
+    if not core[0].isspace():
+        while i > 0 and not full_text[i - 1].isspace():
+            i -= 1
+    if not core[-1].isspace():
+        while j < len(full_text) and not full_text[j].isspace():
+            j += 1
+    return full_text[i:j]
+
+
+def _fp_has_drug(text: str) -> bool:
+    """약물 토큰이 있는지 — (k) 비약물 낱말을 지운 뒤 본다."""
+    for w in _FP_NON_DRUG_WORDS:
+        text = text.replace(w, "")
+    if any(f in text for f in _FP_FOOD_WORDS):
+        text = text.replace("시럽", "")
+    return any(d in text for d in _FP_DRUG_TOKEN)
+
+
+def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
     """RAG 답변 가드레일 오탐 필터. (kept, dropped) 반환.
 
     analyzer/violation_rules 미변경 — RAG 후처리에서만 동작.
@@ -2207,18 +2323,22 @@ def _filter_guardrail_false_positives(violations_dicts):
       (e) 되묻는 질문('…어떻게 되시나요?') 안의 지시형 매칭
       (f) 매칭 문구 '안'에서 행위가 부정됨('처방약을 임의로 복용하지 마세요')
     단, 구체적 용량(mg/정/캡슐)이 있으면 (실제 처방) 무조건 보존.
-    (g) 빈도만 있는 표현(하루 N회)은 약물 토큰이 함께 있을 때만 보존한다 —
-        "중립자세 연습을 하루 3회"는 용법이 아니다.
+    full_text 가 있으면 문맥 양 끝에서 잘린 어절을 원문으로 복원한 뒤 본다(_fp_complete_edges).
+    (g) 빈도만 있는 표현(하루 N회)은 그 문장에 약물 토큰이 있거나 그 문장의 동사가 복용
+        동사일 때만 보존한다 — "중립자세 연습을 하루 3회"는 용법이 아니고, 다음 항목의
+        "약 확인"이 앞 항목의 "체중을 하루 1회 메모하세요"를 용법으로 만들지 않는다.
     (h) prescription 은 한 문장 안에 '약물'과 '상담 권유가 아닌 명령형'이 함께
         있어야 복약 지시다. 셋 중 하나라도 없으면 지시가 아니다:
           "진통제 잦은 복용이 통증 역치를 흔듭니다"      → 명령형 없음(인과 설명)
           "진통제 사용 계획을 다음 진료에서 논의해 보세요" → 상담 권유
           "음주는 중단하세요"                            → 약물 아님
         용량이 있으면 위에서 이미 KEEP 되므로 여기 오지 않는다.
-    (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 문맥에 진단 단정 표지가 없고
+    (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 키워드가 든 문장에 진단 단정 표지가 없고
         키워드 바로 뒤(15자)에 단정 어미가 없으면 제거. "검사 결과 암입니다"는 보존.
     (j) 공용 risk_probability 예시가 '/'로 쪼개져 생긴 단독 매칭어('높습니다') — 문맥에
         위험·확률·가능성 주어가 없으면 제거. "치매 진행 위험이 매우 높습니다"는 보존.
+    (l) diagnosis 매칭어가 '…은 의료진이' 위임 문장의 주어면 제거 — "확진은 의료진이 판단합니다".
+    용량 KEEP 에서 마실 것의 부피("물을 식전 200ml씩")는 용량으로 보지 않는다.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2227,15 +2347,19 @@ def _filter_guardrail_false_positives(violations_dicts):
     kept, dropped = [], []
     for v in violations_dicts:
         ctx = v.get("context") or ""
+        if full_text:
+            ctx = _fp_complete_edges(ctx, full_text)
         mt = v.get("matched_text") or ""
         rid = v.get("rule_id") or ""
         # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존.
-        # (g) 다만 빈도만 있는 매칭(하루 N회)은 약물 토큰이 함께 있을 때만 —
-        #     없으면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을 받게 둔다.
-        _dose = _FP_DOSAGE_RE.search(ctx)
-        if _dose:
-            _freq_only = (_FP_FREQ_ONLY_RE.fullmatch(_dose.group(0).strip()) is not None)
-            if not _freq_only or any(d in ctx for d in _FP_DRUG_TOKEN):
+        # (g) 다만 빈도만 있는 매칭(하루 N회)은 그 문장이 약물 용법일 때(_fp_freq_is_dosing)나
+        #     문맥에 검사 토큰이 있을 때만 — 아니면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을
+        #     받게 둔다. 용량(mg·정…)은 문맥 어디에 있든 보존한다 — 마실 것의 부피("물을 200ml씩")는 빼고.
+        _doses = [m for m in _FP_DOSAGE_RE.finditer(ctx) if not _fp_is_drink_volume(ctx, m)]
+        if _doses:
+            if (any(not _FP_FREQ_ONLY_RE.fullmatch(m.group(0).strip()) for m in _doses)
+                    or any(_fp_freq_is_dosing(ctx, m.start()) for m in _doses)
+                    or any(t in ctx for t in _FP_TEST_TOKEN)):
                 kept.append(v)
                 continue
         is_fp = False
@@ -2247,11 +2371,13 @@ def _filter_guardrail_false_positives(violations_dicts):
             after = ctx.split(mt, 1)[1][:8]
             if any(neg in after for neg in _FP_DIRECT_NEG):
                 is_fp = True
-        # (g) 매칭이 '빈도 표현 그 자체'인데 문맥에 약물 토큰이 없다 — 용법이 아니다.
+        # (g) 매칭이 '빈도 표현 그 자체'인데 그 문장이 약물 용법이 아니다.
         #     예: "중립자세 연습을 1회 5분, 하루 3회 해보세요" 의 «하루 3회».
-        #     약·복용·mg 등이 문맥에 하나도 없으면 복약 지시로 읽힐 수 없다.
+        #     약·복용·mg 등이 그 문장에 없고 복용 동사도 없으면 복약 지시로 읽힐 수 없다.
         if not is_fp and mt and _FP_FREQ_ONLY_RE.fullmatch(mt.strip()):
-            if not any(d in ctx for d in _FP_DRUG_TOKEN):
+            _pos = ctx.find(mt)
+            _dosing = _fp_freq_is_dosing(ctx, _pos) if _pos >= 0 else _fp_has_drug(ctx)
+            if not _dosing and not any(t in ctx for t in _FP_TEST_TOKEN):
                 is_fp = True
         # (f) 매칭 문구 '안'에서 행위가 부정된 경우 — 금지 경고문은 지시가 아니다.
         #     예: "남은 처방약을 임의로 복용하지 마세요"
@@ -2284,7 +2410,7 @@ def _filter_guardrail_false_positives(violations_dicts):
                 if mt[:12] in _frag or (mt in _frag):
                     _sent = _frag
                     break
-            _has_drug = any(d in _sent for d in _FP_DRUG_TOKEN)
+            _has_drug = _fp_has_drug(_sent)
             _bare = _sent
             for _ci in _FP_CONSULT_IMPERATIVE:      # 진료·상담 권유는 처방 지시가 아니다
                 _bare = _bare.replace(_ci, "")
@@ -2294,12 +2420,21 @@ def _filter_guardrail_false_positives(violations_dicts):
         # (i) 공용 diagnosis 키워드 단독 매칭 — 진단 단정이 붙지 않은 일반 명사구는 오탐.
         #     예: "이전 검사 결과 유무…는 해석에 참고가 됩니다" / "반복 검사 결과·동반 소견을
         #     함께 보고 의료진이 판단하도록". 단정 표지나 바로 뒤 단정 어미가 있으면 보존.
+        #     단정 표지는 키워드가 든 문장에서만 본다 — 다음 문장 "어떤 추가 평가가 필요한지는
+        #     의료진과…"의 '필요'가 앞 문장의 '검사 결과'를 단정으로 만들었다(rev 00065 실측).
         if (not is_fp and rid == "diagnosis" and mt.strip() in _FP_BARE_DX_KEYWORDS
                 and mt in ctx):
             _after_kw = ctx.split(mt, 1)[1][:15]
-            if (not any(a in ctx for a in _FP_DX_ASSERT)
+            _ctx_dx = _fp_sentence_scope(ctx, ctx.find(mt))[0]
+            for _h in _FP_DX_HISTORY:          # 이미 받은 진단을 가리키는 말은 단정이 아니다
+                _ctx_dx = _ctx_dx.replace(_h, "")
+            if (not any(a in _ctx_dx for a in _FP_DX_ASSERT)
                     and not any(e in _after_kw for e in _FP_ASSERT_END)):
                 is_fp = True
+        # (l) 진단 낱말이 '의료진이 판단'하는 위임 문장의 주어 — "확진은 의료진이 병력·진찰로 판단합니다".
+        if (not is_fp and rid == "diagnosis" and mt and mt in ctx
+                and _FP_DX_DEFER_RE.match(ctx.split(mt, 1)[1])):
+            is_fp = True
         # (j) risk_probability 단독 매칭어('높습니다') — 값 비교·일반 양상 문장은 위험도 제시가 아니다.
         #     예: "참고범위 200 mg/dL 이하보다 높습니다", "전형적으로 중성지방이 높습니다".
         if (not is_fp and rid == "risk_probability" and mt.strip() in _FP_BARE_RISK_PHRASES
@@ -2374,7 +2509,7 @@ def _guardrail_violations(text: str, query: str) -> tuple:
         "matched_text": v.matched_text,
         "context": getattr(v, "context", "") or "",
     } for v in violations]
-    return _filter_guardrail_false_positives(dicts)
+    return _filter_guardrail_false_positives(dicts, full_text=text)
 
 
 def _unsafe_rule_ids(text: str, query: str) -> list:
