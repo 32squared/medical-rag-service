@@ -43,6 +43,8 @@ function ProgramStrip({ weeks, current, total, onOpen }) {
 }
 
 // ── 오늘의 행동 카드(히어로 · 캔디 시스템) ───────────────────────
+const DONE_LINE = '기록했어요. 내일 같은 시각에 이어가요.';
+
 function TodayCard({ t, week, busy, onDone, onChoice, onSkip, onNA }) {
   if (!t) return null;
   const done = t.status === 'done';
@@ -57,7 +59,7 @@ function TodayCard({ t, week, busy, onDone, onChoice, onSkip, onNA }) {
     <div class=${'fl-hero' + (done ? ' fl-hero-done' : '')}>
       <span class="fl-herostar" aria-hidden="true" dangerouslySetInnerHTML=${{ __html: ICON.star('#FFF3D6', 52) }}></span>
       <div class="fl-herotop">
-        <span class="fl-pill fl-pill-cream">${done ? '오늘 완료' : `${t.minutes || 1}분`}</span>
+        <span class="fl-pill fl-pill-cream">${done ? '오늘 완료' : (t.meta || `${t.minutes || 1}분`)}</span>
         ${week ? html`<span class="fl-pill fl-pill-glass">${week}주차</span>` : null}
       </div>
       <div class="fl-herotext jua">${t.text}</div>
@@ -65,7 +67,7 @@ function TodayCard({ t, week, busy, onDone, onChoice, onSkip, onNA }) {
 
       ${done ? html`<div class="fl-herodone" key="donerow">
           <span class="fl-okmark" dangerouslySetInnerHTML=${{ __html: ICON.check('#FFFFFF', 14) }}></span>
-          <span>${t.value ? `기록됨 · ${t.value}` : '기록했어요. 내일 같은 시각에 이어가요.'}</span>
+          <span>${t.value ? `기록됨 · ${t.value}` : (t.coach || DONE_LINE)}</span>
         </div>`
       : rest ? html`<div class="fl-herodone" key="restrow"><span>오늘은 쉬어감</span></div>`
       : na ? html`<div class="fl-herodone" key="narow"><span>오늘은 해당 없는 날</span></div>`
@@ -81,7 +83,7 @@ function TodayCard({ t, week, busy, onDone, onChoice, onSkip, onNA }) {
           <button class="fl-btn-cream" disabled=${busy} onClick=${onSkip}>못했어요</button>
         </div>`}
 
-      ${(done || rest || na || isChoice) ? null : html`<div class="fl-herosub" key="sub">
+      ${(done || rest || na) ? null : html`<div class="fl-herosub" key="sub">
         <button class="linkbtn" disabled=${busy} onClick=${onNA}>오늘은 해당없음</button>
       </div>`}
     </div>
@@ -92,7 +94,7 @@ export function TodayTab({ go, onAsk, onStart }) {
   const L = useLoader(() => GET('/routine/today'), []);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  const [justDone, setJustDone] = useState(false);
+  const [justDone, setJustDone] = useState('');     // 완료 직후 코치 한 줄(없으면 '')
   const sending = useRef(false);           // stale closure 에 안전한 중복 전송 가드
   const race = useLatest();
 
@@ -169,8 +171,8 @@ export function TodayTab({ go, onAsk, onStart }) {
       const body = r.data || {};
       if (body.accepted === false) { setMsg(String(body.message || '기록하지 못했어요.')); return; }
       if (status === 'done') {
-        setJustDone(true);
-        setTimeout(() => { if (race.alive()) setJustDone(false); }, 1600);
+        setJustDone(String(body.coach_line || DONE_LINE));
+        setTimeout(() => { if (race.alive()) setJustDone(''); }, 2400);
       }
       await L.reload();
     } catch {
@@ -204,7 +206,7 @@ export function TodayTab({ go, onAsk, onStart }) {
         onSkip=${() => send('skip')}
         onNA=${() => send('na')} />
 
-      ${justDone ? html`<div class="fl-toast" key="toast">기록했어요. 내일 같은 시각에 이어가요.</div>` : null}
+      ${justDone ? html`<div class="fl-toast" key="toast">${justDone}</div>` : null}
       ${msg ? html`<div class="err" key="msg">${msg}</div>` : null}
 
       ${funBlocks}

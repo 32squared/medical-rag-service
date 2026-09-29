@@ -174,6 +174,7 @@ export function normToday(raw) {
       id: str(r.today.id || r.today.action_id),
       text: str(r.today.text), cite: str(r.today.cite),
       minutes: num(r.today.minutes, 1),
+      meta: str(r.today.meta), coach: str(r.today.coach),     // 팩 선택 필드(없으면 '')
       input: (r.today.input && typeof r.today.input === 'object')
         ? { kind: str(r.today.input.kind, 'tap'), options: arr(r.today.input.options) }
         : { kind: 'tap', options: [] },

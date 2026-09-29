@@ -98,6 +98,8 @@ class Action(_M):
     cite: str                           # sources[].key
     minutes: int = Field(ge=1, le=60)
     input: Input
+    meta: str = ""                      # 메타 캡션(소요·입력, 27 §0-4) — 없으면 화면이 "N분"
+    coach: str = ""                     # 완료 직후 코치 한 줄(27 §2) — 없으면 화면 기본 문구
 
 
 class Week(_M):
@@ -110,6 +112,7 @@ class Week(_M):
     actions: Dict[str, Action]
     ask_chips: List[str] = []
     warning_actions: Dict[str, Action] = {}   # 경고 밴드 치환(27 §2-5), 없으면 원행동
+    warning_mission: str = ""                 # 경고 밴드 주간 미션(27 §2-5), 없으면 mission
 
 
 class SupportItem(_M):
@@ -387,7 +390,7 @@ def json_schema() -> Dict:
 BUDGET = {
     "name": 20, "tagline": 30, "track.name": 12, "track.desc": 40, "phase.name": 8,
     "phase.desc": 30, "theme": 20, "mission": 40, "unlock": 20, "action": 30,
-    "option": 12, "chip": 24, "intake.q": 24, "intake.why": 20, "intake.option": 16,
+    "option": 12, "chip": 24, "meta": 20, "coach": 30, "intake.q": 24, "intake.why": 20, "intake.option": 16,
     "support": 30, "banner": 80,
 }
 # 아이콘 키(web/js/archetypes.js ICON 과 동기 — 테스트가 확인). 이모지 금지(design.md).
@@ -429,6 +432,7 @@ def _texts(p: Pack):
     for w in p.weeks:
         yield f"weeks[{w.w}].theme", w.theme, "theme"
         yield f"weeks[{w.w}].mission", w.mission, "mission"
+        yield f"weeks[{w.w}].warning_mission", w.warning_mission, "mission"
         if w.unlock:
             yield f"weeks[{w.w}].unlock", w.unlock, "unlock"
         for i, c in enumerate(w.ask_chips):
@@ -436,6 +440,8 @@ def _texts(p: Pack):
         for kind, acts in (("actions", w.actions), ("warning_actions", w.warning_actions)):
             for t, a in acts.items():
                 yield f"weeks[{w.w}].{kind}.{t}.text", a.text, "action"
+                yield f"weeks[{w.w}].{kind}.{t}.meta", a.meta, "meta"
+                yield f"weeks[{w.w}].{kind}.{t}.coach", a.coach, "coach"
                 for o in a.input.options:
                     yield f"weeks[{w.w}].{kind}.{t}.option", o, "option"
     for t, pool in p.support_pool.items():
