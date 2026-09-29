@@ -518,7 +518,8 @@ def _register_source() -> None:
 def seed_reference_ranges(dry_run: bool = False) -> Dict:
     """참조범위 → 구조화 테이블 + KB 문서 적재."""
     rows = build_reference_rows()
-    docs = build_reference_documents()
+    # 교차조합 근거 문서(ref.metabolic.kr)도 같이 적재 — 빌더만 있고 적재가 빠져 있었다
+    docs = build_reference_documents() + build_cross_reference_documents()
     summary = {"rows": len(rows), "documents": len(docs), "rows_inserted": 0, "ingested": 0}
     if dry_run:
         summary["dry_run"] = True
@@ -536,6 +537,7 @@ def seed_reference_ranges(dry_run: bool = False) -> Dict:
                 evidence_topic=d["evidence_topic"], regulatory_korea=d["regulatory_korea"],
                 topic_keywords=d["topic_keywords"], source_url=d.get("source_url", ""),
                 upsert=True, status="active",
+                match_url=False,  # 기관 대표 URL 공유 — 제목으로 식별(kb_ingest 참고)
             )
             summary["ingested"] += 1
         except Exception as e:

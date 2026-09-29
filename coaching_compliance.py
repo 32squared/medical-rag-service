@@ -34,6 +34,22 @@ _PRESCRIPTION = [
 _EFFICACY_RES = [re.compile(p) for p in _EFFICACY]
 _PRESCRIPTION_RES = [re.compile(p) for p in _PRESCRIPTION]
 
+# ── 루틴 팩 안전 프로필별 추가 금칙(28 §3-2) — 기본 규칙 위에 얹기만, 빼지 않는다 ──
+# 성과 보장: 기간·급수·스코어를 약속하는 표현(모든 프로필). "6개월이면 싱글", "N3 합격 보장"
+_OUTCOME = [
+    r"\d+\s*(개월|주|일)\s*(이면|만에|안에|후엔?)[가-힣\s]{0,12}(합격|싱글|언더파|마스터|달성|완성|유창)",
+    r"(합격|싱글|언더파|유창)[가-힣\s]{0,4}(보장|확실|책임)",
+]
+# 부상·통증 처방(physical): 통증이 있을 때 무엇을 하라고 지시 — 통증은 '쉬기·해당없음' 으로만
+_INJURY_RX = [
+    r"(통증|아프|아플|결리|저리)[가-힣\s]{0,10}(으면|면|때|경우)[가-힣\s,]{0,16}(하세요|드세요|바르세요|붙이세요|늘리세요|푸세요)",
+]
+_PROFILE_EXTRA = {
+    "medical": [],
+    "physical": [re.compile(p) for p in _OUTCOME + _INJURY_RX],
+    "neutral": [re.compile(p) for p in _OUTCOME],
+}
+
 
 def scan_efficacy(text: str) -> List[str]:
     """WC-C1 — 효능표방 패턴 매치 목록(없으면 빈 리스트)."""
@@ -51,14 +67,26 @@ def scan_prescription(text: str) -> List[str]:
     return [m.group(0) for r in _PRESCRIPTION_RES for m in r.finditer(text)]
 
 
-def check_plan(plan_text: str, band: str = None) -> Dict:
+def scan_profile(text: str, profile: str = "medical") -> List[str]:
+    """루틴 팩 안전 프로필의 추가 금칙(성과 보장·부상 처방) 매치 목록."""
+    if not text:
+        return []
+    return [m.group(0) for r in _PROFILE_EXTRA.get(profile, []) for m in r.finditer(text)]
+
+
+def check_plan(plan_text: str, band: str = None, profile: str = "medical") -> Dict:
     """플랜 텍스트 안전 검증.
 
+    profile: 루틴 팩 안전 프로필(medical|physical|neutral). 기본 규칙(WC-C1·C2)은
+             모든 프로필에 적용되고, 프로필은 금칙을 **추가**만 한다.
     Returns: {ok, action, violations}
-      action: 'pass' | 'blocked'(효능표방) | 'softened'(처방성) | 'band_capped'(경고밴드 강플랜)
+      action: 'pass' | 'blocked'(효능표방·성과보장) | 'softened'(처방성·부상처방) | 'band_capped'
     """
     eff = scan_efficacy(plan_text)
     rx = scan_prescription(plan_text)
+    extra = scan_profile(plan_text, profile)
+    if extra:
+        return {"ok": False, "action": "blocked", "violations": extra}
     if eff:
         return {"ok": False, "action": "blocked", "violations": eff}      # WC-C1
     if rx:

@@ -14,52 +14,25 @@ from typing import Dict, List, Optional
 
 import coaching_compliance as _cc
 
-# ── 문진 (§4-A, 한 번에 한 문항·버튼) ──────────────────────────────
+# ── 문진·코칭 KB — 정본은 루틴 팩 health_12w(routines/packs/health_12w/v1.json) ──
+# 28 루틴 팩 플랫폼 이후 내용은 팩 파일 한 곳에만 있다. 이 모듈은 레거시 /coaching/* 용
+# 형태(문항 옵션 = 문자열 목록, KB 항목 = key/text/cite/tag)로 펼쳐 보여줄 뿐이다.
+# 공신력 일반 생활수칙만. 효능·치료·용량 표현 금지(WC-C5 화이트리스트) — 팩 lint 가 강제.
+# 레거시 API 는 v1 에 고정한다(웹은 /routine 만 쓰고, 새 루틴은 팩 최신 버전을 쓴다).
+import routine_engine as _re
+import routine_packs as _rp
+
+_HEALTH = _rp.get(_rp.DEFAULT_PACK_ID, 1)
+
 INTAKE_QUESTIONS: Dict[str, List[Dict]] = {
-    "diet": [
-        {"id": "eatout", "q": "평소 외식·배달 빈도는?", "options": ["거의 매일", "주 2~3회", "드뭄"]},
-        {"id": "salty", "q": "짠 음식·국물 선호도는?", "options": ["강함", "보통", "약함"]},
-        {"id": "period", "q": "목표 기간은?", "options": ["2주", "1개월", "3개월+"]},
-    ],
-    "exercise": [
-        {"id": "now", "q": "지금 운동 습관은?", "options": ["거의 안 함", "가끔", "주 3회+"]},
-        {"id": "activity", "q": "주로 가능한 활동은?", "options": ["걷기", "홈트", "헬스·유산소"]},
-        {"id": "goal", "q": "목표는?", "options": ["활동량 늘리기", "체중", "체력"]},
-    ],
-    "habit": [
-        {"id": "focus", "q": "가장 개선하고 싶은 것은?", "options": ["수면", "스트레스", "금연·절주"]},
-        {"id": "reg", "q": "요즘 생활 리듬은?", "options": ["불규칙", "보통", "규칙적"]},
-        {"id": "period", "q": "목표 기간은?", "options": ["2주", "1개월"]},
-    ],
+    t: [{"id": q.id, "q": q.q, "options": [o.label for o in q.options]} for q in qs]
+    for t, qs in _HEALTH.intake.items()
 }
 
-# ── 코칭 KB — 공신력 일반 생활수칙만. 효능·치료·용량 표현 금지(WC-C5 화이트리스트). ──
 KB: Dict[str, List[Dict]] = {
-    "diet": [
-        {"key": "soup_half", "text": "국물은 절반만 남기기", "cite": "식약처 나트륨 저감", "tag": "외식"},
-        {"key": "ramen_weekly", "text": "라면·면류는 주 1회로 줄이기", "cite": "보건소 영양관리", "tag": "외식"},
-        {"key": "processed_down", "text": "가공식품·국물요리 줄이기", "cite": "식약처 나트륨 저감", "tag": "외식"},
-        {"key": "sauce_dip", "text": "간장·소스는 찍어 먹기", "cite": "식약처 나트륨 저감", "tag": "짠맛"},
-        {"key": "taste_light", "text": "간을 평소보다 싱겁게 하기", "cite": "보건소 영양관리", "tag": "짠맛"},
-        {"key": "water_more", "text": "국물 대신 물을 충분히 마시기", "cite": "보건소 영양관리", "tag": "짠맛"},
-        {"key": "veggie_add", "text": "끼니마다 채소 한 접시 더하기", "cite": "보건소 영양관리", "tag": "균형"},
-    ],
-    "exercise": [
-        {"key": "walk_more", "text": "하루 10분 더 걷기부터 시작", "cite": "WHO 신체활동 지침", "tag": "시작"},
-        {"key": "stairs", "text": "엘리베이터 대신 계단 이용", "cite": "국민체육진흥 일반지침", "tag": "일상"},
-        {"key": "move_break", "text": "한 시간에 한 번 일어나 움직이기", "cite": "WHO 신체활동 지침", "tag": "좌식"},
-        {"key": "walk_3x", "text": "주 3회 가벼운 걷기(20~30분)", "cite": "WHO 신체활동 지침", "tag": "유산소"},
-        {"key": "stretch", "text": "자기 전 가벼운 스트레칭", "cite": "국민체육진흥 일반지침", "tag": "유연"},
-    ],
-    "habit": [
-        {"key": "sleep_fix", "text": "취침·기상 시간 일정하게 하기", "cite": "질병청 건강생활", "tag": "수면"},
-        {"key": "screen_off", "text": "자기 1시간 전 화면 줄이기", "cite": "질병청 건강생활", "tag": "수면"},
-        {"key": "caffeine", "text": "오후엔 카페인 줄이기", "cite": "보건소 영양관리", "tag": "수면"},
-        {"key": "breathe", "text": "하루 5분 천천히 호흡하기", "cite": "질병청 건강생활", "tag": "스트레스"},
-        {"key": "rest", "text": "짧은 휴식을 자주 갖기", "cite": "보건소 건강생활", "tag": "스트레스"},
-        {"key": "smoke_help", "text": "보건소 금연클리닉 상담 연계", "cite": "보건소 금연사업", "tag": "금연·절주"},
-        {"key": "drink_down", "text": "음주 횟수와 양 줄이기", "cite": "보건소 절주사업", "tag": "금연·절주"},
-    ],
+    t: [{"key": x.key, "text": x.text, "cite": _HEALTH.source_label(x.cite),
+         "tag": (x.tags[0] if x.tags else "")} for x in pool]
+    for t, pool in _HEALTH.support_pool.items()
 }
 _KB_BY_KEY = {t: {x["key"]: x for x in items} for t, items in KB.items()}
 
@@ -92,34 +65,8 @@ def supported_tracks() -> List[str]:
 
 
 def _select_keys(track: str, intake: Dict, band: Optional[str]) -> List[str]:
-    """문진·밴드 기준 KB 항목 선택(결정적). 경고밴드=2개로 캡(soft, WC-C3)."""
-    picks: List[str] = []
-    if track == "diet":
-        if intake.get("eatout") in ("거의 매일", "주 2~3회"):
-            picks += ["soup_half", "ramen_weekly", "processed_down"]
-        if intake.get("salty") in ("강함", "보통"):
-            picks += ["sauce_dip", "taste_light", "water_more"]
-        picks.append("veggie_add")
-        default = ["soup_half", "veggie_add"]
-    elif track == "exercise":
-        if intake.get("now") == "거의 안 함":
-            picks += ["walk_more", "stairs", "move_break"]
-        else:
-            picks += ["walk_3x", "stretch", "walk_more"]
-        picks.append("stretch")
-        default = ["walk_more", "stairs"]
-    else:  # habit
-        focus = intake.get("focus") or "수면"
-        picks += [x["key"] for x in KB["habit"] if x["tag"] == focus]
-        picks.append("breathe")
-        default = ["sleep_fix", "breathe"]
-
-    seen: set = set()
-    ordered = [k for k in picks if not (k in seen or seen.add(k))]
-    if not ordered:
-        ordered = default
-    cap = 2 if band == "경고" else 4
-    return ordered[:cap]
+    """문진·밴드 기준 KB 항목 선택(결정적) — 팩의 누적 규칙(support_rules)·풀 상한(경고=2)."""
+    return _re.plan_keys(track, intake, band, _HEALTH)
 
 
 def _header(track: str, intake: Dict, band: Optional[str]) -> str:

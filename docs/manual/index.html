@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이헬스케어 — 자료 허브</title>
+<style>
+:root{
+  --bg:#F6F4EF; --card:#FFFFFF; --ink:#23302C; --body:#44524D; --mut:#8A938F;
+  --teal:#0E8A6B; --tealdk:#0B5E48; --amber:#E0A23E; --line:rgba(35,48,44,.13);
+}
+@media (prefers-color-scheme: dark){
+:root{--bg:#141816;--card:#1E2421;--ink:#E8E6DF;--body:#B4BCB7;--mut:#7A837E;
+ --teal:#3DBE97;--tealdk:#9FE1CB;--line:rgba(232,230,223,.14)}
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+ font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.page{max-width:980px;margin:0 auto;padding:36px 22px 64px}
+header h1{font-size:26px;margin:0 0 6px}
+header p{font-size:13.5px;color:var(--mut);margin:0}
+.upd{font-size:12px;color:var(--mut)}
+section{margin:30px 0 0}
+section h2{font-size:16px;margin:0 0 4px;color:var(--teal)}
+section .sd{font-size:12.5px;color:var(--mut);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;
+ padding:14px 16px;text-decoration:none;color:inherit;transition:transform .08s, box-shadow .08s}
+a.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(20,40,32,.10);border-color:var(--teal)}
+.card .tag{display:inline-block;width:auto;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+ padding:2px 8px;border-radius:999px;margin-bottom:8px}
+.t-web{background:#0E8A6B;color:#fff}
+.t-html{background:#E7F2EE;color:#0B5E48}
+.t-pdf{background:#F7ECEA;color:#B5483B}
+.t-pptx{background:#FBF1DF;color:#8a5a10}
+.t-png{background:#EDEBFC;color:#4a41a8}
+.t-md{background:#EFEDE6;color:#5F5E5A}
+@media (prefers-color-scheme: dark){
+.t-html{background:#0B5E48;color:#CFE6DD}.t-pdf{background:#5a2620;color:#F0B9B2}
+.t-pptx{background:#5c3f10;color:#F5D9A8}.t-png{background:#37317a;color:#CFCBF5}
+.t-md{background:#3a3a36;color:#C9C7BD}}
+.card b{display:block;font-size:14.5px;margin:0 0 4px;line-height:1.35}
+.card span{font-size:12px;color:var(--body);line-height:1.5;display:block}
+.card em{font-style:normal;font-size:11px;color:var(--mut);display:block;margin-top:7px}
+.note{font-size:12px;color:var(--mut);background:var(--card);border:1px solid var(--line);
+ border-radius:10px;padding:9px 13px;margin:10px 0 0}
+footer{margin-top:44px;font-size:11.5px;color:var(--mut);border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+ <h1>마이헬스케어 — 자료 허브</h1>
+ <p>라이브 서비스 · 인터랙티브 시각화 · 설명 자료 · 기획 문서를 한 곳에서 엽니다.</p>
+ <p class="upd">기준: 2026-07-14 · 위치: docs/manual/index.html (로컬 파일 — 이 페이지를 즐겨찾기 하세요)</p>
+</header>
+
+<section>
+ <h2>라이브 서비스</h2>
+ <p class="sd">인터넷 연결 필요 · Cloud Run(dev) — 테스트용 합성 데이터, 실제 의료 자문 아님</p>
+ <div class="grid">
+  <a class="card" href="https://medical-rag-viewer-716262961556.asia-northeast3.run.app/hub" target="_blank" rel="noopener">
+   <span class="tag t-web">WEB</span><b>공개 허브 (외부 공유용)</b>
+   <span>"마이헬스케어 Phase 3 프로토타이핑" — 라이브 서비스와 인터랙티브 시각화만 담은 외부 공유 진입 페이지.</span>
+   <em>이 링크만 외부에 전달하면 됩니다</em></a>
+  <a class="card" href="https://medical-rag-viewer-716262961556.asia-northeast3.run.app/app" target="_blank" rel="noopener">
+   <span class="tag t-web">WEB</span><b>데모 앱 (Warm Light)</b>
+   <span>온보딩 → 페르소나 선택 → AI 채팅·선제 카드·웰니스 코칭·약국 찾기까지 전체 사용자 여정.</span>
+   <em>공개 · 질의 1건 = LLM 비용 발생</em></a>
+  <a class="card" href="https://medical-rag-viewer-716262961556.asia-northeast3.run.app/" target="_blank" rel="noopener">
+   <span class="tag t-web">WEB</span><b>개발 테스트 뷰어</b>
+   <span>페르소나 24종 미리보기·개인화 배지(🔐 주입 밴드)·생성 단계 표시 등 개발 하니스.</span>
+   <em>공개 · 내부 검증용 UI</em></a>
+  <a class="card" href="https://medical-rag-admin-716262961556.asia-northeast3.run.app/" target="_blank" rel="noopener">
+   <span class="tag t-web">WEB</span><b>운영 어드민 + KB 지식그래프</b>
+   <span>응답속도·토큰·비용·가드레일 통계와 <b style="display:inline;font-size:12px">"지식그래프" 탭</b> — 실제 DB의 출처·문서·주제 관계망(옵시디언식).</span>
+   <em>ADMIN_PASSWORD 로그인 필요</em></a>
+ </div>
+</section>
+
+<section>
+ <h2>인터랙티브 시각화 (로컬)</h2>
+ <p class="sd">더블클릭으로 열리는 독립 실행 HTML — 인터넷 불필요, 드래그·줌·클릭 상세</p>
+ <div class="grid">
+  <a class="card" href="./마이헬스케어-RAG-시스템그래프.html" target="_blank">
+   <span class="tag t-html">HTML</span><b>RAG 시스템 그래프</b>
+   <span>실제 코드 기준 구성요소 23개·데이터 흐름 26개 — 근거 게이트·가드레일·개인화 경계까지.</span>
+   <em>노드 클릭=설명 · 범례=계열 강조</em></a>
+  <a class="card" href="./마이헬스케어-KB-지식그래프.html" target="_blank">
+   <span class="tag t-html">HTML</span><b>KB 지식그래프 (정적 스냅샷)</b>
+   <span>질문 유형 7종 ↔ 출처 허브 9개 ↔ 문서군 — 적재/비어있음/적재계획(문서 25) 상태 표시.</span>
+   <em>라이브 버전은 위 어드민의 지식그래프 탭</em></a>
+ </div>
+</section>
+
+<section>
+ <h2>RAG 설명 자료</h2>
+ <p class="sd">비전공자용 — RAG가 무엇이고 왜 필요한지</p>
+ <div class="grid">
+  <a class="card" href="./마이헬스케어-RAG-쉬운설명.pptx">
+   <span class="tag t-pptx">PPTX</span><b>RAG 쉽게 이해하기 (슬라이드 10장)</b>
+   <span>도서관 사서 비유 → 2단계 흐름 → 안전장치 3가지 → 용어 풀이. 편집 가능한 파워포인트.</span>
+   <em>클릭 시 다운로드 후 PowerPoint로 열림</em></a>
+  <a class="card" href="./마이헬스케어-RAG-다이어그램.pdf" target="_blank">
+   <span class="tag t-pdf">PDF</span><b>RAG 작동 원리 다이어그램 (1장)</b>
+   <span>지식창고 만들기(①~③) → 실시간 응답(④~⑩) 전체 흐름 한 장 요약. 인쇄·공유용.</span>
+   <em>A4 세로 1페이지</em></a>
+ </div>
+</section>
+
+<section>
+ <h2>서비스 매뉴얼 · 안내서</h2>
+ <div class="grid">
+  <a class="card" href="./마이헬스케어-기능매뉴얼.pdf" target="_blank">
+   <span class="tag t-pdf">PDF</span><b>기능 매뉴얼 (16p)</b>
+   <span>해석엔진·주입 안전경계·RAG 파이프라인·이벤트/피드백·wraith 호환 API 전 기능 정리.</span></a>
+  <a class="card" href="./마이헬스케어-쉬운안내서.pdf" target="_blank">
+   <span class="tag t-pdf">PDF</span><b>쉬운 안내서 (4p)</b>
+   <span>서비스가 무엇을 하고 무엇을 하지 않는지 — 비전공자·경영진용 요약.</span></a>
+  <a class="card" href="./마이헬스케어-참고자료와진료과-쉬운안내.pdf" target="_blank">
+   <span class="tag t-pdf">PDF</span><b>참고자료·진료과 안내</b>
+   <span>답변의 근거 출처와 진료과 안내 방식 설명.</span></a>
+  <a class="card" href="./README.md" target="_blank">
+   <span class="tag t-md">MD</span><b>매뉴얼 목차 (README)</b>
+   <span>00 전체 기능 → 01~07 기능별 상세 마크다운 문서 인덱스. LAUNCH-READINESS 링크 포함.</span>
+   <em>브라우저에서는 원문 텍스트로 표시</em></a>
+ </div>
+</section>
+
+<section>
+ <h2>디자인 · 기획 산출물</h2>
+ <div class="grid">
+  <a class="card" href="./마이헬스케어-앱UX시안서.pdf" target="_blank">
+   <span class="tag t-pdf">PDF</span><b>앱 UX/UI 시안서 (18p)</b>
+   <span>화면 25종 고피델리티 목업 + 디자인 토큰 + IA/플로우 + 개발 핸드오프.</span></a>
+  <a class="card" href="./마이헬스케어-기획브리핑.png" target="_blank">
+   <span class="tag t-png">PNG</span><b>기획 브리핑 인포그래픽</b>
+   <span>전체 기획을 한 장으로 — 보고·공유용 이미지.</span></a>
+  <a class="card" href="./마이헬스케어-확정시안-AnticipatoryLight.png" target="_blank">
+   <span class="tag t-png">PNG</span><b>확정 디자인 기준 시안</b>
+   <span>Warm Light 컬러 + Anticipatory Canvas 방향의 확정 기준 화면.</span></a>
+  <a class="card" href="./마이헬스케어-확정시안-WarmLight전체.png" target="_blank">
+   <span class="tag t-png">PNG</span><b>확정 시안 전체 보드</b>
+   <span>주요 화면 전체를 모은 디자인 보드.</span></a>
+ </div>
+</section>
+
+<section>
+ <h2>핵심 기획 문서 (docs/plan)</h2>
+ <p class="sd">마크다운 원문 — 브라우저에서는 텍스트로 표시, 에디터로 열면 서식 렌더</p>
+ <div class="grid">
+  <a class="card" href="../plan/07-revised-plan.md" target="_blank">
+   <span class="tag t-md">MD</span><b>07 · 전체 계획 SSOT</b>
+   <span>비전-실행 재정렬 계획. 모든 우선순위 판단의 기준 문서.</span></a>
+  <a class="card" href="../plan/14-personalization-consolidated.md" target="_blank">
+   <span class="tag t-md">MD</span><b>14 · 개인화 통합 SSOT</b>
+   <span>불변식 I1~I12 · 활용 매트릭스 · 컴포넌트 24종 — 개인화 설계의 단일 기준.</span></a>
+  <a class="card" href="../plan/17-personal-signal-to-llm-compliance.md" target="_blank">
+   <span class="tag t-md">MD</span><b>17 · 개인신호→LLM 컴플라이언스</b>
+   <span>의료법 27조·민감정보·국외이전 6게이트 설계.</span></a>
+  <a class="card" href="../plan/18-wellness-coaching.md" target="_blank">
+   <span class="tag t-md">MD</span><b>18 · 웰니스 코칭 기획</b>
+   <span>라우터·핸드오프·3트랙·게이미피케이션·컴플라이언스 매트릭스.</span></a>
+  <a class="card" href="../plan/25-kb-source-shortlist.md" target="_blank">
+   <span class="tag t-md">MD</span><b>25 · KB 출처 숏리스트</b>
+   <span>후보 30 → canonical 14 → 채택 5(K1~K5) 정제 결과와 적재 규칙.</span></a>
+  <a class="card" href="../LAUNCH-READINESS.md" target="_blank">
+   <span class="tag t-md">MD</span><b>LAUNCH-READINESS 체크리스트</b>
+   <span>출시 차단 항목(법률 검토·동의 시스템·KB 의료진 검수)과 진행 상태.</span></a>
+ </div>
+ <p class="note">⚠️ 모든 데모·자료는 <b>출시 전 검토용 프로토타입</b> 기준입니다 — 합성 데이터이며 의료 자문이 아닙니다. 출시 전 필수 항목은 LAUNCH-READINESS 문서를 확인하세요.</p>
+</section>
+
+<footer>
+ 마이헬스케어 Phase 2 프로토타입 · 이 페이지는 로컬 전용(공개 배포 아님) · 재생성 빌더: docs/manual/build/
+</footer>
+</div>
+</body>
+</html>

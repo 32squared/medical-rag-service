@@ -69,3 +69,7 @@ package-lock.json
 
 # docs/manual/build 중간 PDF 산출물 (최종본은 docs/manual/ 레벨에 커밋)
 docs/manual/build/*.pdf
+.localdev/
+
+# 루틴 팩 LLM 초안(pack_draft.py) — 사람이 검수해 routines/packs 로 옮긴다
+routines/drafts/

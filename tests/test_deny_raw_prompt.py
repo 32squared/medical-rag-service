@@ -1,0 +1,206 @@
+# -*- coding: utf-8 -*-
+"""개인 구간 라벨 금지 항목(11 §2-B)이 raw 모드 프롬프트에서도 막히는지 고정.
+
+배경: deny 4종(LDL·eGFR·골밀도·요단백)은 band 모드에서만 막혀 있었다(시드가 없어 구조적으로).
+raw 모드는 PHR 원문을 그대로 주고 규칙 9-L1 이 "범위 안/밖을 사실로 말하라"고 해, 모델이
+LDL·eGFR 도 기준 구간에 넣을 수 있었다. 예외는 규칙 '안'(L1 과 L2 사이)에 심는다 — 프롬프트
+끝에 덧붙인 예외는 앞 원칙에 눌려 무력했다(PHR 활용 0/10 실측).
+금지 목록은 vital_rules.PERSONAL_BAND_DENY 한 곳에서 읽는다(온톨로지 연동 시 대체 자리).
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import vital_rules as V  # noqa: E402
+from rag_engine import _build_rag_system_prompt as B  # noqa: E402
+
+NAMES = list(V.PERSONAL_BAND_DENY.values())
+
+
+# ── 단일 원천 · band 게이트 ──────────────────────────────────
+
+def test_single_source_has_four_items():
+    assert set(V.PERSONAL_BAND_DENY) == {
+        "ldl_cholesterol", "egfr", "bmd_tscore", "urine_protein_dipstick"}
+
+
+def test_band_gate_denies_listed_items():
+    for key in V.PERSONAL_BAND_DENY:
+        r = V.lookup_band(key, 100)
+        assert r["match"] == "denied" and r["label_user"] is None, key
+
+
+def test_band_gate_still_bands_other_items():
+    r = V.lookup_band("blood_pressure", {"systolic": 135, "diastolic": 85})
+    assert r["match"] == "ok" and r["label_user"] is not None
+
+
+# ── raw 모드 프롬프트 (default 스타일) ──────────────────────
+
+def _raw():
+    return B("q", [], personal_kind="raw")
+
+
+def test_exclusion_sits_inside_rule9_between_L1_and_L2():
+    p = _raw()
+    i_l1 = p.index("· L1 기준 대비 분류")
+    i_ex = p.index("· L1 적용 제외")
+    i_l2 = p.index("· L2 항목별 추세")
+    assert i_l1 < i_ex < i_l2
+    block = p[i_ex:i_l2]
+    for n in NAMES:
+        assert n in block, n
+    assert "기준 수치를 사용자의 값" in block      # 병치 금지
+    assert "의료진이 판단합니다" in block          # 대체 문장
+
+
+def test_rule2d_points_to_exclusion():
+    p = _raw()
+    i2 = p.index("2. [컨텍스트 외 정보 금지]")
+    i3 = p.index("3. [근거 충돌 시 보수성]")
+    assert "L1 적용 제외 항목은 병기·분류하지 않는다" in p[i2:i3]
+
+
+def test_always_rule_points_to_exclusion():
+    assert "L1 적용 제외 항목은 병기·분류 없이 값만" in _raw()
+
+
+def test_no_unrendered_placeholder():
+    p = _raw()
+    assert "{_deny_names}" not in p and "{deny_names}" not in p
+
+
+# ── persly-safe ──────────────────────────────────────────────
+
+def test_persly_safe_has_exclusion():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "{deny_names}" not in p
+    for n in NAMES:
+        assert n in p, n
+    assert "범위에 넣지 않습니다" in p
+    assert "기준 수치를 사용자의 값 옆에 두지 않으며" in p
+
+
+# ── 과잉 억제 방지 ───────────────────────────────────────────
+# 실측(dev rev 00051): persly-safe 가 '의료진이 판단합니다' 문장을 공복혈당에도 붙여
+# 비 deny 수치의 L1(허용·유용)이 6건 → 0건으로 사라졌다. 예외는 네 항목에만 걸려야 한다.
+
+def test_default_exclusion_scoped_to_four_items():
+    p = _raw()
+    block = p[p.index("· L1 적용 제외"):p.index("· L2 항목별 추세")]
+    assert "네 항목에만 적용" in block
+    assert "공복혈당" in block and "L1대로 분류" in block
+
+
+def test_persly_safe_exclusion_scoped_to_four_items():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "예외는 다음 네 항목뿐" in p
+    assert "이 문장은 네 항목에만 쓰고 다른 수치에는 쓰지 않습니다" in p
+    assert "범위 밖이면 범위 밖이라고 말합니다" in p      # 비 deny 수치의 L1 을 적극 지시
+
+
+# 실측(dev rev 00052): 범위 한정 뒤에도 persly-safe 는 "공복혈당은 어떤 편인가요?"에 값만
+# 옮기고 분류하지 않았다(기록 칸 정의가 '기록 재현'만 적고 있었다). 반대로 골밀도 질문의
+# 첫 문장은 "T-점수 -2.1은 뼈 강도 저하 가능성의 신호"라고 해석을 붙였다('첫 문장이 답' 규칙).
+
+def test_persly_safe_first_sentence_answers_value_questions():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "수치를 묻는 질문이면 첫 문장에서 그 수치를 일반 참고범위와 비교한 결과를 말합니다" in p
+    assert "예외 네 항목은 첫 문장에서도 범위에 넣지 않고" in p
+
+
+def test_persly_safe_record_slot_includes_range_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "기록 재현(수치는 참고범위와 비교 — 예외 네 항목 제외)" in p
+
+
+# 실측(dev rev 00055): 첫 문장 규칙이 비교 뒤 판단을 끌어냈다 — "'공복혈당 118'은 일반 참고범위보다
+# 높은 편으로, 생활관리나 약물 조정이 필요한 경우에 속합니다". 본문이 치료 권유를 이미 금지했는데도
+# 첫 문장에서 나왔고 공용 analyzer 도 위반을 내지 않았다. 제한은 규칙 1 '안'에 둔다.
+
+def _persly_ban_section(p):
+    ban = p[p.index("## 금지"):]
+    nxt = ban.find("\n## ", 1)
+    return ban if nxt == -1 else ban[:nxt]
+
+
+def test_persly_safe_first_sentence_stops_at_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    assert "첫 문장은 그 비교에서 멈춥니다" in rule1
+    assert "약물·치료·검사가 필요한 경우인지" in rule1
+
+
+# 실측(dev rev 00056): 멈춤 문장을 비교 지시와 deny 예외 사이에 끼우고 "(범위 안·밖)"을 강조했더니
+# 예외가 비교 지시에서 떨어져, 첫 문장이 골밀도·요단백을 "범위 밖"으로 분류했다(금지 위반 3건,
+# 직전 rev 0건). 예외는 비교 지시 바로 다음 줄에 둔다.
+
+def test_persly_safe_exception_directly_follows_comparison():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    head = "비교한 결과를 말합니다."
+    exc = "단 아래 '직접성'의 예외 네 항목은 첫 문장에서도 범위에 넣지 않고"
+    a, b = rule1.index(head), rule1.index(exc)
+    assert rule1[a + len(head):b].strip() == ""
+    assert b < rule1.index("첫 문장은 그 비교에서 멈춥니다")
+    assert "범위 안·밖" not in rule1
+
+
+def test_persly_safe_bans_need_judgment():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "약물·치료·검사가 필요하다거나 어떤 단계·범주에 속한다고 판단하는 문장" in _persly_ban_section(p)
+
+
+def test_persly_safe_need_ban_leaves_home_care_slot():
+    """'생활관리'는 금지에 넣지 않는다 — 짧은 본문에서 금지가 번져 관리 칸까지 억제될 수 있다."""
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    assert "**집에서 해볼 수 있는 관리**" in p
+    assert "생활관리" not in _persly_ban_section(p)
+
+
+# 실측(dev rev 00057): 신장 기능 질문의 첫 문장이 "eGFR 58은 일반 참고범위(보통 90 이상)와 비교해
+# 낮은 값"이라고 썼다(15답변 중 1건). 세 리비전 연속으로 이 질문에서만 경계에 걸렸다 — 질문이 금지
+# 항목을 직접 물을 때가 약점이라, 예외 바로 뒤에 그 경우의 예를 붙인다(default 규칙 9 의 공복혈당 예시와 같은 방식).
+
+def test_persly_safe_exception_covers_direct_question():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    assert "질문이 그 항목을 직접 물어도" in rule1
+    assert "eGFR 은 값만" in rule1
+    assert "크레아티닌처럼 예외가 아닌 수치" in rule1
+
+
+# 실측(dev rev 00061·00062): 검진 판정기준 KB(checkup_std_kr) 적재 뒤 PHR 공복혈당 답이 사용자 값을
+# 검진 판정으로 분류했다 — "118은 국가건강검진 판정기준으로 정상B(경계, 100~125)에 해당합니다"
+# (persly-safe 6/6, 적재 전 1/5). 합성 PHR 에 판정 문구는 없다. 범주 금지 바로 다음 줄에 판정 구분을
+# 짚는다. default 규칙 9 L1 은 값을 기준 범위에 넣는 것을 허용하므로 persly-safe 만 바꾼다.
+
+def test_persly_safe_checkup_band_follows_category_ban():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    head = "어떤 단계·범주에 속하는지는 첫 문장을 포함해 어디에도 쓰지 않습니다."
+    band = "검토 자료에 검진 판정 구분(정상A·정상B·경계·질환의심)이 있어도 사용자의 값에 붙이지 않고"
+    a, b = rule1.index(head), rule1.index(band)
+    assert rule1[a + len(head):b].strip() == ""
+    assert "판정은 기록에 적힌 문구만 옮깁니다" in rule1
+    assert "(검진 판정 구분 포함)" in _persly_ban_section(p)
+
+
+# 실측(dev rev 00063): 판정 구분 줄만으로는 "118은 참고범위 100 미만과 비교해 경계 범위(100~125)에
+# 해당합니다"가 남았다(persly-safe 공복혈당 3/8). eGFR 때처럼 예를 붙인다 — 측정 질문(공복혈당)에
+# 맞추지 않으려고 혈압으로 쓴다.
+
+def test_persly_safe_checkup_band_has_example():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    ex = rule1[rule1.index("판정은 기록에 적힌 문구만 옮깁니다"):]
+    assert "보다 높다고까지만" in ex and "경계 범위나 정상B 에 해당한다고 쓰지 않습니다" in ex
+    assert "공복혈당" not in ex.split("2.")[0]
+
+
+def test_default_keeps_l1_band_placement():
+    """default 규칙 9 L1 은 "…기준 범위이며 이번 수치가 여기에 해당합니다"를 허용한다 — 건드리지 않는다."""
+    p = B("q", [], personal_kind="raw")
+    assert "이번 수치가 여기에 해당합니다" in p
+    assert "검진 판정 구분" not in p

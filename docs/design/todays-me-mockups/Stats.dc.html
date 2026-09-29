@@ -1,0 +1,125 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;600;700;800&family=Jua&family=Gowun+Dodum&display=swap">
+  <style>
+    body { margin: 0; background: #CDBFF7; font-family: 'Gowun Dodum', 'Malgun Gothic', system-ui, sans-serif; color: #141414; }
+    .lex { font-family: 'Lexend', 'Malgun Gothic', system-ui, sans-serif; }
+    .jua { font-family: 'Jua', 'Malgun Gothic', system-ui, sans-serif; }
+    a { color: #141414; } a:hover { color: #555555; }
+    svg { display: block; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #CDBFF7; box-sizing: border-box;">
+
+  <!-- decorative: pink flower bleeding off the right, confetti -->
+  <svg style="position: absolute; right: -60px; top: 96px;" width="150" height="150" viewBox="0 0 100 100"><path d="M50 0C58 30 70 42 100 50 70 58 58 70 50 100 42 70 30 58 0 50 30 42 42 30 50 0Z" fill="#F5A7D6"></path></svg>
+  <div style="position: absolute; left: 40px; top: 120px; width: 10px; height: 10px; border-radius: 50%; background: #FFD84D;"></div>
+  <div style="position: absolute; left: 300px; top: 330px; width: 8px; height: 8px; border-radius: 50%; background: #141414;"></div>
+  <svg style="position: absolute; left: 16px; top: 360px;" width="22" height="22" viewBox="0 0 24 24"><path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z" fill="#FFFFFF"></path></svg>
+
+  <div style="position: relative; display: flex; flex-direction: column; gap: 14px; padding: 56px 22px 0 22px; box-sizing: border-box;">
+
+    <!-- header -->
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="width: 44px; height: 44px; border-radius: 22px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+      </div>
+      <div class="jua" style="font-size: 18px;">오늘의 기록</div>
+      <div style="width: 44px; height: 44px; border-radius: 22px; background: #FFFFFF; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#141414" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
+      </div>
+    </div>
+
+    <!-- ring card -->
+    <div style="border-radius: 32px; background: #FFF8EC; padding: 18px 20px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; position: relative;">
+      <svg style="position: absolute; right: -10px; top: -16px;" width="46" height="46" viewBox="0 0 24 24"><path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z" fill="#FFD84D"></path></svg>
+      <div style="position: relative; width: 176px; height: 176px; flex: none;">
+        <svg width="176" height="176" viewBox="0 0 176 176">
+          <circle cx="88" cy="88" r="70" fill="none" stroke="#EFE6D6" stroke-width="22"></circle>
+          <!-- water 0-110deg, activity 120-230, mind 240-350 (from top) -->
+          <path d="M88 18 A70 70 0 0 1 153.8 112" fill="none" stroke="#4C86F0" stroke-width="22" stroke-linecap="round"></path>
+          <path d="M141.7 141.7 A70 70 0 0 1 43 145.6" fill="none" stroke="#FF8A5B" stroke-width="22" stroke-linecap="round"></path>
+          <path d="M27.4 123 A70 70 0 0 1 75.8 19.1" fill="none" stroke="#8E7BEF" stroke-width="22" stroke-linecap="round"></path>
+          <!-- mini characters on the arcs -->
+          <circle cx="146" cy="52" r="15" fill="#FFF8EC"></circle>
+          <path d="M146 41C146 41 137 51 137 56a9 9 0 0 0 18 0C155 51 146 41 146 41Z" fill="#4C86F0"></path><circle cx="143.2" cy="55" r="1.1" fill="#141414"></circle><circle cx="148.8" cy="55" r="1.1" fill="#141414"></circle>
+          <circle cx="88" cy="158" r="15" fill="#FFF8EC"></circle>
+          <path d="M91 148l-9 13h7l-2 10 10-13h-6z" fill="#FFB800"></path>
+          <circle cx="30" cy="52" r="15" fill="#FFF8EC"></circle>
+          <path d="M34 42a10 10 0 1 0 7 16 7.5 7.5 0 1 1-7-16z" fill="#8E7BEF"></path>
+        </svg>
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;">
+          <div class="lex" style="font-size: 50px; font-weight: 800; line-height: 1;">3</div>
+          <div style="font-size: 12px; color: #6B6B6B;">트랙 모두 완료</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="jua" style="font-size: 20px; line-height: 1.2;">오늘은<br>꽉 찬 하루</div>
+        <div style="font-size: 12px; color: #6B6B6B; line-height: 1.5;">기록이 남았어요<br>5일째 이어졌어요</div>
+      </div>
+    </div>
+
+    <!-- water card: cups -->
+    <div style="border-radius: 28px; background: #AFC9F5; padding: 18px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; position: relative;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+          <div class="lex" style="font-size: 40px; font-weight: 800; line-height: 1;">6</div>
+          <div class="jua" style="font-size: 18px;">컵의 물</div>
+        </div>
+        <div style="height: 26px; padding: 0 10px; border-radius: 13px; background: #FFFFFF; font-size: 12px; display: flex; align-items: center;">= 작은 화분 3개</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24"><path d="M5 3h14l-1.5 16a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2z" fill="#4C86F0"></path><path d="M5.6 9h12.8" stroke="#FFFFFF" stroke-width="1.5" opacity="0.6"></path></svg>
+      </div>
+    </div>
+
+    <!-- steps + mind row -->
+    <div style="display: flex; gap: 12px;">
+      <div style="flex: 1; border-radius: 28px; background: #FFD84D; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; min-height: 150px; position: relative; overflow: hidden;">
+        <svg style="position: absolute; right: -6px; top: 10px;" width="54" height="66" viewBox="0 0 60 70"><path d="M36 4L12 40h20l-6 26 26-36H34z" fill="#FF8A5B"></path><circle cx="25" cy="32" r="2" fill="#141414"></circle><circle cx="33" cy="32" r="2" fill="#141414"></circle><path d="M26 39q3 3 6 0" stroke="#141414" stroke-width="1.8" fill="none" stroke-linecap="round"></path></svg>
+        <div class="jua" style="font-size: 15px;">걸음</div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div class="lex" style="font-size: 32px; font-weight: 800; line-height: 1;">6,400</div>
+          <div style="font-size: 12px; color: #5A4A2B;">= 한강 다리 2개</div>
+        </div>
+      </div>
+      <div style="flex: 1; border-radius: 28px; background: #F5A7D6; padding: 18px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; min-height: 150px; position: relative; overflow: hidden;">
+        <svg style="position: absolute; right: 8px; top: 8px;" width="70" height="46" viewBox="0 0 80 52"><path d="M20 44a12 12 0 0 1-2-23.8A18 18 0 0 1 52 16a13 13 0 0 1 12 28z" fill="#FFFFFF"></path><path d="M30 30q4-3 8 0" stroke="#141414" stroke-width="1.8" fill="none" stroke-linecap="round"></path><path d="M44 30q4-3 8 0" stroke="#141414" stroke-width="1.8" fill="none" stroke-linecap="round"></path><circle cx="28" cy="36" r="2.5" fill="#F5A7D6"></circle><circle cx="54" cy="36" r="2.5" fill="#F5A7D6"></circle><text x="62" y="12" font-family="Lexend, sans-serif" font-size="10" font-weight="700" fill="#141414">z</text><text x="70" y="6" font-family="Lexend, sans-serif" font-size="7" font-weight="700" fill="#141414">z</text></svg>
+        <div class="jua" style="font-size: 15px;">마음챙김</div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: baseline; gap: 4px;"><div class="lex" style="font-size: 32px; font-weight: 800; line-height: 1;">7</div><div class="jua" style="font-size: 15px;">분</div></div>
+          <div style="font-size: 12px; color: #5A2B48;">= 노래 2곡</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- highlight -->
+    <div style="height: 56px; border-radius: 28px; background: #FFFFFF; padding: 0 16px 0 8px; box-sizing: border-box; display: flex; align-items: center; gap: 10px;">
+      <div style="width: 40px; height: 40px; border-radius: 20px; background: #FFD84D; display: flex; align-items: center; justify-content: center;">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 2c1 6 4 9 10 10-6 1-9 4-10 10-1-6-4-9-10-10 6-1 9-4 10-10z" fill="#141414"></path></svg>
+      </div>
+      <div style="font-size: 13.5px;">이번 주 물을 가장 많이 마신 날</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="position: absolute; left: 22px; right: 22px; bottom: 22px; height: 60px; border-radius: 30px; background: #141414; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 10px;">
+    <span class="jua" style="font-size: 17px;">오늘의 캐릭터 만나기</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFD84D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -10,6 +10,7 @@ Anthropic/Vertex는 Phase 3에서 추가.
 """
 
 import os
+import re
 import time
 import logging
 from abc import ABC, abstractmethod
@@ -27,6 +28,57 @@ _PROVIDER_ID_TO_MODEL: Dict[str, str] = {
     "openai_gpt5_4_nano": "gpt-5.4-nano",
     "openai_gpt5_5": "gpt-5.5",
 }
+
+
+# reasoning_effort 지원값은 모델 계열마다 다르다(2026-09-29 실측, 400 메시지 원문 기준):
+#   gpt-5 · gpt-5-mini · gpt-5-nano  → minimal / low / medium / high        ('none' 은 400)
+#   gpt-5.1 이후(gpt-5.4-mini 등)     → none / low / medium / high / xhigh  ('minimal' 은 400)
+# 가장 빠른 단계의 이름이 계열마다 달라(minimal·none) 설정값을 모델에 맞춰 바꾼다.
+# 이 차이로 재생성 폴백(gpt-5.4-mini)이 매번 400 → 사과문이 됐다.
+_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh")
+_EFFORTS_GPT5_0 = ("minimal", "low", "medium", "high")
+_EFFORTS_GPT5_X = ("none", "low", "medium", "high", "xhigh")
+# 400 메시지에서 알게 된 모델별 지원값(프로세스 수명) — 위 표가 틀려도 모델당 한 번만 실패한다.
+_EFFORTS_LEARNED: Dict[str, tuple] = {}
+
+
+def _supported_efforts(model_id: str) -> tuple:
+    mid = model_id.lower()
+    if mid in _EFFORTS_LEARNED:
+        return _EFFORTS_LEARNED[mid]
+    if re.match(r"gpt-5\.\d", mid):
+        return _EFFORTS_GPT5_X
+    return _EFFORTS_GPT5_0
+
+
+def resolve_reasoning_effort(model_id: str, requested: Optional[str] = None) -> str:
+    """요청 단계(기본 env LLM_REASONING_EFFORT)를 모델이 받는 값 중 가장 가까운 것으로.
+
+    같은 거리면 더 빠른 쪽 — minimal 은 gpt-5.x 에서 none, none 은 gpt-5 에서 minimal.
+    알 수 없는 값은 가장 빠른 단계로 본다.
+    """
+    req = (requested or os.environ.get("LLM_REASONING_EFFORT", "minimal")).lower()
+    sup = _supported_efforts(model_id)
+    if req in sup:
+        return req
+    if req not in _EFFORT_ORDER:
+        req = "minimal"
+    i = _EFFORT_ORDER.index(req)
+    return min(sup, key=lambda e: (abs(_EFFORT_ORDER.index(e) - i), _EFFORT_ORDER.index(e)))
+
+
+def _learn_efforts_from_error(model_id: str, err: Exception) -> bool:
+    """reasoning_effort 미지원 400 이면 메시지의 지원값을 기억하고 True."""
+    msg = str(err)
+    if "reasoning_effort" not in msg or "Supported values are" not in msg:
+        return False
+    tail = msg.split("Supported values are", 1)[1].split(".", 1)[0]
+    vals = tuple(v for v in re.findall(r"'([a-z]+)'", tail) if v in _EFFORT_ORDER)
+    if not vals:
+        return False
+    _EFFORTS_LEARNED[model_id.lower()] = vals
+    logger.warning("[LLMRouter] %s reasoning_effort 지원값 갱신: %s", model_id, vals)
+    return True
 
 
 def _model_id_to_provider_suffix(model_id: str) -> str:
@@ -185,24 +237,28 @@ class OpenAIProvider(LLMProvider):
             if is_new_api:
                 # GPT-5는 reasoning tokens가 max_completion_tokens에 포함됨.
                 # 2048이면 reasoning에 다 쓰여서 응답이 비는 경우 발생.
-                # 8192로 늘리고, reasoning_effort='minimal'로 빠른 응답 우선.
+                # 8192로 늘리고, reasoning_effort는 가장 빠른 단계로 응답 우선.
                 params["max_completion_tokens"] = max(max_tokens * 4, 8192)
-                # gpt-5.4-mini 지원값(실측): minimal / low / medium / high.
-                #   ※ 'none'은 미지원 → 보내면 400(reasoning_effort unsupported_value)으로
-                #     전체 응답이 ERROR가 된다(과거 주석이 반대로 적혀 있었음).
-                # 대화형 RAG는 속도 우선 → 'minimal' 권장(첫 토큰 전 추론지연 최소화,
-                # 실측 12.75s→~1s). 배치 평가 등 품질 우선은 low/medium.
+                # 대화형 RAG는 속도 우선 → LLM_REASONING_EFFORT=minimal 권장(첫 토큰 전
+                # 추론지연 최소화, 실측 12.75s→~1s). 배치 평가 등 품질 우선은 low/medium.
+                # 모델마다 받는 값이 달라 resolve_reasoning_effort 가 맞춘다(위 표).
                 if mid.startswith("gpt-5"):
-                    _eff = os.environ.get("LLM_REASONING_EFFORT", "minimal").lower()
-                    if _eff not in ("minimal", "low", "medium", "high"):
-                        _eff = "minimal"   # 미지원값('none' 등) → fail-safe(400 장애 방지)
-                    params["reasoning_effort"] = _eff
+                    params["reasoning_effort"] = resolve_reasoning_effort(self._model_id)
                 # temperature는 1.0만 허용 — 명시적으로 보내지 않음 (기본 1)
             else:
                 params["max_tokens"] = max_tokens
                 params["temperature"] = temperature
 
-            stream = self._client.chat.completions.create(**params)
+            try:
+                stream = self._client.chat.completions.create(**params)
+            except Exception as e:
+                # 지원값이 조용히 바뀌는 모델이 있다(gpt-5.4-mini 가 minimal 을 거부) —
+                # 400 이 알려 준 지원값으로 한 번만 다시 보낸다.
+                if "reasoning_effort" in params and _learn_efforts_from_error(self._model_id, e):
+                    params["reasoning_effort"] = resolve_reasoning_effort(self._model_id)
+                    stream = self._client.chat.completions.create(**params)
+                else:
+                    raise
             full = ""
             input_tokens = 0
             output_tokens = 0

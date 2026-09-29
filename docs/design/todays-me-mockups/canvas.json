@@ -1,0 +1,19 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "4화면 목업" },
+    { "id": "page-2", "name": "웰니스 타입" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "title": "1 · Daily Tracker", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-1" },
+    { "file": "Stats.dc.html", "title": "2 · Daily Stats", "x": 490, "y": 0, "w": 390, "h": 844, "page": "page-1" },
+    { "file": "Reveal.dc.html", "title": "3 · Archetype Reveal", "x": 980, "y": 0, "w": 390, "h": 844, "page": "page-1" },
+    { "file": "Card.dc.html", "title": "4 · Share Card", "x": 1470, "y": 0, "w": 390, "h": 844, "page": "page-1" },
+    { "file": "TypeResult.dc.html", "title": "5 · 온보딩 결과 · 내 웰니스 타입", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-2" },
+    { "file": "TypeCard.dc.html", "title": "6 · 타입 카드 1:1", "x": 490, "y": 0, "w": 460, "h": 460, "page": "page-2" }
+  ],
+  "annotations": [
+    { "id": "concept", "x": 0, "y": -200, "w": 520, "page": "page-1", "text": "오늘의 나 (Today's Me) · 정적 목업 4장\n스타일: 캔디 파스텔 풀컬러 배경 · 청키 벡터 · Lexend + Jua\n흐름: 체크인 → 오늘의 기록 → 캐릭터 리빌 → 공유 카드\n규칙: 카드에 건강 수치·밴드 미노출 · 미완료 카운트 없음 · 리빌은 사용자가 여는 화면" },
+    { "id": "type-layer", "x": 0, "y": -180, "w": 520, "page": "page-2", "text": "웰니스 타입 5종 (성향 층 · B안)\n온보딩 문진 4문항으로 1회 배정, 설정에서 변경 가능\n하루 캐릭터 7종과 별개. 카드 하단 라벨·기본 테마·프로필에 반영\n샘플: 갓생 신생아 (기본 테마 코랄)" }
+  ],
+  "launch": { "view": "canvas", "page": "page-2" }
+}

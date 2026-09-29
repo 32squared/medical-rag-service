@@ -1,0 +1,1045 @@
+<title>루틴 생성 스토리보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* ─────────────────────────────────────────────────────────────
+   문서 크롬 = 제도 도면. 채도는 앱 화면에만 존재한다.
+   ───────────────────────────────────────────────────────────── */
+:root{
+  --sheet:#E9EBE8; --panel:#FDFDFC; --panel-2:#F3F5F2;
+  --ink:#1C2320; --ink-2:#5A635E; --ink-3:#828C86;
+  --rule:#CBD1CC; --rule-soft:#DDE1DC; --mark:#3E5C50; --mark-soft:#E2EAE5;
+  --warn-doc:#8A5A12; --warn-doc-bg:#F3EADA;
+  --doc:'IBM Plex Sans KR',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --ui:'Noto Sans KR',system-ui,sans-serif;
+  --wrap:1240px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --sheet:#121614; --panel:#1B211E; --panel-2:#232A26;
+    --ink:#E7EAE7; --ink-2:#98A29C; --ink-3:#727C76;
+    --rule:#2C342F; --rule-soft:#242B27; --mark:#7FA898; --mark-soft:#1E2A25;
+    --warn-doc:#D9AE6A; --warn-doc-bg:#2A2419;
+  }
+}
+:root[data-theme="dark"]{
+  --sheet:#121614; --panel:#1B211E; --panel-2:#232A26;
+  --ink:#E7EAE7; --ink-2:#98A29C; --ink-3:#727C76;
+  --rule:#2C342F; --rule-soft:#242B27; --mark:#7FA898; --mark-soft:#1E2A25;
+  --warn-doc:#D9AE6A; --warn-doc-bg:#2A2419;
+}
+/* 앱 화면 팔레트 — 제품을 찍은 것이므로 테마와 무관하게 고정 */
+:root{
+  --a-bg:#F6F4EF; --a-surface:#FFFFFF; --a-teal:#0E8A6B; --a-teal-d:#0B6E52;
+  --a-teal-100:rgba(14,138,107,.10); --a-teal-200:rgba(14,138,107,.22);
+  --a-teal-400:rgba(14,138,107,.50); --a-teal-ink:#0B5F4A;
+  --a-amber:#E0A23E; --a-amber-bg:rgba(224,162,62,.14); --a-amber-ink:#8A5A12;
+  --a-red:#C8553D; --a-red-bg:rgba(200,85,61,.10); --a-red-ink:#A23B26;
+  --a-ink:#2B2B2B; --a-muted:#6B6B6B; --a-line:#E7E3DA;
+  --a-miss:rgba(43,43,43,.07); --a-future:rgba(43,43,43,.13);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sheet);color:var(--ink);font-family:var(--doc);
+     font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 28px}
+
+/* ── 표제 ── */
+.head{padding:64px 0 40px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--mark);margin:0 0 18px;font-weight:500}
+.head h1{font-size:clamp(32px,5vw,46px);line-height:1.12;font-weight:700;margin:0 0 20px;
+         letter-spacing:-.02em;text-wrap:balance;max-width:18ch}
+.lede{font-size:17px;line-height:1.65;color:var(--ink-2);max-width:62ch;margin:0 0 32px}
+.lede b{color:var(--ink);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--rule-soft)}
+.meta div{flex:1 1 160px;padding:14px 18px 14px 0;border-right:1px solid var(--rule-soft)}
+.meta div:last-child{border-right:0}
+.meta dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+         color:var(--ink-3);margin:0 0 6px}
+.meta dd{margin:0;font-size:14px;font-weight:500;color:var(--ink)}
+
+/* ── 섹션 ── */
+section{padding:56px 0;border-bottom:1px solid var(--rule)}
+.sec-head{display:flex;gap:20px;align-items:baseline;margin:0 0 12px}
+.sec-num{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--mark);
+         flex:none;padding-top:4px}
+h2{font-size:26px;font-weight:700;margin:0;letter-spacing:-.015em}
+.sec-lede{color:var(--ink-2);max-width:64ch;margin:0 0 40px 33px;font-size:15px}
+
+/* ── 범례 ── */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;
+        background:var(--rule-soft);border:1px solid var(--rule-soft);margin-left:33px}
+.legend div{background:var(--panel);padding:16px 18px}
+.legend h4{margin:0 0 6px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.legend p{margin:0;font-size:13px;color:var(--ink-2);line-height:1.5}
+.swatch{width:12px;height:12px;border-radius:3px;flex:none}
+
+/* ── 프레임 ── */
+.frame{display:grid;grid-template-columns:390px minmax(0,1fr);gap:44px;
+       padding:40px 0;border-top:1px dashed var(--rule)}
+.frame:first-of-type{border-top:1px solid var(--rule)}
+.frame-note{padding-top:4px;min-width:0}
+.fnum{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--panel);
+      background:var(--mark);padding:3px 8px;border-radius:4px;letter-spacing:.06em}
+.fid{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.05em}
+.frame-note h3{font-size:20px;font-weight:700;margin:14px 0 8px;letter-spacing:-.01em}
+.purpose{color:var(--ink-2);margin:0 0 22px;font-size:14.5px;max-width:56ch}
+.nblock{margin:0 0 20px}
+.nblock h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+           color:var(--ink-3);margin:0 0 9px;font-weight:500}
+.nblock ul{margin:0;padding-left:17px}
+.nblock li{margin:0 0 6px;font-size:14px;color:var(--ink-2);line-height:1.55}
+.nblock li b{color:var(--ink);font-weight:600}
+.nblock li:last-child{margin-bottom:0}
+code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);color:var(--ink);
+     padding:1.5px 5px;border-radius:4px;border:1px solid var(--rule-soft)}
+.guard{background:var(--warn-doc-bg);border-left:2px solid var(--warn-doc);padding:11px 14px;
+       font-size:13.5px;color:var(--ink);line-height:1.55;border-radius:0 6px 6px 0}
+.guard b{color:var(--warn-doc)}
+
+/* ── 디바이스 ── */
+.device{width:390px;background:var(--a-bg);border:9px solid #2A302D;border-radius:36px;
+        overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.06),0 18px 44px rgba(20,40,30,.16);
+        font-family:var(--ui);color:var(--a-ink);position:sticky;top:24px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .device{border-color:#000}}
+:root[data-theme="dark"] .device{border-color:#000}
+.scr{min-height:718px;display:flex;flex-direction:column;background:var(--a-bg);position:relative}
+.sbar{height:26px;display:flex;align-items:center;justify-content:space-between;
+      padding:0 18px;font-size:11px;font-weight:500;color:var(--a-ink);flex:none}
+.body{flex:1;padding:0 20px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.tabs{height:58px;border-top:1px solid var(--a-line);background:var(--a-surface);
+      display:grid;grid-template-columns:repeat(4,1fr);flex:none}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+     font-size:10.5px;color:var(--a-muted);position:relative}
+.tab.on{color:var(--a-teal);font-weight:700}
+.tab i{width:19px;height:19px;border-radius:5px;background:currentColor;opacity:.32;display:block}
+.tab.on i{opacity:1}
+.tab .dot{position:absolute;top:9px;right:calc(50% - 15px);width:7px;height:7px;border-radius:50%;
+          background:var(--a-amber)}
+
+/* 앱 컴포넌트 */
+.a-banner{display:flex;gap:9px;padding:10px 12px;border-radius:10px;font-size:12.5px;
+          line-height:1.45;align-items:flex-start}
+.a-banner.warn{background:var(--a-amber-bg);color:var(--a-amber-ink);
+               border-left:3px solid var(--a-amber)}
+.a-banner.crit{background:var(--a-red-bg);color:var(--a-red-ink);border-left:3px solid var(--a-red)}
+.a-banner .note{display:block;margin-top:3px;font-size:11px;opacity:.85}
+.a-head{display:flex;align-items:center;gap:11px;padding:6px 0}
+.ring{width:36px;height:36px;flex:none}
+.a-head .t1{font-size:13.5px;font-weight:700;line-height:1.3}
+.a-head .t2{font-size:11.5px;color:var(--a-muted);line-height:1.3}
+.a-head .gear{margin-left:auto;font-size:16px;color:var(--a-muted)}
+.hero{background:var(--a-surface);border-radius:16px;padding:18px;
+      box-shadow:0 2px 4px rgba(0,0,0,.04),0 14px 34px rgba(14,138,107,.10)}
+.chip-ev{display:inline-flex;align-items:center;gap:5px;background:var(--a-teal-100);
+         color:var(--a-teal-ink);font-size:11.5px;font-weight:600;padding:5px 10px;
+         border-radius:999px;margin-bottom:12px}
+.chip-ev.gen{background:rgba(43,43,43,.06);color:var(--a-muted);font-weight:500}
+.act{font-size:19px;line-height:1.35;font-weight:700;margin:0 0 9px;letter-spacing:-.01em}
+.act-meta{font-size:11.5px;color:var(--a-muted);margin:0 0 14px;line-height:1.45}
+.btn{height:52px;border-radius:12px;background:var(--a-teal);color:#fff;font-size:16px;
+     font-weight:700;display:flex;align-items:center;justify-content:center;font-family:var(--ui)}
+.btn.ghost{background:transparent;color:var(--a-teal);border:1.5px solid var(--a-teal-200);
+           height:44px;font-size:14px}
+.btn.done{background:var(--a-teal-100);color:var(--a-teal-ink)}
+.btn.grey{background:var(--a-line);color:var(--a-muted)}
+.why{text-align:center;font-size:13px;color:var(--a-teal-ink);font-weight:600;padding:11px 0 0}
+.strip{background:var(--a-surface);border-radius:14px;padding:13px 14px}
+.strip .lab{font-size:11.5px;color:var(--a-muted);margin-bottom:8px;display:flex;
+            justify-content:space-between}
+.segs{display:flex;gap:3px}
+.seg{height:9px;border-radius:3px;background:var(--a-future);flex:1}
+.seg.done{background:var(--a-teal)}
+.seg.now{background:var(--a-teal-200);outline:1.5px solid var(--a-teal);outline-offset:1px}
+.dots{display:flex;justify-content:space-between;padding:2px}
+.dot7{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:600;color:var(--a-muted);background:transparent;
+      border:1.5px dashed var(--a-future)}
+.dot7.done{background:var(--a-teal);color:#fff;border:0}
+.dot7.miss{background:var(--a-miss);border:0;color:var(--a-muted)}
+.dot7.today{border:2px solid var(--a-teal);color:var(--a-teal-ink);border-style:solid}
+.card{background:var(--a-surface);border-radius:14px;padding:14px}
+.card h4{margin:0 0 4px;font-size:14.5px;font-weight:700}
+.card p{margin:0;font-size:12.5px;color:var(--a-muted);line-height:1.5}
+.metric{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--a-line)}
+.metric:last-child{border-bottom:0}
+.metric .mn{font-size:13px;font-weight:600;flex:1}
+.metric .mv{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.pill{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px}
+.pill.ok{background:var(--a-teal-100);color:var(--a-teal-ink)}
+.pill.warn{background:var(--a-amber-bg);color:var(--a-amber-ink)}
+.pill.na{background:rgba(43,43,43,.06);color:var(--a-muted)}
+.bar{height:5px;border-radius:3px;background:var(--a-line);position:relative;margin-top:6px}
+.bar i{position:absolute;top:-2px;width:3px;height:9px;border-radius:2px;background:var(--a-ink)}
+.opt{border:1.5px solid var(--a-line);border-radius:12px;padding:13px 14px;font-size:14px;
+     font-weight:500;background:var(--a-surface);display:flex;align-items:center;gap:10px}
+.opt.sel{border-color:var(--a-teal);background:var(--a-teal-100);font-weight:700;
+         color:var(--a-teal-ink)}
+.opt.dim{opacity:.55;border-style:dashed}
+.opt .rec{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--a-teal);
+          background:var(--a-surface);padding:3px 7px;border-radius:999px}
+.opt small{display:block;font-size:11.5px;color:var(--a-muted);font-weight:400;margin-top:3px}
+.prog{height:4px;background:var(--a-line);border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--a-teal);border-radius:2px}
+.q{font-size:20px;font-weight:700;line-height:1.35;margin:6px 0 4px}
+.askchips{display:flex;flex-wrap:wrap;gap:7px}
+.askchip{font-size:11.5px;border:1px solid var(--a-line);background:var(--a-surface);
+         border-radius:999px;padding:8px 11px;color:var(--a-ink);line-height:1.3}
+.badge-big{width:66px;height:66px;border-radius:50%;background:var(--a-teal-100);
+           display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px}
+.foot{font-size:10.5px;color:var(--a-muted);text-align:center;line-height:1.5;padding:4px 0 0}
+.sheet-modal{position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--a-surface);
+             border-radius:20px 20px 0 0;padding:18px 20px 22px;box-shadow:0 -8px 40px rgba(0,0,0,.16);
+             display:flex;flex-direction:column;gap:10px}
+.grabber{width:36px;height:4px;border-radius:2px;background:var(--a-line);margin:0 auto 2px}
+.scrim{position:absolute;inset:0;z-index:2;background:rgba(20,25,22,.32)}
+.tabs{position:relative;z-index:1}
+.stepper{display:flex;align-items:center;gap:8px;justify-content:center;padding:2px 0}
+.step{width:11px;height:11px;border-radius:50%;background:var(--a-future)}
+.step.on{background:var(--a-teal)}
+.hmap{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.hmap i{aspect-ratio:1;border-radius:2px;background:var(--a-miss);display:block}
+.hmap i.l1{background:var(--a-teal-200)}.hmap i.l2{background:var(--a-teal-400)}
+.hmap i.l3{background:var(--a-teal)}
+
+/* ── 앞단 스트립 ── */
+.prestrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;
+          background:var(--rule-soft);border:1px solid var(--rule-soft);margin-left:33px}
+.pre{background:var(--panel);padding:16px 16px 14px;display:flex;flex-direction:column;gap:7px}
+.pk{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--panel);
+    background:var(--mark);padding:2px 7px;border-radius:4px;align-self:flex-start}
+.pre h4{margin:0;font-size:15px;font-weight:700}
+.pre p{margin:0;font-size:13px;color:var(--ink-2);line-height:1.5;flex:1}
+.ptag{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--ink-3);
+      border:1px solid var(--rule);border-radius:4px;padding:2px 6px;align-self:flex-start}
+
+/* ── 밴드 비교 ── */
+.bandrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:32px;
+         margin-left:33px}
+.bandcol > .device{position:static;width:100%;max-width:390px}
+.bandcap{margin:18px 0 0;max-width:390px}
+.bandcap h4{margin:0 0 6px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:9px}
+.bandcap p{margin:0 0 10px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.bandcap ul{margin:0;padding-left:17px}
+.bandcap li{font-size:13px;color:var(--ink-2);margin-bottom:4px}
+.bcode{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:600}
+
+/* ── 표 ── */
+.tablewrap{overflow-x:auto;margin-left:33px;border:1px solid var(--rule-soft);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:720px;background:var(--panel);font-size:13.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--rule-soft);
+      vertical-align:top;line-height:1.5}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+   color:var(--ink-3);font-weight:500;background:var(--panel-2);white-space:nowrap}
+td:first-child{font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td code{font-size:11.5px}
+
+/* ── 원칙 카드 ── */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;
+       background:var(--rule-soft);border:1px solid var(--rule-soft);margin-left:33px}
+.rule{background:var(--panel);padding:22px}
+.rule .n{font-family:var(--mono);font-size:11px;color:var(--mark);font-weight:600;
+         letter-spacing:.08em}
+.rule h4{margin:9px 0 8px;font-size:16px;font-weight:700;line-height:1.35}
+.rule p{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.6}
+.anti{margin-left:33px;margin-top:28px;background:var(--panel);border:1px solid var(--rule-soft);
+      border-radius:8px;padding:22px}
+.anti h4{margin:0 0 6px;font-size:16px;font-weight:700}
+.anti > p{margin:0 0 14px;font-size:13.5px;color:var(--ink-2);max-width:60ch}
+.antilist{display:flex;flex-wrap:wrap;gap:8px}
+.antilist span{font-size:12.5px;padding:6px 11px;border-radius:6px;background:var(--panel-2);
+               color:var(--ink-2);border:1px solid var(--rule-soft);text-decoration:line-through;
+               text-decoration-color:var(--ink-3)}
+footer{padding:44px 0 64px;color:var(--ink-3);font-size:13px;line-height:1.6}
+footer b{color:var(--ink-2);font-weight:600}
+
+@media (max-width:1080px){
+  .frame{grid-template-columns:1fr;gap:28px}
+  .device{position:static;margin:0 auto}
+  .sec-lede,.legend,.bandrow,.tablewrap,.rules,.anti{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+
+<div class="wrap">
+
+<header class="head">
+  <p class="eyebrow">마이헬스케어 Phase 3 · 테스트앱 기획</p>
+  <h1>루틴 생성 스토리보드</h1>
+  <p class="lede">앱을 여는 이유를 <b>“질문이 생겨서”에서 “오늘 것이 아직 안 끝나서”</b>로 바꾼다. 그 전환이 실제로 일어나는 구간은 딱 한 곳 — 검진 수치를 본 사람이 12주 루틴을 갖고 첫 성공을 경험하기까지의 <b>8개 화면</b>이다. 이 문서는 그 구간을 화면 단위로 확정한다.</p>
+  <dl class="meta">
+    <div><dt>정본 스펙</dt><dd>25-routine-transition-spec</dd></div>
+    <div><dt>생성 스파인</dt><dd>앞단 5 + 본선 8 화면</dd></div>
+    <div><dt>첫 성공까지</dt><dd>탭 1회 · 30초</dd></div>
+    <div><dt>디자인 토큰</dt><dd>Warm Light (G-4)</dd></div>
+    <div><dt>D3 정착률 목표</dt><dd>55%</dd></div>
+  </dl>
+</header>
+
+<section>
+  <div class="sec-head"><span class="sec-num">00</span><h2>이 문서를 읽는 법</h2></div>
+  <p class="sec-lede">왼쪽은 실제 렌더 규격(390×844)의 화면, 오른쪽은 그 화면이 지켜야 할 계약이다. 화면 안 문구는 전부 <b>코드에 이미 존재하거나 이 기획으로 확정되는 최종 카피</b>이며 예시가 아니다.</p>
+  <div class="legend">
+    <div><h4><span class="swatch" style="background:var(--a-teal)"></span>틸 — 실천·진도</h4><p>완료·진행·근거. 사용자가 만든 것에만 쓴다.</p></div>
+    <div><h4><span class="swatch" style="background:var(--a-amber)"></span>앰버 — 주의 밴드</h4><p>진료 병행 안내. 텍스트는 <code>--amber-ink</code>로만.</p></div>
+    <div><h4><span class="swatch" style="background:var(--a-red)"></span>레드 — 경고·응급 전용</h4><p>진도·미실천에는 <b>절대 쓰지 않는다.</b></p></div>
+    <div><h4><span class="swatch" style="background:var(--a-miss)"></span>회색 — 미실천</h4><p>‘–’ 글리프 병행. 실패를 색으로 처벌하지 않는다.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>생성 앞단 — 여기까지는 기존 화면을 고쳐 쓴다</h2></div>
+  <p class="sec-lede">신규 사용자에게는 설치부터 루틴까지가 한 줄기다. 다만 앞단 5화면은 <b>전부 기존 화면의 변경·유지</b>라 새로 그리지 않는다. 이 구간에서 이 기획이 바꾸는 것은 <b>카피와 실패 처리</b>뿐이다.</p>
+  <div class="prestrip">
+    <div class="pre"><span class="pk">W1</span><h4>웰컴</h4>
+      <p>“오늘 할 건강 행동 1개, 12주 동안 함께 만들어요”</p>
+      <span class="ptag">카피 변경</span></div>
+    <div class="pre"><span class="pk">W2</span><h4>이용 동의</h4>
+      <p>push·검진연결을 선택 항목 <b>상단</b>으로 올리고 루틴 언어로 설명</p>
+      <span class="ptag">카피 변경</span></div>
+    <div class="pre"><span class="pk">W3</span><h4>본인인증</h4>
+      <p>PASS mock · 데모임을 명시</p>
+      <span class="ptag">유지</span></div>
+    <div class="pre"><span class="pk">P1</span><h4>데이터 연결</h4>
+      <p>공단 연동은 <b>[준비 중] 비활성</b>, 체험 프로필만 활성</p>
+      <span class="ptag">신규</span></div>
+    <div class="pre"><span class="pk">P2</span><h4>체험 프로필</h4>
+      <p>합성 PHR 24종 · 선택 시 민감정보 동의 확보</p>
+      <span class="ptag">카피 변경</span></div>
+  </div>
+  <div class="guard" style="margin-left:33px;margin-top:22px">
+    <b>앞단에서 반드시 고칠 결함 3건.</b> ① 필수 동의(<code>personal_info</code>) grant가 실패해도 다음으로 넘어가 <b>반쪽 계정</b>이 만들어진다 → 진행 차단 + 재시도, 지속 실패 시 토큰 폐기. ② 동의 선택 상태가 하드코딩돼 있어 실제 항목과 어긋난다 → 목록에서 파생. ③ 체험 프로필 화면이 로딩·에러에서 헤더까지 사라져 <b>빠져나갈 수 없는 화면</b>이 된다 → 헤더를 조건부 렌더 밖으로.
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">02</span><h2>생성 스파인 — 진단에서 첫 성공까지</h2></div>
+  <p class="sec-lede">주의 밴드 사용자(공복혈당 107 · 수축기 128)가 <b>식이 기록</b> 트랙 12주 프로그램을 만들고 첫 기록을 남기는 경로다. 이 8화면 안에서 이탈하면 루틴형 전환 자체가 성립하지 않는다.</p>
+
+  <!-- 01 D1 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><span style="font-size:17px">←</span><span class="t1">내 수치 한눈에 보기</span></div>
+        <div class="a-banner warn">⚠<div>주의 구간 항목이 있어요 — 진료와 병행하세요.<span class="note">진단은 아니에요.</span></div></div>
+        <div class="card">
+          <p style="font-size:12px;color:var(--a-muted);margin:0 0 5px">2026년 3월 14일 검진 결과 기준</p>
+          <h4 style="font-size:19px;line-height:1.35">지금은 <span style="color:var(--a-amber-ink)">주의 구간</span>으로 보여요</h4>
+          <p style="margin-top:6px">생활에서 손댈 수 있는 부분부터 하루 30초 기록으로 시작해요.</p>
+        </div>
+        <div class="card">
+          <div class="metric"><span class="mn">공복혈당</span><span class="mv">107 mg/dL</span><span class="pill warn">주의</span></div>
+          <div class="metric"><span class="mn">수축기 혈압</span><span class="mv">128 mmHg</span><span class="pill warn">주의</span></div>
+          <div class="metric"><span class="mn">체질량지수</span><span class="mv">24.1</span><span class="pill ok">정상</span></div>
+          <div class="metric"><span class="mn">총콜레스테롤<small style="display:block;font-size:10.5px;color:var(--a-muted);font-weight:400">이번 검진에 포함되지 않았어요</small></span><span class="mv" style="color:var(--a-muted)">미측정</span></div>
+        </div>
+        <div style="margin-top:auto"></div>
+        <div class="chip-ev">◆ 공복혈당 107 mg/dL → 식이 기록 트랙을 추천해요</div>
+        <div class="btn">이 수치에 맞는 12주 루틴 시작</div>
+        <div class="why">나중에 할게요</div>
+        <p class="foot">구간 안내이며 진단이 아닙니다. 판정과 해석은 의료기관에서 받으세요.</p>
+      </div>
+      <div class="tabs"><div class="tab"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab on"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">01</span> <span class="fid">D1 · S2_DIAGNOSED</span>
+      <h3>진단 리포트 — 수치를 루틴으로 잇는 다리</h3>
+      <p class="purpose">순환 ③→④의 접점. 이 화면의 유일한 임무는 “내 수치가 이 루틴을 만들었다”를 납득시키는 것이다.</p>
+      <div class="nblock"><h5>화면 규칙</h5><ul>
+        <li>종합 한 줄은 <b>구간 라벨만</b>. “고혈압이에요” 같은 질환 규정은 어떤 경로로도 금지</li>
+        <li>결측은 빈칸이 아니라 <b>‘미측정’으로 명시</b> — 결측을 정상으로 오독시키지 않는다</li>
+        <li>CTA는 “더 알아보기”가 아니라 <b>행동 시작</b>. 버튼 바로 위에 근거 프리뷰를 붙여 인과를 눈으로 잇는다</li>
+        <li>응급 라벨이면 이 화면을 렌더하지 않고 즉시 안전 레이어로 전환</li>
+      </ul></div>
+      <div class="nblock"><h5>데이터</h5><ul>
+        <li><code>GET /diagnosis</code> ← <code>vital_rules.run</code> + <code>wellness_router.worst_band</code></li>
+        <li>추천 트랙 산출: 공복혈당 주의 → focus <code>glucose</code> → 트랙 <code>diet</code></li>
+      </ul></div>
+      <div class="guard" style="border-left-color:var(--a-red);background:var(--a-red-bg)">
+        <b style="color:var(--a-red-ink)">이 화면은 API 확장이 선행돼야 한다 — 현재 구현으로는 렌더 불가.</b>
+        검수 결과 세 가지가 비어 있다. ① <code>/diagnosis</code>의 item이 <code>{key,label,state}</code>만 반환해
+        <b>수치·단위·참고범위·검진일·미측정 구분이 없다</b>. ② <code>evidence_phrase</code>가
+        <code>"{밴드} 구간 기준"</code>이라 <b>“공복혈당 107 mg/dL”을 만들 수 없다</b>.
+        ③ <code>vital_rules</code>에 <b>glucose 신호 자체가 없다</b>(혈압·BMI·심박·산소·체온만).
+        → 선행 작업: items에 <code>value·unit·ref·checked_on·missing</code> 추가 · <code>evidence_phrase</code>를
+        항목명+수치 템플릿으로 · glucose 밴드 신설. <b>이 셋이 없으면 불변식 02(근거→행동→완료)가 성립하지 않는다.</b>
+      </div>
+      <div class="guard"><b>안전.</b> 화면에 남는 것은 수치와 구간 라벨뿐이다. 해석·판정 문장은 밴드 산출에만 쓰고 사용자에게 보여주지 않는다. 항목 뱃지 어휘는 <b>정상·주의·경고·미측정</b>이고, 밴드 어휘(안정)와 섞지 않는다.</div>
+    </div>
+  </div>
+
+  <!-- 02 T1 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><span style="font-size:17px">←</span><span class="t1">트랙 고르기</span></div>
+        <h2 class="q" style="font-family:var(--ui);margin-top:10px">어떤 기록부터 시작할까요?</h2>
+        <p style="font-size:13px;color:var(--a-muted);margin:0">12주 동안 하루 30초. 언제든 바꿀 수 있어요.</p>
+        <div class="a-banner warn" style="padding:8px 11px">⚠<div>주의 구간이라 항목은 하나만 얹어 드려요. 진료와 병행하세요.</div></div>
+        <div class="opt sel">🥗 식이 기록<span class="rec">추천</span>
+          <small style="margin-top:6px;width:100%">식사 시각과 짠맛 습관을 하루 30초로 남겨요<br><b style="color:var(--a-teal-ink);font-weight:600">공복혈당 107 mg/dL → 식이 기록 트랙을 추천해요</b></small></div>
+        <div class="opt dim">🏃 활동 기록<small>오늘 몸을 움직였는지 1탭으로 남겨요</small></div>
+        <div class="opt dim">🌙 생활 리듬<small>취침 시각과 컨디션을 하루 30초로 남겨요</small></div>
+        <p style="font-size:11.5px;color:var(--a-muted);margin:0">다른 기록부터 시작해도 괜찮아요.</p>
+        <div style="margin-top:auto"></div>
+        <div class="btn">이 트랙으로 시작</div>
+        <p class="foot">어떤 트랙이든 일반 건강수칙 범위이며, 진료를 대신하지 않아요.</p>
+      </div>
+      <div class="tabs"><div class="tab"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">02</span> <span class="fid">T1 · 트랙 추천·선택</span>
+      <h3>트랙 선택 — 추천 1개를 미리 골라둔다</h3>
+      <p class="purpose">3등분 그리드는 “셋 다 검토하라”는 신호라 결정 부담을 만든다. 추천 1개를 <b>미리 선택된 상태</b>로 두고 대안은 축소한다.</p>
+      <div class="nblock"><h5>화면 규칙</h5><ul>
+        <li>추천 트랙에만 근거 배지. 근거를 못 구하면 배지를 <b>숨긴다</b> — 추측성 근거 금지</li>
+        <li>대안 2개는 지우지 않는다. 선택권 없는 추천은 신뢰를 잃는다</li>
+        <li>주의·경고 밴드는 트랙 선택 화면부터 진료 병행 배너를 노출</li>
+      </ul></div>
+      <div class="nblock"><h5>계약</h5><ul>
+        <li>배너 문구는 <code>routine_engine._BANNER[track][band]</code> 그대로 — 화면에서 새로 쓰지 않는다</li>
+        <li>트랙 변경은 7일 1회. 초과 시 <code>409 track_change_cooldown</code>이지만 <b>강제 차단은 하지 않는다</b></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- 03 T2 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><span style="font-size:17px">←</span><span class="t1">문진</span><span class="gear">1/3</span></div>
+        <div class="prog"><i style="width:33%"></i></div>
+        <h2 class="q" style="font-family:var(--ui);margin-top:22px">평소 외식·배달 빈도는?</h2>
+        <p style="font-size:12.5px;color:var(--a-muted);margin:0 0 8px">답에 따라 12주 행동이 달라져요</p>
+        <div class="opt sel">거의 매일</div>
+        <div class="opt">주 2~3회</div>
+        <div class="opt">드뭄</div>
+        <div style="margin-top:auto"></div>
+        <div class="btn">다음</div>
+        <p class="foot">언제든 뒤로 돌아가 고칠 수 있어요</p>
+      </div>
+      <div class="tabs"><div class="tab"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">03</span> <span class="fid">T2 · 문진 3문항</span>
+      <h3>문진 — 한 화면에 한 문항</h3>
+      <p class="purpose">3문항을 한 화면에 몰면 “설문”이 되고 이탈한다. 한 문항씩 넘기면 진행감이 생긴다. 목표 이탈률 20% 미만.</p>
+      <div class="nblock"><h5>문항 (식단)</h5><ul>
+        <li>평소 외식·배달 빈도는? → 거의 매일 / 주 2~3회 / 드뭄</li>
+        <li>짠 음식·국물 선호도는? → 강함 / 보통 / 약함</li>
+        <li>목표 기간은? → 2주 / 1개월 / 3개월+</li>
+      </ul></div>
+      <div class="nblock"><h5>계약</h5><ul>
+        <li>출처 <code>coaching_engine.INTAKE_QUESTIONS[track]</code> — 답은 보조 행동 풀 선택에만 쓰인다</li>
+        <li><code>/coaching/config</code> 로드 실패 시 <b>하드코딩 문진으로 폴백</b>. 문진 실패로 생성이 막히지 않는다</li>
+        <li>뒤로 수정 가능. 진행바는 남은 부담을 보여주는 장치</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- 04 T3 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><span style="font-size:17px">←</span><span class="t1">12주 미리보기</span></div>
+        <h2 class="q" style="font-family:var(--ui)">오늘 할 건 딱 1개예요</h2>
+        <p style="font-size:13px;color:var(--a-muted);margin:0">12주 동안 매일 하나씩. 주의 구간이라 늘어나는 건 4주차부터예요.</p>
+        <div class="strip">
+          <div class="lab"><span>정착기 1–2</span><span>확장기 3–6 · 내재화기 7–10 · 전환기 11–12</span></div>
+          <div class="segs">
+            <span class="seg now"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+            <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+            <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </div>
+        </div>
+        <div class="card">
+          <p style="font-size:11px;color:var(--a-teal-ink);font-weight:700;margin:0 0 4px">1주차 · 앵커에 붙이기 — 30초면 끝</p>
+          <h4 style="line-height:1.4;font-size:16px">저녁 양치 뒤, 오늘 식사 시각을 남겨요</h4>
+          <p style="margin-top:6px">주간 미션 · 7일 중 <b>3일</b>, 같은 자리에서 기록해요</p>
+        </div>
+        <div style="margin-top:auto"></div>
+        <div class="a-banner warn">⚠<div>측정값이 주의 구간이에요 — 식이 조절은 진료와 병행하세요.<span class="note">진단은 아니에요.</span></div></div>
+        <div class="btn">시작하기</div>
+      </div>
+      <div class="tabs"><div class="tab"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">04</span> <span class="fid">T3 · 12주 미리보기</span>
+      <h3>미리보기 — 12주를 보여주되 부담은 1개로</h3>
+      <p class="purpose">“12주”는 진지함을 주지만 동시에 겁을 준다. 타임라인으로 규모를 보여준 뒤 곧바로 <b>오늘의 부담이 1개</b>임을 못 박는 순서가 핵심이다.</p>
+      <div class="nblock"><h5>화면 규칙</h5><ul>
+        <li>주차 미션은 7일이 아니라 <b>3일 기준</b>으로 제시(1주차 goal_days=3). 달성 가능한 첫 목표가 정착률을 만든다</li>
+        <li>1주차 카드는 실제 배정될 행동 문구 그대로. 미리보기와 실제가 다르면 신뢰가 깨진다</li>
+        <li>세그먼트는 색 외에 페이즈 라벨 텍스트를 병행(색맹 대응)</li>
+      </ul></div>
+      <div class="nblock"><h5>계약</h5><ul>
+        <li><code>routine_engine.WEEKS[0]</code> · theme·goal_days·mission이 정본</li>
+        <li>보조 행동은 1–2주 <b>0개</b>. 정착기에는 메인 1개를 고정한다</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- 05 T4 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><span style="font-size:17px">←</span><span class="t1">알림 시각</span></div>
+        <h2 class="q" style="font-family:var(--ui)">내일부터 몇 시에 알려드릴까요?</h2>
+        <p style="font-size:13px;color:var(--a-muted);margin:0">기본은 저녁 8시예요. 저녁 약 드시는 시각 근처가 가장 잘 지켜져요.</p>
+        <div class="opt">18:00</div>
+        <div class="opt">19:00</div>
+        <div class="opt sel">20:00<span class="rec">추천</span></div>
+        <div class="opt dim" style="border-style:solid">21:00 이후 <small style="margin-top:2px">밤에는 알림을 보낼 수 없어요</small></div>
+        <div style="margin-top:auto"></div>
+        <div class="btn">이 시각으로 시작</div>
+        <div class="btn ghost" style="margin-top:8px">나중에 정할게요</div>
+        <p class="foot">알림은 언제든 내정보에서 끄거나 바꿀 수 있어요</p>
+      </div>
+      <div class="tabs"><div class="tab"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">05</span> <span class="fid">T4 · 알림 시각</span>
+      <h3>알림 시각 — 법이 UI를 결정한 화면</h3>
+      <p class="purpose">알림은 루틴의 트리거지만, 야간 발송은 정보통신망법 제한 대상이다. 제약을 숨기지 않고 <b>사유를 그대로 노출</b>한다.</p>
+      <div class="nblock"><h5>화면 규칙</h5><ul>
+        <li>선택 가능 범위는 <b>08:00–20:59</b>. 21시 이후는 UI 비활성 + 사유 문구, 서버도 <code>422 notify_time_not_allowed</code>로 거부해 <b>이중 방어</b></li>
+        <li><b>[나중에 정할게요]를 항상 제공</b>하고 <b>주 버튼과 같은 크기·같은 무게</b>로 둔다 — 거부 버튼을 흐리게 하는 다크패턴 금지</li>
+        <li>수신거부 방법을 1줄 병기</li>
+      </ul></div>
+      <div class="nblock"><h5>이 화면 직후의 분기 — 프로그램 생성</h5><ul>
+        <li><code>POST /routine/start</code> · req <code>{track, intake, focus, notify_hhmm, start_tomorrow, mode}</code></li>
+        <li>서버가 한 트랜잭션으로 ① 밴드 재산출 ② 보조 풀 확보 ③ 12주 전개 ④ <code>routine_program</code> 1행 저장. <b>부분 생성 금지</b></li>
+        <li><b>E47</b> 시작 시각이 KST 21시 이후면 <b>“오늘은 준비만 하고 내일 1일차로 시작할까요?”</b> 선택지 → <code>start_tomorrow:true</code>. 첫 성공 경험을 몇 분 만에 소진시키지 않는다</li>
+        <li><b>E46</b> 이미 active 프로그램 → <code>409 program_exists</code> → 트랙 변경 다이얼로그로 라우팅</li>
+        <li><b>E14</b> 7일 내 재변경 → <code>409 track_change_cooldown</code> → [그래도 바꾸기]는 남긴다(<code>force:true</code>)</li>
+        <li>저장 실패 → 프로그램을 만들지 않고 T4로 복귀. 반쪽 프로그램은 만들지 않는다</li>
+      </ul></div>
+      <div class="guard"><b>없는 채널을 전제하지 않는다.</b> v1은 서버 발송 0 — 시각만 저장하고 앱 진입 시 인앱 카드로 대체한다. 그래서 <b>알림이 안 와도 홈이 곧바로 오늘의 행동을 보여주는 것</b>이 1급 설계다.</div>
+    </div>
+  </div>
+
+  <!-- 06 H1 D0 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-banner warn">⚠<div>측정값이 주의 구간이에요 — 식이 조절은 진료와 병행하세요.<span class="note">진단은 아니에요.</span></div></div>
+        <div class="a-head">
+          <svg class="ring" viewBox="0 0 36 36" role="img" aria-label="12주 중 1주차, 8%">
+            <circle cx="18" cy="18" r="15" fill="none" stroke="#E7E3DA" stroke-width="4"/>
+            <circle cx="18" cy="18" r="15" fill="none" stroke="#0E8A6B" stroke-width="4"
+                    stroke-linecap="round" stroke-dasharray="94.248" stroke-dashoffset="86.7"
+                    transform="rotate(-90 18 18)"/>
+            <text x="18" y="21.5" text-anchor="middle" font-size="10" font-weight="700" fill="#2B2B2B">1</text>
+          </svg>
+          <div><div class="t1">1주차 · 1일째</div><div class="t2">정착기 · 12주 중 8%</div></div>
+          <span class="gear">⚙</span>
+        </div>
+        <div class="hero">
+          <div class="chip-ev">◆ 공복혈당 107 mg/dL</div>
+          <h1 class="act">저녁 양치 뒤, 오늘 식사 시각을 남겨요</h1>
+          <p class="act-meta">30초 · 시각 1탭 · 질병관리청 국가건강정보포털</p>
+          <div class="btn">오늘 완료하기</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <div class="btn ghost" style="flex:1;font-size:13px">못했어요</div>
+            <div class="btn ghost" style="flex:1;font-size:13px">해당없음</div>
+          </div>
+          <div class="why">왜 이 행동인가요?</div>
+        </div>
+        <div class="stepper"><span class="step on"></span><span class="step"></span><span class="step"></span>
+          <span style="font-size:12px;color:var(--a-muted);margin-left:6px">작심삼일, 오늘 하나만 하면 시작이에요</span></div>
+        <div class="strip">
+          <div class="lab"><span>정착기 1–2</span><span>12주 중 1주차</span></div>
+          <div class="segs">
+            <span class="seg now"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+            <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+            <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </div>
+        </div>
+        <p class="foot">일반 건강정보 안내이며 진단·처방이 아닙니다</p>
+      </div>
+      <div class="tabs"><div class="tab on"><i></i>오늘<span class="dot"></span></div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">06</span> <span class="fid">H1 · S3_ACTIVATING · Day 0</span>
+      <h3>첫 홈 — 앱의 새 중심</h3>
+      <p class="purpose">탭 1번의 정체성이 채팅 입력창에서 <b>미완결 객체</b>로 교체되는 지점. 설명 화면 없이 그 자리에서 첫 기록을 완료시킨다.</p>
+      <div class="nblock"><h5>불변식 (어떤 상태·기기에서도)</h5><ul>
+        <li><b>완료 버튼 하단 y ≤ 480px</b> — 390×844 엄지 원존. 콘텐츠가 늘면 아래 섹션이 밀리지 버튼이 밀리지 않는다</li>
+        <li><b>근거칩 → 행동문구 → 완료버튼</b> 3요소는 항상 above the fold. ③→④→⑤ 전이의 구현체라 축약 대상 제외</li>
+        <li><b>1탭 완료</b> — 확인 다이얼로그·수치 입력·스와이프 금지</li>
+      </ul></div>
+      <div class="nblock"><h5>정착기 특례</h5><ul>
+        <li><b>P6 이상 섹션 숨김</b>(WeekDots·CoachNote·AskBridge·보조행동·리포트·선제카드). 남기는 것은 헤더·히어로·Day3Stepper·ProgramStrip·Footer뿐 — 12주의 규모감은 시작 직후에도 필요하다. 첫 성공까지 탭 수 = 1</li>
+        <li>3일 완주 전 항목 추가·난이도 상향은 <b>서버가 거부</b>(<code>409 activation_lock</code>). UI 숨김이 아니라 API 차단</li>
+        <li>탭 배지는 7px 앰버 dot만. <b>숫자 배지 금지</b> — 미완료 개수 노출은 죄책감이다</li>
+      </ul></div>
+      <div class="nblock"><h5>데이터</h5><ul>
+        <li><code>GET /routine/today</code> 단일 호출로 program·today·support·weeks·<b>days(84)·week_days</b>·stats·coach·safety·ask_chips 전부 수신</li>
+        <li>상태는 서버가 <code>today.state</code>로 확정. <b>프론트는 자체 판정하지 않는다</b></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- 07 H2 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body" style="filter:blur(1.5px)">
+        <div class="a-head"><div><div class="t1">1주차 · 1일째</div><div class="t2">정착기</div></div></div>
+        <div class="hero"><div class="chip-ev">◆ 공복혈당 107 mg/dL</div>
+          <h1 class="act">저녁 약·양치 직후 앱을 열고 오늘 저녁 식사 시각을 1탭으로</h1></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="sheet-modal">
+        <div class="grabber"></div>
+        <div class="chip-ev" style="align-self:flex-start">✓ 오늘 완료 · 1일째</div>
+        <h4 style="font-size:17px;margin:0;font-weight:700">첫 기록이 남았어요</h4>
+        <p style="font-size:13px;color:var(--a-muted);margin:0;line-height:1.5">
+          내일 같은 시각에 하나만 더. 3일을 넘기면 자리가 잡혀요.</p>
+        <div class="opt sel" style="padding:11px 13px">18~20시 <span class="rec">기록됨</span></div>
+        <div style="display:flex;gap:8px">
+          <div class="btn done" style="flex:1;height:44px;font-size:14px">완료 ✓</div>
+          <div class="btn ghost" style="flex:1;height:44px">되돌리기</div>
+        </div>
+        <p style="font-size:11.5px;color:var(--a-muted);margin:0">5분 안에는 되돌릴 수 있어요</p>
+        <p style="font-size:12.5px;color:var(--a-teal-ink);margin:2px 0 0;line-height:1.5;font-weight:600">
+          시작이 제일 어려운데, 그걸 방금 넘기셨어요.</p>
+        <div style="border-top:1px solid var(--a-line);padding-top:11px">
+          <p style="font-size:12.5px;font-weight:600;margin:0 0 8px">실천하면서 궁금한 게 있었나요?</p>
+          <div class="askchips">
+            <span class="askchip">기록은 언제 하는 게 좋을까요?</span>
+            <span class="askchip">매일 하기 어려우면 어떻게 하나요?</span>
+            <span class="askchip">이 기록이 왜 도움이 되나요?</span>
+          </div>
+        </div>
+      </div>
+      <div class="tabs"><div class="tab on"><i></i>오늘</div><div class="tab"><i></i>프로그램</div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">07</span> <span class="fid">H2 · 체크인 시트</span>
+      <h3>첫 체크인 — 보상은 400ms 안에 끝난다</h3>
+      <p class="purpose">순환 ⑤→⑥의 발화 지점. 완료 직후에만 질문칩을 띄운다. <b>실행 전에는 묻지 않는다</b> — 질문은 실행에서 생기기 때문이다.</p>
+      <div class="nblock"><h5>보상 연출 예산</h5><ul>
+        <li>버튼 tint → 체크 스트로크(260ms) → 도트 채움(180ms 지연) → 링 증가(420ms) → 코치 한 줄</li>
+        <li><b>전면 축하 모달 금지.</b> 단 Day 1 첫 성공만 예외 — <b>정본 자체가 미해결</b>이라(안티골은 예외 없음 / G-5는 예외 인정) 결정표 항목으로 확정해야 한다</li>
+        <li>되돌리기는 스와이프가 아니라 <b>같은 자리의 버튼 텍스트</b>로. 5분 이내 <code>status='undone'</code></li>
+      </ul></div>
+      <div class="nblock"><h5>계약</h5><ul>
+        <li><code>POST /routine/checkin</code> — 서버가 KST 날짜 확정(클라 시계 불신)</li>
+        <li>중복은 <code>409</code>가 아니라 <b><code>200</code> + 기존 레코드</b>(멱등). <code>UNIQUE(program,date,item)</code></li>
+        <li>23:50~23:59 탭이 00:00 이후 도달하면 <b>전날로 귀속</b>(유예 10분) + “어제로 기록되었어요”</li>
+        <li>저장 실패 시 낙관적 UI 롤백 + 3회 백오프 → 로컬 큐. <b>조용한 유실 금지</b></li>
+      </ul></div>
+      <div class="nblock"><h5>질문칩</h5><ul>
+        <li><code>routine_engine.ASK_CHIPS[week]</code> — 주차별 3개. 상담 프리필로 전달</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- 08 D3 -->
+  <div class="frame">
+    <div class="device"><div class="scr">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><div><div class="t1">1주차 · 3일째</div><div class="t2">정착기 · 12주 중 8%</div></div><span class="gear">⚙</span></div>
+        <div class="hero" style="padding:15px">
+          <div class="chip-ev">✓ 오늘 완료 · 3일째</div>
+          <h1 class="act" style="font-size:17px">저녁 양치 뒤, 오늘 식사 시각을 남겨요</h1>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <div class="btn done" style="flex:1;height:44px;font-size:14px">완료 ✓</div>
+            <div class="btn ghost" style="flex:1;height:44px">되돌리기</div>
+          </div>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div class="badge-big" style="width:54px;height:54px;font-size:24px;margin-bottom:9px">🎯</div>
+          <h4 style="font-size:17px">작심삼일을 넘겼어요</h4>
+          <p style="margin-top:5px">3일치 기록을 정리해 드릴게요.</p>
+          <div class="dots" style="margin-top:13px">
+            <span class="dot7 done">✓</span><span class="dot7 done">✓</span><span class="dot7 done">✓</span>
+            <span class="dot7">4</span><span class="dot7">5</span><span class="dot7">6</span><span class="dot7">7</span>
+          </div>
+          <p style="margin-top:10px;font-size:12px">주간 미션 <b style="color:var(--a-teal-ink)">3/3일 달성</b> · 이번 주는 여기까지면 충분해요</p>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <p style="font-size:12.5px;font-weight:600;margin:0 0 8px">실천하면서 궁금한 게 있었나요?</p>
+          <div class="askchips">
+            <span class="askchip">이 기록이 왜 도움이 되나요?</span>
+            <span class="askchip">기록은 언제 하는 게 좋을까요?</span>
+          </div>
+        </div>
+        <div style="margin-top:auto"></div>
+        <p class="foot">일반 건강정보 안내이며 진단·처방이 아닙니다</p>
+      </div>
+      <div class="tabs"><div class="tab on"><i></i>오늘</div><div class="tab"><i></i>프로그램<span class="dot" style="background:var(--a-teal)"></span></div><div class="tab"><i></i>상담</div><div class="tab"><i></i>내 건강</div></div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">08</span> <span class="fid">Day 3 · S4_ACTIVE 전환</span>
+      <h3>3일 정착 — 생성이 완료되는 지점</h3>
+      <p class="purpose">프로그램은 시작 버튼이 아니라 <b>3일째에 완성된다.</b> D3 정착률 55%가 이 화면의 단일 KPI다.</p>
+      <div class="nblock"><h5>3일 설계</h5><ul>
+        <li><b>Day 1</b> 홈 최상단 ‘어제와 똑같이 1개’만. 나머지 카드 전부 접음 — 새 정보를 주지 않는 것이 핵심</li>
+        <li><b>Day 2</b> ‘내일이면 3일’ 예고 + 배지 미리보기 — 내일 열 이유를 만든다</li>
+        <li><b>Day 3</b> 배지 + 미니 리포트 + 다음 주 테마 예고</li>
+        <li><b>자동 하향</b> Day 1~2 실행 0이면 다음 날 행동을 30초 → 10초로 치환하고 미션을 3일 중 2일로 낮춘다</li>
+        <li><b>히어로를 치우지 않는다</b> — 완료 상태(‘완료 ✓ · 되돌리기’)로 유지해야 5분 내 실행취소(E18)가 도달 가능하다. 배지·리포트는 그 아래로</li>
+      </ul></div>
+      <div class="guard"><b>무비난.</b> 실패를 사용자 탓으로 돌리는 문구는 어떤 경로로도 쓰지 않는다. 미니 리포트는 값을 판정하지 않고 “아직 판단하기엔 이른 기록”이라고 말한다.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">03</span><h2>밴드 분기 — 같은 화면, 세 가지 안전 수위</h2></div>
+  <p class="sec-lede">밴드는 콘텐츠를 바꾸지 않는다. <b>항목 수·게임 요소·배너</b>만 바꾼다. 경고 밴드에서 스트릭 연출을 숨기는 이유는 단 하나 — 스트릭보다 안전이 위이기 때문이다.</p>
+  <div class="bandrow">
+
+    <div class="bandcol">
+      <div class="device"><div class="scr" style="min-height:520px">
+        <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="body">
+          <div class="a-head"><div><div class="t1">7주차 · 5일째</div><div class="t2">내재화기 · 🔥 12일 연속</div></div><span class="gear">⚙</span></div>
+          <div class="hero">
+            <div class="chip-ev">◆ 공복혈당 92 mg/dL</div>
+            <h1 class="act" style="font-size:17px">오늘 기록하거나, 어려우면 [오늘은 패스]</h1>
+            <p class="act-meta">5초 · 패스도 기록돼요</p>
+            <div class="btn">오늘 완료하기</div>
+          </div>
+          <div class="card" style="padding:11px 13px">
+            <p style="font-size:12px;margin:0"><b>보조 행동 2개</b> · 국물은 절반만 남기기 · 채소 한 접시 더</p>
+          </div>
+          <div class="dots">
+            <span class="dot7 done">✓</span><span class="dot7 done">✓</span><span class="dot7 miss">–</span>
+            <span class="dot7 done">✓</span><span class="dot7 today">오늘</span><span class="dot7">6</span><span class="dot7">7</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="bandcap">
+        <h4><span class="bcode" style="background:var(--a-teal-100);color:var(--a-teal-ink)">안정</span>전 기능 개방</h4>
+        <p>게임 요소를 온전히 쓴다. 12주 후 유지 모드를 자동 제안한다.</p>
+        <ul><li>보조 항목 <b>최대 2개</b>(7주차 이후)</li><li>확장기 3주차 진입</li><li>배너 없음</li></ul>
+      </div>
+    </div>
+
+    <div class="bandcol">
+      <div class="device"><div class="scr" style="min-height:520px">
+        <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="body">
+          <div class="a-banner warn">⚠<div>측정값이 주의 구간이에요 — 식이 조절은 진료와 병행하세요.<span class="note">진단은 아니에요.</span></div></div>
+          <div class="a-head"><div><div class="t1">7주차 · 5일째</div><div class="t2">내재화기 · 🔥 12일 연속</div></div><span class="gear">⚙</span></div>
+          <div class="hero">
+            <div class="chip-ev">◆ 공복혈당 107 mg/dL</div>
+            <h1 class="act" style="font-size:17px">오늘 기록하거나, 어려우면 [오늘은 패스]</h1>
+            <p class="act-meta">5초 · 패스도 기록돼요</p>
+            <div class="btn">오늘 완료하기</div>
+          </div>
+          <div class="card" style="padding:11px 13px">
+            <p style="font-size:12px;margin:0"><b>보조 행동 1개</b> · 국물은 절반만 남기기</p>
+          </div>
+          <div class="dots">
+            <span class="dot7 done">✓</span><span class="dot7 done">✓</span><span class="dot7 miss">–</span>
+            <span class="dot7 done">✓</span><span class="dot7 today">오늘</span><span class="dot7">6</span><span class="dot7">7</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="bandcap">
+        <h4><span class="bcode" style="background:var(--a-amber-bg);color:var(--a-amber-ink)">주의</span>진료와 병행</h4>
+        <p>배너를 매 주차 상단에 상시 노출한다. 정착기를 3주로 늘려 서두르지 않는다.</p>
+        <ul><li>보조 항목 <b>최대 1개</b> — 2개 구간 없음</li><li>확장기 진입 <b>4주차로 1주 지연</b></li><li>주간 리포트에 ‘다음 검진 시 확인할 항목’ 블록</li></ul>
+      </div>
+    </div>
+
+    <div class="bandcol">
+      <div class="device"><div class="scr" style="min-height:520px">
+        <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="body">
+          <div class="a-banner crit">⚠<div>측정값이 경고 구간이에요. 식이 조절은 진료와 병행하시고, 우선 기록부터 가볍게 이어가세요.<span class="note">진단은 아니에요.</span></div></div>
+          <div class="btn ghost" style="border-color:var(--a-red);color:var(--a-red-ink)">가까운 병원 찾기</div>
+          <div class="a-head"><div><div class="t1">7주차 · 5일째</div><div class="t2">내재화기</div></div><span class="gear">⚙</span></div>
+          <div class="hero">
+            <div class="chip-ev">◆ 공복혈당 132 mg/dL</div>
+            <h1 class="act" style="font-size:17px">평소대로 오늘 기록 하나만 남겨요</h1>
+            <p class="act-meta">30초 · 이번 구간에서는 이것만</p>
+            <div class="btn">오늘 완료하기</div>
+          </div>
+          <p style="font-size:11.5px;color:var(--a-muted);text-align:center;margin:0">
+            이번 구간에서는 항목을 늘리지 않아요</p>
+        </div>
+      </div></div>
+      <div class="bandcap">
+        <h4><span class="bcode" style="background:var(--a-red-bg);color:var(--a-red-ink)">경고</span>안전이 스트릭보다 위</h4>
+        <p>코칭을 <b>끄지 않는다.</b> 대신 항목을 메인 1개로 조이고 경쟁·연출 요소를 숨긴다.</p>
+        <ul><li>보조 항목 <b>0개</b> — 12주 내내 메인 1개</li><li>스트릭·배지·레벨 <b>연출 숨김</b></li><li>행동 추가형 미션을 전부 <b>측정·기록형으로 치환</b></li><li>운동 트랙은 강도 항목 비활성 + clearance 선표시</li><li>밴드 정상화돼도 <b>자동 재개 금지</b> — 사용자가 직접 재시작</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">04</span><h2>생성 이후 — 루틴을 잃지 않게 하는 4개 화면</h2></div>
+  <p class="sec-lede">루틴형 제품이 죽는 지점은 생성이 아니라 <b>끊긴 다음</b>이다. 아래 넷은 “돌아올 수 있는가”를 결정한다.</p>
+
+  <div class="frame">
+    <div class="device"><div class="scr" style="min-height:560px">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><div><div class="t1">3주차 · 잠시 멈춤</div><div class="t2">확장기</div></div><span class="gear">⚙</span></div>
+        <div class="card" style="padding:18px">
+          <h4 style="font-size:17px">잠깐 쉬어가도 괜찮아요</h4>
+          <p style="margin-top:6px">그동안 <b style="color:var(--a-teal-ink)">14일</b>을 기록했어요. 오늘 딱 한 가지만 해볼까요?</p>
+          <div class="btn" style="margin-top:14px">오늘부터 다시</div>
+          <div class="btn ghost" style="margin-top:8px">더 쉽게 다시 시작</div>
+          <div class="why">주차를 되감을게요</div>
+        </div>
+        <div class="strip">
+          <div class="lab"><span>지금까지</span><span>남아있는 기록</span></div>
+          <div class="hmap">
+            <i class="l3"></i><i class="l2"></i><i class="l3"></i><i class="l1"></i><i class="l3"></i><i class="l2"></i>
+            <i class="l3"></i><i></i><i class="l2"></i><i class="l3"></i><i class="l1"></i><i></i>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10.5px;color:var(--a-muted)">
+            <span>적음</span>
+            <span style="width:9px;height:9px;border-radius:2px;background:var(--a-miss)"></span>
+            <span style="width:9px;height:9px;border-radius:2px;background:var(--a-teal-200)"></span>
+            <span style="width:9px;height:9px;border-radius:2px;background:var(--a-teal-400)"></span>
+            <span style="width:9px;height:9px;border-radius:2px;background:var(--a-teal)"></span>
+            <span>많음</span>
+            <span style="margin-left:auto">14일 기록 · 최장 6일</span>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">09</span> <span class="fid">L1 · S6_LAPSED (3~7일)</span>
+      <h3>복귀 — 비운 날짜를 세지 않는다</h3>
+      <div class="nblock"><h5>규칙</h5><ul>
+        <li><b>결석 일수를 노출하지 않는다.</b> 대신 누적 실천일을 ‘남아있는 자산’으로 강조</li>
+        <li>선택지 3개: 오늘부터 다시 / 더 쉽게 다시 / 주차 되감기. <b>진도 회수는 사용자만 선택</b></li>
+        <li>넛지는 이탈 기간 중 <b>최대 2회</b>(3일차·7일차). 8일차부터 중단</li>
+        <li>죄책감 문구·붉은 경고·카운트다운 전면 금지</li>
+      </ul></div>
+      <div class="nblock"><h5>계약</h5><ul>
+        <li><code>coaching_adaptive.coach()</code> 액션에 1:1 매핑 — <code>reengage_gentle</code>(2~3일) / <code>reengage_replan</code>(4~7일) / <code>dormant</code>(8일+)</li>
+        <li>[더 쉽게 다시 시작] 착지 = <b>L2 플랜 재조정</b>(<code>POST /routine/replan</code>, 항목 축소·난이도 하향). 강제 변경 금지</li>
+        <li><b>14일+ 복귀는 다른 화면(S8)</b> — 선택지가 (A)이어서 (B)처음부터 (C)다른 트랙으로 바뀌고 30일+면 재진단을 유도한다</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="device"><div class="scr" style="min-height:560px">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-banner crit">⚠<div>측정값이 경고 구간이에요. 식이 조절은 진료와 병행하시고, 우선 기록부터 가볍게 이어가세요.<span class="note">진단은 아니에요.</span></div></div>
+        <div class="btn ghost" style="border-color:var(--a-red);color:var(--a-red-ink)">가까운 병원 찾기</div>
+        <div class="a-head"><div><div class="t1">5주차 · 2일째</div><div class="t2">확장기</div></div><span class="gear">⚙</span></div>
+        <div class="hero">
+          <div class="chip-ev">◆ 수축기 혈압 168 mmHg</div>
+          <h1 class="act" style="font-size:17px">평소대로 오늘 기록 하나만 남겨요</h1>
+          <p class="act-meta">30초 · 이번 구간에서는 이것만</p>
+          <div class="btn">오늘 완료하기</div>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <p style="font-size:12px;margin:0">보조 행동 2개는 <b>이번 구간 동안 쉬어갑니다.</b> 다시 켜는 건 직접 정하실 수 있어요.</p>
+        </div>
+      </div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">10</span> <span class="fid">S9_PAUSED_SAFETY</span>
+      <h3>주행 중 밴드 상승 — 진도는 되감지 않는다</h3>
+      <div class="nblock"><h5>규칙</h5><ul>
+        <li>항목 상한 즉시 0(메인만) + 진료 배너 최상위 + 게임 요소 숨김</li>
+        <li><b>주차 진도는 되감지 않는다</b> — 진도 회수는 즉시 이탈로 이어진다</li>
+        <li>밴드 완화 시 문구는 “좋아졌다·개선됐다” 금지. <b>“이번 주부터 항목을 하나 늘려볼 수 있어요”</b>라는 행동 문장만</li>
+        <li>자동 재개 금지 — 사용자가 <b>[루틴 다시 시작]</b>을 눌러야 한다</li>
+      </ul></div>
+      <div class="guard"><b>응급은 다르다.</b> 응급 신호는 전면 모달로 다른 UI를 전부 차단한다 — 체크인·상담·코칭 진입 모두. 오늘의 행동 카드는 렌더하지 않는다.</div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="device"><div class="scr" style="min-height:560px">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-banner" style="background:rgba(43,43,43,.05);color:var(--a-muted);border-left:3px solid var(--a-future)">
+          ⤫<div>연결이 끊겼어요. 연결되면 갱신할게요.</div></div>
+        <div class="a-head"><div><div class="t1">3주차 · 4일째</div><div class="t2">확장기 · 마지막 갱신 09:12</div></div><span class="gear">⚙</span></div>
+        <div class="hero">
+          <div class="chip-ev gen">일반 건강수칙 기준</div>
+          <h1 class="act">기록한 뒤, 오늘이 평소와 어떤지 골라요</h1>
+          <p class="act-meta">40초 · 저장된 화면이에요</p>
+          <div class="btn done">완료 ✓ · 연결되면 기록될게요</div>
+        </div>
+        <div class="card" style="padding:12px 14px">
+          <p style="font-size:12px;margin:0">기록 <b>1건</b>이 기다리고 있어요. 연결되면 자동으로 저장됩니다.</p>
+        </div>
+      </div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">11</span> <span class="fid">offline · E1 전역 레이어</span>
+      <h3>오프라인 — 체크인을 막지 않는다</h3>
+      <div class="nblock"><h5>규칙</h5><ul>
+        <li>캐시본으로 히어로를 렌더하고 <b>체크인은 낙관적으로 허용</b> → 로컬 큐에 적재</li>
+        <li>오류·오프라인에서 근거칩은 <b>숨긴다</b>(추측성 근거 금지). ‘일반 건강수칙 기준’으로의 <b>강등은 동의 철회(S13) 전용</b> — 두 규칙을 섞지 않는다</li>
+        <li>개인화는 fail-closed, <b>행동 제시는 fail-open</b></li>
+        <li>D-1 초과 과거 기록은 서버가 거부 → 클라가 먼저 알리고 <b>오늘 날짜로 재기록할지 묻는다.</b> 조용한 폐기 금지</li>
+        <li><b>빈 격자를 렌더하지 않는다</b> — 0일 실천으로 오독된다</li>
+      </ul></div>
+      <div class="guard"><b>체크인 유실 = 스트릭 손실 = 이탈.</b> 401이 나도 refresh 회전 후 원래 요청을 자동 재시도하고, 실패해도 큐를 보존한다.</div>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div class="device"><div class="scr" style="min-height:560px">
+      <div class="sbar"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="body">
+        <div class="a-head"><div><div class="t1">아직 프로그램이 없어요</div><div class="t2">먼저 하나만 해볼까요</div></div><span class="gear">⚙</span></div>
+        <div class="hero">
+          <div class="chip-ev gen">일반 건강수칙 기준</div>
+          <h1 class="act">저녁 식사 뒤 10분 걷기</h1>
+          <p class="act-meta">10분 · WHO 신체활동 지침</p>
+          <div class="btn">오늘 완료하기</div>
+        </div>
+        <div class="strip">
+          <div class="lab"><span>12주 프로그램</span><span>시작 전</span></div>
+          <div class="segs">
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+            <span class="seg" style="background:transparent;border:1px dashed var(--a-future)"></span>
+          </div>
+          <p style="font-size:11.5px;color:var(--a-muted);margin:9px 0 0">시작하면 여기에 12주가 채워져요</p>
+        </div>
+        <div style="margin-top:auto"></div>
+        <div class="btn ghost">12주 프로그램 시작하기</div>
+      </div>
+    </div></div>
+    <div class="frame-note">
+      <span class="fnum">12</span> <span class="fid">no_program · S1_ONBOARDED</span>
+      <h3>프로그램 없음 — 빈 화면을 절대 만들지 않는다</h3>
+      <div class="nblock"><h5>규칙</h5><ul>
+        <li>히어로 자리에 <b>비개인화 기본 행동 1개를 미리 보여준다.</b> 시작 전에도 오늘 할 것이 존재한다</li>
+        <li>ProgramStrip은 12칸 점선 고스트 — 채워질 자리를 미리 보여주는 것이 시작 동기</li>
+        <li>시작 플로우는 <b>3탭 이내</b></li>
+        <li>스피너 금지. 스켈레톤은 1.4s 시머, <code>aria-busy</code></li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">05</span><h2>이 기획을 지탱하는 규칙</h2></div>
+  <p class="sec-lede">아래 셋이 깨지면 화면이 아무리 예뻐도 루틴형 전환은 실패한다.</p>
+  <div class="rules">
+    <div class="rule"><span class="n">불변식 01</span>
+      <h4>완료 버튼은 언제나 엄지 안에</h4>
+      <p>390×844 기준 완료 버튼 하단 y ≤ 480px. 배너가 추가되든 코치 메시지가 길어지든, 밀려나는 것은 아래 섹션이지 버튼이 아니다.</p></div>
+    <div class="rule"><span class="n">불변식 02</span>
+      <h4>근거 → 행동 → 완료는 한 눈에</h4>
+      <p>이 세 요소가 함께 보여야 “내 수치가 이 행동을 만들었다”가 성립한다. 좁은 화면 축약 순서에서도 마지막까지 남긴다.</p></div>
+    <div class="rule"><span class="n">불변식 03</span>
+      <h4>1탭으로 끝난다</h4>
+      <p>확인 다이얼로그·수치 입력·스와이프 없음. 되돌리기는 완료 후 같은 자리의 버튼으로 제공한다.</p></div>
+    <div class="rule"><span class="n">원칙 04</span>
+      <h4>상태는 서버가 정한다</h4>
+      <p>S0~S14 판정, KST 날짜, 주차 번호, 스트릭 전부 서버가 확정해 <code>today.state</code>로 내려준다. 프론트가 자체 판정하면 기기 시계·타임존에서 갈라진다.</p></div>
+    <div class="rule"><span class="n">원칙 05</span>
+      <h4>개인화는 fail-closed, 행동은 fail-open</h4>
+      <p>밴드를 못 구하면 근거칩을 숨기고 일반 루틴으로 계속한다. 개인화 실패가 루틴 자체를 멈추게 하지 않는다.</p></div>
+    <div class="rule"><span class="n">원칙 06</span>
+      <h4>미실천은 색으로 처벌하지 않는다</h4>
+      <p>레드는 경고·응급 밴드 전용. 미실천의 유일한 표현은 회색 <code>--miss</code> + ‘–’ 글리프다.</p></div>
+  </div>
+
+  <div class="anti">
+    <h4>안티골 — 측정하지 않고, 만들지 않는다</h4>
+    <p>루틴형 앱이 흔히 쓰지만 이 제품은 쓰지 않는 장치들. 마지막 항목은 <b>효능표방 그 자체</b>이자 사용자가 통제할 수 없는 결과로 처벌하는 구조다.</p>
+    <div class="antilist">
+      <span>랭킹·리더보드</span><span>연속 끊김 카운트다운 푸시</span><span>미완료 개수 숫자 배지</span>
+      <span>붉은색 미실천 표시</span><span>전면 축하 모달</span><span>밴드 개선에 연동된 보상</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head"><span class="sec-num">06</span><h2>핸드오프</h2></div>
+  <p class="sec-lede">각 화면이 호출하는 계약과, 이미 구현된 자산의 위치.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>화면</th><th>상태</th><th>API</th><th>정본 데이터</th><th>실패 시</th></tr></thead>
+      <tbody>
+        <tr><td>D1 진단</td><td><code>S2</code></td><td><code>GET /diagnosis</code></td><td><code>vital_rules.run</code> · <code>worst_band</code></td><td>밴드 null → 일반 루틴, 배지 숨김</td></tr>
+        <tr><td>T1 트랙</td><td><code>S2</code></td><td><code>GET /coaching/config</code></td><td><code>_BANNER[track][band]</code></td><td>하드코딩 폴백</td></tr>
+        <tr><td>T2 문진</td><td><code>S2</code></td><td>—</td><td><code>INTAKE_QUESTIONS[track]</code></td><td>하드코딩 폴백</td></tr>
+        <tr><td>T3 미리보기</td><td><code>S2</code></td><td>—</td><td><code>routine_engine.WEEKS</code></td><td>—</td></tr>
+        <tr><td>T4 알림</td><td><code>S2</code></td><td><code>PUT /routine/notify</code></td><td>08:00–20:59</td><td><code>422 notify_time_not_allowed</code></td></tr>
+        <tr><td><b>프로그램 생성</b></td><td><code>S2</code>→<code>S3</code></td><td><code>POST /routine/start</code></td><td><code>track·intake·focus·notify_hhmm·start_tomorrow</code></td><td><code>409 program_exists</code> → 트랙 변경 / <code>409 track_change_cooldown</code> → [그래도 바꾸기] / 저장 실패 → 부분 생성 금지</td></tr>
+        <tr><td>H1 홈</td><td><code>S3</code>→<code>S4</code></td><td><code>GET /routine/today</code> (1콜)</td><td><code>ROUTINE_ACTIONS[(w,track)]</code></td><td>캐시본 히어로 + 하위 섹션 재시도</td></tr>
+        <tr><td>H2 체크인</td><td><code>S4</code></td><td><code>POST /routine/checkin</code></td><td><code>ASK_CHIPS[week]</code></td><td>롤백 + 3회 백오프 + 로컬 큐</td></tr>
+        <tr><td>L1 복귀</td><td><code>S6</code>~<code>S8</code></td><td><code>POST /routine/replan</code></td><td><code>coaching_adaptive.coach()</code></td><td>진도 유지 후 재시도</td></tr>
+        <tr><td>안전 정지</td><td><code>S9</code></td><td><code>today.safety</code></td><td>밴드 캡 0</td><td>배너는 임의로 끄지 않는다</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="anti" style="border-left:2px solid var(--warn-doc)">
+    <h4>이 기획이 찾아낸 기존 코드의 카피 결함 4건</h4>
+    <p>콘텐츠 정본 작업 중 현행 코드에서 발견된 것들. 화면을 만들기 전에 고쳐야 한다.</p>
+    <div class="tablewrap" style="margin-left:0;margin-top:14px">
+      <table>
+        <thead><tr><th>위치</th><th>현행</th><th>문제</th><th>조치</th></tr></thead>
+        <tbody>
+          <tr><td>행동 문구 36셀</td><td>38~46자</td><td>21px에서 3줄로 흘러 <b>‘완료 버튼 y ≤ 480px’ 불변식이 깨진다</b></td><td>전부 30자 이내로 재작성</td></tr>
+          <tr><td><code>coaching_adaptive</code></td><td>“죄책감은 내려놓으세요”</td><td>죄책감 프레임을 먼저 꺼내 무비난 원칙 위반</td><td>문구 삭제·교체</td></tr>
+          <tr><td><code>INTAKE_QUESTIONS.exercise</code></td><td>목표 옵션 “체중”</td><td>체중감량 결과 암시 = 효능표방(WC-C1)</td><td>“체력 기르기 / 일정하게 유지하기”</td></tr>
+          <tr><td><code>INTAKE_QUESTIONS.*.period</code></td><td>“목표 기간 2주/1개월”</td><td>2주를 고른 사용자에게 <b>12주를 배정</b>하는 모순(2주 코칭 시절 유물)</td><td>앵커 시각 문항으로 교체</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section style="border-bottom:0">
+  <div class="sec-head"><span class="sec-num">07</span><h2>검수에서 남은 것</h2></div>
+  <p class="sec-lede">이 스토리보드는 MECE 검수를 한 차례 받았다. 아래는 <b>이번 판에서 닫지 않은 항목</b>이다 — 숨기지 않고 다음 작업으로 넘긴다.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>남은 항목</th><th>정본</th><th>왜 이번 판에 없나</th></tr></thead>
+      <tbody>
+        <tr><td>S5 하루 빠짐 + ReengageBanner</td><td>C-3 S5 · D-4 P2</td><td>자동 하향이 발동하는 상태. <b>다음 판 1순위</b></td></tr>
+        <tr><td>S13 개인화 철회</td><td>C-3 S13 · D-5</td><td>근거칩 강등의 정본 케이스. 규칙만 §04에 적었고 화면은 없음</td></tr>
+        <tr><td>S7 휴면(8일+) · S10 휴가 모드</td><td>C-3 S7·S10 · E45</td><td>프레임 09가 S6만 다룸. 자발적 휴식과 이탈의 구분이 무비명 설계의 핵심이라 별도 화면 필요</td></tr>
+        <tr><td>S8 14일+ 복귀 (선택지가 다름)</td><td>C-3 S8</td><td>프레임 09에 S6와 뭉쳐 있음 → 분리 필요</td></tr>
+        <tr><td>skip 후 “왜 어려웠나요?” barrier 1문항</td><td>E17 · F9</td><td>버튼 3개는 넣었으나 후속 문항 화면은 없음. 실패사유 → 상담 재진입 경로가 여기 매달림</td></tr>
+        <tr><td>응급 <code>EmergencyBlock</code> 전면 모달</td><td>E38 · D-4 P0</td><td>규칙 문장으로만 존재. 화면 근거 필요</td></tr>
+        <tr><td>S1/S2 분리 (프레임 12는 뭉쳐 있음)</td><td>C-3 S1·S2</td><td>S1=[내 수치 연결하기] 단일 카드 / S2=진단 요약+단일 CTA</td></tr>
+        <tr><td>“전면 축하 모달” 예외 충돌</td><td>A-4 ↔ G-5</td><td>정본 자체가 미해결(안티골은 예외 없음, G-5는 D+1 예외). <b>결정표 신규 항목으로 확정 필요</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p><b>기준 문서</b> · 정본 스펙 <code>docs/plan/25-routine-transition-spec.md</code> (D0 충돌 결정표 C1–C16 적용) · 콘텐츠 정본 <code>docs/plan/27-routine-content.md</code> · 디자인 토큰 G-4 Warm Light</p>
+  <p><b>이 문서의 범위</b> · 루틴 <em>생성</em> 여정(앞단 W1~P2 요약 + 본선 D1~Day 3)과 그 직후 방어선까지. <b>제외</b> — 주간 리포트(R1~R3)·완주와 다음 목표(X1·X2)·유지 모드(S12)·진단 상세(D2)·상담 본문(C1·C2)·설정(M1). 12주 전체 커리큘럼 카피는 콘텐츠 정본 §2를 따른다.</p>
+  <p><b>일차 표기</b> · 화면 ID의 <code>D1</code>(진단 리포트)과 혼동을 피하려 경과 일차는 <code>Day 1·Day 2·Day 3</code>으로 적는다.</p>
+  <p><b>합성 데이터 고지</b> · 화면의 수치는 전부 체험용 합성 프로필이며 실제 검진 결과가 아니다.</p>
+</footer>
+
+</div>

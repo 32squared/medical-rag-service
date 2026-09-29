@@ -349,6 +349,7 @@ def ingest_document(
     source_url: Optional[str] = None,
     source_fetched_at: Optional[str] = None,
     source_checksum: Optional[str] = None,
+    match_url: bool = True,
 ) -> Dict:
     """
     마크다운 문서 1건을 ingest (청킹 → 임베딩 → DB INSERT).
@@ -368,6 +369,10 @@ def ingest_document(
         source_url:         원문 출처 URL (공공 API 수집 시)
         source_fetched_at:  수집 시각 ISO 8601 (None이면 _now() 사용)
         source_checksum:    SHA-256 hex (내용 변경 감지용)
+        match_url:          False면 같은 문서인지를 제목으로만 본다(source_url 은 저장만).
+                            큐레이션 시드처럼 여러 문서가 기관 대표 URL 을 같이 쓸 때 —
+                            정규화가 '#key' 를 지워 같은 출처 문서들이 서로를 덮었다
+                            (dev 실측: '공복혈당' 행에 HbA1c 본문, HbA1c 행 없음).
 
     Returns:
         {'document_id': str, 'chunks_count': int, 'status': str, 'latency_ms': int}
@@ -391,9 +396,9 @@ def ingest_document(
     keywords_json = json.dumps(topic_keywords or [], ensure_ascii=False)
     fetched_at = source_fetched_at or _now()
 
-    # ── 1. 멱등성 체크 (title 또는 source_url 일치 모두 확인) ─
+    # ── 1. 멱등성 체크 (title 또는 source_url 일치 모두 확인, match_url=False 면 title 만) ─
     with get_conn() as (conn, cur):
-        if source_url:
+        if source_url and match_url:
             cur.execute(
                 f"SELECT id, source_checksum FROM kb_documents"
                 f" WHERE source_id = {_p()} AND (title = {_p()} OR source_url = {_p()})",

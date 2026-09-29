@@ -57,6 +57,8 @@ gcloud storage cp $tmp "$Gs/config.js" --content-type="text/javascript" --cache-
 Remove-Item $tmp -Force
 gcloud storage objects update "$Gs/index.html" --cache-control="no-cache, max-age=0" | Out-Null
 gcloud storage objects update "$Gs/sw.js"      --cache-control="no-cache, max-age=0" | Out-Null
+# JS 모듈도 no-cache — 캐시 고착 시 '배포했는데 구버전이 도는' 문제가 재발한다.
+gcloud storage objects update "$Gs/js/*.js" --cache-control="no-cache, max-age=0" --content-type="text/javascript" 2>$null | Out-Null
 
 # [5/5] BFF CORS 개방 — 이미지 재빌드 없이 env 머지(빠름). update-env-vars 는 기존 env 보존.
 if (-not $SkipCors) {

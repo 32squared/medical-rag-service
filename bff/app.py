@@ -307,6 +307,11 @@ def create_app() -> FastAPI:
         # 이력 보존, status=withdrawn. 세션 철회 실패는 5xx 로 표면화(조용한 부분실패 방지).
         if not account_db.withdraw_account(sub["subject_id"]):
             raise HTTPException(status_code=500, detail="withdraw_incomplete")
+        try:                      # 루틴 프로그램도 함께 보관 처리(스펙 E27)
+            import routine_repo
+            routine_repo.archive_all(sub["subject_id"])
+        except Exception:
+            pass
         return {"ok": True}
 
     # ── 의료 채팅(RAG 프록시) ────────────────────────────────
@@ -374,7 +379,14 @@ def create_app() -> FastAPI:
         persona = _persona(account_db.get_persona(sid))
         band = _persona_band(persona) if persona else None
         # 선제 카드(결정적·비식별) — 페르소나 밴드 신호 → 오늘 챙길 것 1개(과부하 금지).
-        sig = {"band": band, "warning_days": 3 if band in ("주의", "경고") else 0}
+        # coaching_missed_days 가 없으면 R4(코칭 재참여) 규칙이 영원히 죽는다(스펙 E51).
+        try:
+            import routine_repo as _rr
+            _missed = _rr.days_since_last_checkin(sid)
+        except Exception:
+            _missed = 0
+        sig = {"band": band, "warning_days": 3 if band in ("주의", "경고") else 0,
+               "coaching_missed_days": _missed}
         cards = []
         suggested = []
         try:
@@ -514,6 +526,51 @@ def create_app() -> FastAPI:
         return {"persona": {"id": p.get("id"), "name": p.get("name"), "emoji": p.get("emoji", ""),
                             "profile": p.get("profile", ""), "band": _persona_band(p),
                             "samples": (p.get("sample_queries") or [])}}
+
+    # ── 루틴형 전환(12주 프로그램) 라우트 — 정본 docs/plan/25 ──────
+    # 등록 실패가 기존 앱 부팅을 막지 않게 방어(루틴은 additive).
+    try:
+        from . import routine_routes
+
+        def _persona_of(sid):
+            import account_db as _ad
+            return _persona(_ad.get_persona(sid))
+
+        def _consent_ok(sid):
+            recs = consent_db.get_records(sid)
+            return consent_db.granted_items(recs), consent_db.personalization_allowed(recs)
+
+        routine_routes.register(app, {
+            "get_subject": get_subject,
+            "persona_of": _persona_of,
+            "band_of": _persona_band,
+            "consent_ok": _consent_ok,
+        })
+    except Exception as _e:                     # noqa: BLE001 — 부팅 우선
+        import logging
+        logging.getLogger(__name__).warning("routine routes 등록 실패: %s", _e)
+
+    # ── 오늘의 나 재미 레이어(3트랙 지표·아키타입·카드·웰니스 타입) — docs/design/todays-me-mockups/02 ──
+    try:
+        from . import metrics_routes
+
+        def _persona_of2(sid):
+            import account_db as _ad
+            return _persona(_ad.get_persona(sid))
+
+        def _consent_ok2(sid):
+            recs = consent_db.get_records(sid)
+            return consent_db.granted_items(recs), consent_db.personalization_allowed(recs)
+
+        metrics_routes.register(app, {
+            "get_subject": get_subject,
+            "persona_of": _persona_of2,
+            "band_of": _persona_band,
+            "consent_ok": _consent_ok2,
+        })
+    except Exception as _e:                     # noqa: BLE001 — 부팅 우선
+        import logging
+        logging.getLogger(__name__).warning("metrics routes 등록 실패: %s", _e)
 
     return app
 

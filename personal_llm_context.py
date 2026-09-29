@@ -110,3 +110,88 @@ def build_llm_context(findings, query, *, consent: bool = False,
 def preview_context(findings, query) -> str:
     """플래그·provider 게이트와 무관하게 '주입될 내용'만 미리보기(관련성+라벨온리). UI/문서용."""
     return render_context(candidate_items(findings, query))
+
+
+# ══════════════════════════════════════════════════════════════════
+#  [데모] 전체 PHR 원시값 주입 — PERSONAL_RAW_TO_LLM (기본 off)
+#  ⚠️ 방향2(밴드-온리, G6 라벨백스톱) 대비 **원시 수치·PHR을 그대로 LLM에 노출**한다.
+#     합성 페르소나 데모 데이터 전용. 실 PHR 운영 전 반드시 재검토(정본 doc 17).
+#     동의(G2)·응급(G3)·국외이전(G4) 게이트는 유지. 관련성/라벨백스톱은 미적용(원시=의도).
+# ══════════════════════════════════════════════════════════════════
+def _num(x) -> str:
+    """정수형 float(152.0)는 152로, 소수(37.6)는 그대로 표기."""
+    try:
+        f = float(x)
+        return str(int(f)) if f == int(f) else str(f)
+    except Exception:
+        return str(x)
+
+
+def render_raw_context(personal) -> str:
+    """파싱된 personal({vital_signs, phr, air_quality}) → 원시값 포함 LLM 맥락 문자열."""
+    import json as _j
+    lines: List[str] = []
+    vitals = (personal or {}).get("vital_signs") or []
+    if vitals:
+        v = vitals[-1] or {}
+        vs = []
+        if v.get("bps") and v.get("bpd"):
+            vs.append(f"혈압 {_num(v.get('bps'))}/{_num(v.get('bpd'))} mmHg")
+        if v.get("bpm"):
+            vs.append(f"심박수 {_num(v.get('bpm'))} bpm")
+        if v.get("spo2"):
+            vs.append(f"산소포화도 {_num(v.get('spo2'))}%")
+        if v.get("fever"):
+            vs.append(f"체온 {_num(v.get('fever'))}℃")
+        if v.get("stress") is not None and v.get("stress") != "":
+            vs.append(f"스트레스지수 {_num(v.get('stress'))}")
+        if vs:
+            lines.append("최근 측정값: " + ", ".join(vs))
+    phr = (personal or {}).get("phr")
+    if phr:
+        try:
+            p = _j.loads(phr) if isinstance(phr, str) else phr
+        except Exception:
+            p = None
+        if isinstance(p, dict) and p:
+            _kd = {"meds": "복약", "dx": "진단이력", "history": "병력", "checkup": "검진",
+                   "hba1c": "당화혈색소", "bmi_band": "비만단계", "lifestyle": "생활습관",
+                   "ldl": "LDL", "pregnancy": "임신", "breastfeeding": "수유", "status": "상태"}
+            bits = []
+            for k, val in p.items():
+                if val in (None, "", [], {}):
+                    continue
+                label = _kd.get(k, k)
+                v = ", ".join(map(str, val)) if isinstance(val, list) else str(val)
+                bits.append(f"{label}: {v}")
+            if bits:
+                lines.append("건강기록(PHR): " + " · ".join(bits))
+        elif p is None:
+            lines.append("건강기록(PHR): " + str(phr))
+    aq = (personal or {}).get("air_quality")
+    if aq not in (None, ""):
+        lines.append(f"실내 공기질 지수: {aq}")
+    if not lines:
+        return ""
+    body = "\n".join("- " + l for l in lines)
+    return (
+        "[사용자 개인 건강 데이터 — 동의 하에 제공, 참고용]\n"
+        f"{body}\n"
+        "지침: 위는 사용자가 동의·제공한 개인 건강 데이터(원시 수치 포함)입니다. 이를 반영해 답변을 "
+        "사용자 상황에 맞게 구체적으로 개인화하되, 해석은 시스템 프롬프트 규칙 9(L0~L3)의 범위 안에서만 하고, "
+        "확정 진단·처방·진료과 지정은 하지 말고 필요 시 의료진 상담 안내를 포함하세요."
+    )
+
+
+def build_raw_context(personal, *, consent: bool = False,
+                      provider=None, is_emergency: bool = False) -> str:
+    """전체 PHR 원시값 주입 — PERSONAL_RAW_TO_LLM 플래그·동의·응급·국외이전 게이트 통과 시만."""
+    if is_emergency:                              # G3
+        return ""
+    if not _truthy("PERSONAL_RAW_TO_LLM"):        # 기본 off — 안전 기본값 유지
+        return ""
+    if not consent:                               # G2
+        return ""
+    if not _cross_border_ok(provider):            # G4
+        return ""
+    return render_raw_context(personal)
