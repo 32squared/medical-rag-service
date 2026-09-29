@@ -42,7 +42,7 @@ python scripts/pack_draft.py routines/briefs/running_8w.json
 
 | id | 프로필 | 기간 | 트랙 | 비고 |
 |---|---|---|---|---|
-| `health_12w` | medical | 12주 | diet · exercise · habit | 기존 코드에서 추출(골든 무회귀). L3·L10 경고 예외 |
+| `health_12w` | medical | 12주 | diet · exercise · habit | v2 = 27 §2 교체본 카피(새 프로그램). v1 = 기존 코드 추출본(진행 중 프로그램·골든 무회귀, L3·L10 경고 예외) |
 | `golf_6m` | physical | 26주 | range · home | 경고 밴드에선 새로 시작 불가, 진행 중이면 "스윙은 쉬고 몸 상태만" 으로 치환 |
 | `japanese_6m` | neutral | 26주 | reading · listening | 밴드 캡·배너 없음(응급만 중단) |
 
@@ -107,11 +107,11 @@ python scripts/pack_draft.py routines/briefs/running_8w.json
 | L6 | medical 출처 화이트리스트 / 안 쓰는 출처 | error / warn |
 | L7 | 입력 위젯 옵션 수 | error |
 | L8 | 정착기 보조 0 / 1주 목표·단계 수·앵커·복구 | error / warn |
-| L9 | 밴드 배너 · 경고 치환 행동(physical) | error |
+| L9 | 밴드 배너 · 경고 치환 행동(physical 은 주차마다, medical 은 팩에 하나도 없으면 warn) | error |
 | L10 | 이모지 · 모르는 아이콘 키 | error |
 | L11 | 질문칩 3개 | error |
 
-`health_12w` 는 기존 코드에서 옮긴 팩이라 L3·L10 을 경고로만 낸다(`LEGACY_WARN_ONLY`). 새 팩엔 예외가 없다.
+`health_12w` **v1** 은 기존 코드에서 옮긴 파일이라 L3·L10 을 경고로만 낸다(`LEGACY_WARN_ONLY`, `(id, version)` 키). v2 와 새 팩엔 예외가 없다.
 
 ## 6. PR 체크리스트
 

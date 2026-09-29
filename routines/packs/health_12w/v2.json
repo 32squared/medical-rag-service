@@ -1,0 +1,1441 @@
+{
+ "schema_version": 1,
+ "id": "health_12w",
+ "version": 2,
+ "name": "건강 기록 12주",
+ "tagline": "하루 30초 기록으로 내 패턴 찾기",
+ "domain": "health",
+ "safety_profile": "medical",
+ "weeks_total": 12,
+ "phases": [
+  {
+   "id": "settle",
+   "name": "정착기",
+   "from": 1,
+   "to": 2,
+   "desc": "30초짜리 기록 하나를 매일 같은 자리에 붙여요"
+  },
+  {
+   "id": "expand",
+   "name": "확장기",
+   "from": 3,
+   "to": 6,
+   "desc": "내 기준선을 읽고, 무너지는 상황을 찾아요"
+  },
+  {
+   "id": "internalize",
+   "name": "내재화기",
+   "from": 7,
+   "to": 10,
+   "desc": "못 한 날에서 돌아오는 방법을 만들어요"
+  },
+  {
+   "id": "transition",
+   "name": "전환기",
+   "from": 11,
+   "to": 12,
+   "desc": "3개월치 기록을 진료·검진으로 가져가요"
+  }
+ ],
+ "tracks": [
+  {
+   "id": "diet",
+   "name": "식이 기록",
+   "icon": "bowl",
+   "desc": "식사 시각·짠맛 습관을 하루 30초로 남겨요",
+   "target_noun": "식사 시각",
+   "recommend_when": [
+    "bp",
+    "glucose"
+   ]
+  },
+  {
+   "id": "exercise",
+   "name": "활동 기록",
+   "icon": "run",
+   "desc": "오늘 몸을 움직였는지 1탭으로 남겨요",
+   "target_noun": "활동 여부",
+   "recommend_when": [
+    "weight_activity"
+   ]
+  },
+  {
+   "id": "habit",
+   "name": "생활 리듬",
+   "icon": "moon",
+   "desc": "취침 시각과 컨디션을 하루 30초로 남겨요",
+   "target_noun": "취침 시각",
+   "recommend_when": [
+    "sleep_stress"
+   ]
+  }
+ ],
+ "intake": {
+  "diet": [
+   {
+    "id": "eatout",
+    "q": "밖에서 먹는 날은 얼마나 되나요?",
+    "options": [
+     {
+      "label": "거의 매일",
+      "value": "거의 매일"
+     },
+     {
+      "label": "주 2~3회",
+      "value": "주 2~3회"
+     },
+     {
+      "label": "주 1회 이하",
+      "value": "드뭄"
+     }
+    ],
+    "why": "외식 쪽 보조 행동을 골라요"
+   },
+   {
+    "id": "salty",
+    "q": "국물이나 짠 음식은 어떻게 드세요?",
+    "options": [
+     {
+      "label": "짜게 먹는 편",
+      "value": "강함"
+     },
+     {
+      "label": "보통이에요",
+      "value": "보통"
+     },
+     {
+      "label": "싱겁게 먹는 편",
+      "value": "약함"
+     }
+    ],
+    "why": "보조 행동을 짠맛 쪽으로 맞춰요"
+   },
+   {
+    "id": "anchor",
+    "q": "기록하기 편한 시간은 언제인가요?",
+    "options": [
+     {
+      "label": "저녁 식사 직후",
+      "value": "after_dinner"
+     },
+     {
+      "label": "자기 전",
+      "value": "bedtime"
+     },
+     {
+      "label": "아침",
+      "value": "morning"
+     }
+    ],
+    "why": "이 시간에 기록을 붙여요"
+   }
+  ],
+  "exercise": [
+   {
+    "id": "now",
+    "q": "요즘 몸을 움직이는 편인가요?",
+    "options": [
+     {
+      "label": "거의 안 함",
+      "value": "거의 안 함"
+     },
+     {
+      "label": "가끔",
+      "value": "가끔"
+     },
+     {
+      "label": "주 3회 이상",
+      "value": "주 3회+"
+     }
+    ],
+    "why": "시작 난이도를 맞춰요"
+   },
+   {
+    "id": "activity",
+    "q": "하기 편한 활동은 무엇인가요?",
+    "options": [
+     {
+      "label": "걷기",
+      "value": "걷기"
+     },
+     {
+      "label": "집에서 하는 운동",
+      "value": "홈트"
+     },
+     {
+      "label": "헬스·유산소",
+      "value": "헬스·유산소"
+     }
+    ]
+   },
+   {
+    "id": "anchor",
+    "q": "기록하기 편한 시간은 언제인가요?",
+    "options": [
+     {
+      "label": "퇴근 직후",
+      "value": "after_work"
+     },
+     {
+      "label": "자기 전",
+      "value": "bedtime"
+     },
+     {
+      "label": "아침",
+      "value": "morning"
+     }
+    ],
+    "why": "이 시간에 기록을 붙여요"
+   }
+  ],
+  "habit": [
+   {
+    "id": "focus",
+    "q": "가장 손대고 싶은 건 무엇인가요?",
+    "options": [
+     {
+      "label": "수면",
+      "value": "수면"
+     },
+     {
+      "label": "스트레스",
+      "value": "스트레스"
+     },
+     {
+      "label": "금연·절주",
+      "value": "금연·절주"
+     }
+    ],
+    "why": "보조 행동을 이 주제로 채워요"
+   },
+   {
+    "id": "reg",
+    "q": "요즘 자고 깨는 시간은 어떤가요?",
+    "options": [
+     {
+      "label": "들쭉날쭉해요",
+      "value": "불규칙"
+     },
+     {
+      "label": "보통이에요",
+      "value": "보통"
+     },
+     {
+      "label": "일정해요",
+      "value": "규칙적"
+     }
+    ]
+   },
+   {
+    "id": "anchor",
+    "q": "기록하기 편한 시간은 언제인가요?",
+    "options": [
+     {
+      "label": "자기 전",
+      "value": "bedtime"
+     },
+     {
+      "label": "저녁 식사 직후",
+      "value": "after_dinner"
+     },
+     {
+      "label": "아침",
+      "value": "morning"
+     }
+    ],
+    "why": "이 시간에 기록을 붙여요"
+   }
+  ]
+ },
+ "weeks": [
+  {
+   "w": 1,
+   "theme": "앵커에 붙이기 — 30초면 끝",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "7일 중 3일, 같은 자리에서 기록해요. 이번 주는 이거 하나만.",
+   "unlock": "badge:작심삼일 격파",
+   "actions": {
+    "diet": {
+     "id": "w1:log_meal_time",
+     "text": "저녁 양치 뒤, 오늘 식사 시각을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "18시 이전",
+       "18~20시",
+       "20~22시",
+       "22시 이후"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w1:log_activity",
+     "text": "양치 직후, 오늘 움직였는지 남겨요",
+     "cite": "who",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "했어요",
+       "가볍게 움직였어요",
+       "못 했어요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w1:log_sleep_time",
+     "text": "잠자리에 들기 전, 취침 시각을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "22시 이전",
+       "22~24시",
+       "24시 이후"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "기록은 언제 하는 게 좋을까요?",
+    "매일 하기 어려우면 어떻게 하나요?",
+    "이 기록을 나중에 어디에 쓰나요?"
+   ]
+  },
+  {
+   "w": 2,
+   "theme": "같은 시각·같은 자리",
+   "goal_days": 5,
+   "support_cap": 0,
+   "mission": "7일 중 5일 같은 시각에 기록하고, 알림 시각 하나를 확정해요.",
+   "unlock": "badge:일주일",
+   "actions": {
+    "diet": {
+     "id": "w2:log_same_time",
+     "text": "어제와 같은 시각에 식사 시각을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "18시 이전",
+       "18~20시",
+       "20~22시",
+       "22시 이후"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w2:log_same_time",
+     "text": "어제와 같은 시각에 오늘 활동을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "했어요",
+       "가볍게 움직였어요",
+       "못 했어요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w2:log_same_time",
+     "text": "어제와 같은 시각에 취침 시각을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "22시 이전",
+       "22~24시",
+       "24시 이후"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "같은 시각에 기록하는 게 왜 중요한가요?",
+    "알림은 몇 시가 적당할까요?",
+    "주말에는 어떻게 하나요?"
+   ]
+  },
+  {
+   "w": 3,
+   "theme": "내 기준선 읽기",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일 기록하고, 내 7일 범위를 한 번 확인해요.",
+   "unlock": "추세 카드",
+   "actions": {
+    "diet": {
+     "id": "w3:record_compare",
+     "text": "기록한 뒤, 오늘이 평소와 어떤지 골라요",
+     "cite": "nhis",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "비슷",
+       "높음",
+       "낮음"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w3:record_compare",
+     "text": "기록한 뒤, 오늘이 평소와 어떤지 골라요",
+     "cite": "nhis",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "비슷",
+       "높음",
+       "낮음"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w3:record_compare",
+     "text": "기록한 뒤, 오늘이 평소와 어떤지 골라요",
+     "cite": "nhis",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "비슷",
+       "높음",
+       "낮음"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "아침과 저녁 기록이 다른 건 왜인가요?",
+    "기록은 얼마나 오래 해야 하나요?",
+    "평소보다 높은 날엔 뭘 보면 되나요?"
+   ]
+  },
+  {
+   "w": 4,
+   "theme": "방아쇠 찾기 — 언제 무너지는지",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일 태그를 남기고, 자주 흔들리는 상황 하나를 확인해요.",
+   "unlock": "milestone:4주 완주",
+   "actions": {
+    "diet": {
+     "id": "w4:record_tag",
+     "text": "기록하면서 오늘 상황 태그를 하나 골라요",
+     "cite": "phc",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "야근",
+       "회식·외식",
+       "잠 부족"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w4:record_tag",
+     "text": "기록하면서 오늘 상황 태그를 하나 골라요",
+     "cite": "phc",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "야근",
+       "회식·외식",
+       "잠 부족"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w4:record_tag",
+     "text": "기록하면서 오늘 상황 태그를 하나 골라요",
+     "cite": "phc",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "야근",
+       "회식·외식",
+       "잠 부족"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "주말에만 흔들리는 건 왜일까요?",
+    "야근이 잦을 때 실천법이 있을까요?",
+    "잠이 부족하면 생활에 어떤 영향이 있나요?"
+   ]
+  },
+  {
+   "w": 5,
+   "theme": "바깥에서도 되게 — 미리 정해두기",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "바깥 일정이 있는 날 중 2일, 미리 고른 행동을 실행해요.",
+   "unlock": "상황별 대체 행동 카드팩",
+   "actions": {
+    "diet": {
+     "id": "w5:preplan_sub",
+     "text": "외식·회식 날, 대체 행동을 미리 골라요",
+     "cite": "mfds",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "국물 절반 남기기",
+       "단 음료 대신 물",
+       "한 정거장 걷기"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w5:preplan_sub",
+     "text": "약속·이동이 있는 날, 대체 행동을 골라요",
+     "cite": "who",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "국물 절반 남기기",
+       "단 음료 대신 물",
+       "한 정거장 걷기"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w5:preplan_sub",
+     "text": "늦어질 일정이 있는 날, 대체 행동을 골라요",
+     "cite": "who",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "국물 절반 남기기",
+       "단 음료 대신 물",
+       "한 정거장 걷기"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "회식 자리에서 국물은 왜 자주 언급되나요?",
+    "외식이 잦을 때 실천법이 있을까요?",
+    "단 음료 대신 뭘 마시면 좋을까요?"
+   ],
+   "warning_actions": {
+    "diet": {
+     "id": "w5:warn_outing",
+     "text": "오늘 바깥 일정이 있었는지만 남겨요",
+     "cite": "mfds",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "있었어요",
+       "없었어요"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w5:warn_outing",
+     "text": "오늘 바깥 일정이 있었는지만 남겨요",
+     "cite": "who",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "있었어요",
+       "없었어요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w5:warn_outing",
+     "text": "오늘 바깥 일정이 있었는지만 남겨요",
+     "cite": "who",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "있었어요",
+       "없었어요"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 6,
+   "theme": "하나 더 얹기 — 두 번째 행동",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일 두 행동을 연달아 해요.",
+   "unlock": "난이도 자기조절",
+   "actions": {
+    "diet": {
+     "id": "w6:stack_second",
+     "text": "식사 시각을 남기고, 바로 물 한 컵 마셔요",
+     "cite": "nutri",
+     "minutes": 2,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "exercise": {
+     "id": "w6:stack_second",
+     "text": "활동을 남기고, 바로 계단 한 층 올라요",
+     "cite": "hpa",
+     "minutes": 2,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "habit": {
+     "id": "w6:stack_second",
+     "text": "취침 시각을 남기고, 1분 스트레칭을 해요",
+     "cite": "hpa",
+     "minutes": 2,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "두 가지를 한 번에 하면 부담되지 않을까요?",
+    "물은 얼마나 마시는 게 좋을까요?",
+    "계단 오르기는 어떤 활동에 해당하나요?"
+   ],
+   "warning_actions": {
+    "diet": {
+     "id": "w6:warn_log_only",
+     "text": "평소대로 오늘 기록 하나만 남겨요",
+     "cite": "nutri",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "18시 이전",
+       "18~20시",
+       "20~22시",
+       "22시 이후"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w6:warn_log_only",
+     "text": "평소대로 오늘 기록 하나만 남겨요",
+     "cite": "hpa",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "했어요",
+       "가볍게 움직였어요",
+       "못 했어요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w6:warn_log_only",
+     "text": "평소대로 오늘 기록 하나만 남겨요",
+     "cite": "hpa",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "22시 이전",
+       "22~24시",
+       "24시 이후"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 7,
+   "theme": "무너진 날 복구 — 연속은 없다",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "두 번 연속 거르지 않기. 못 한 날은 사유 태그 하나만.",
+   "unlock": "스트릭 프리즈",
+   "actions": {
+    "diet": {
+     "id": "w7:pass_or_log",
+     "text": "오늘 기록하거나, 어려우면 [오늘은 패스]",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "exercise": {
+     "id": "w7:pass_or_log",
+     "text": "오늘 기록하거나, 어려우면 [오늘은 패스]",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "habit": {
+     "id": "w7:pass_or_log",
+     "text": "오늘 기록하거나, 어려우면 [오늘은 패스]",
+     "cite": "phc_quit",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "며칠 걸렀는데 처음부터 다시 해야 하나요?",
+    "쉬는 날을 정해두는 게 나을까요?",
+    "다시 시작할 때 요령이 있나요?"
+   ]
+  },
+  {
+   "w": 8,
+   "theme": "지루함 넘기기 — 방식만 바꾸기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일 실행하고, 3일 미니 챌린지 하나를 끝내요.",
+   "unlock": "3일 미니 챌린지",
+   "actions": {
+    "diet": {
+     "id": "w8:vary_once",
+     "text": "같은 기록을 오늘만 다른 방식으로 해봐요",
+     "cite": "kdca",
+     "minutes": 2,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "장소를 바꿈",
+       "순서를 바꿈",
+       "형태를 바꿈"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w8:vary_once",
+     "text": "같은 활동을 오늘만 다른 방식으로 해봐요",
+     "cite": "kdca",
+     "minutes": 2,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "장소를 바꿈",
+       "순서를 바꿈",
+       "형태를 바꿈"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w8:vary_once",
+     "text": "같은 기록을 오늘만 다른 방식으로 해봐요",
+     "cite": "kdca",
+     "minutes": 2,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "장소를 바꿈",
+       "순서를 바꿈",
+       "형태를 바꿈"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "같은 걸 반복하면 지루한데 어떻게 하나요?",
+    "방식을 바꿔도 괜찮은가요?",
+    "짧게 해도 의미가 있나요?"
+   ],
+   "warning_actions": {
+    "diet": {
+     "id": "w8:warn_same_way",
+     "text": "같은 방식 그대로 오늘 기록을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "18시 이전",
+       "18~20시",
+       "20~22시",
+       "22시 이후"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w8:warn_same_way",
+     "text": "같은 방식 그대로 오늘 기록을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "했어요",
+       "가볍게 움직였어요",
+       "못 했어요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w8:warn_same_way",
+     "text": "같은 방식 그대로 오늘 기록을 남겨요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "22시 이전",
+       "22~24시",
+       "24시 이후"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 9,
+   "theme": "환경 바꾸기 — 의지 대신 배치",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "환경 변경 3개를 적용하고 그대로 둬요.",
+   "unlock": "milestone:2개월",
+   "actions": {
+    "diet": {
+     "id": "w9:env_change",
+     "text": "간식이 보이는 자리를 오늘 하나 바꿔요",
+     "cite": "nutri",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "잘 보이는 곳으로",
+       "안 보이는 곳으로",
+       "미리 꺼내둠"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w9:env_change",
+     "text": "운동화를 현관에 꺼내 두고 체크해요",
+     "cite": "phc",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "잘 보이는 곳으로",
+       "안 보이는 곳으로",
+       "미리 꺼내둠"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w9:env_change",
+     "text": "잘 때 방해되는 물건 하나를 오늘 치워요",
+     "cite": "phc",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "잘 보이는 곳으로",
+       "안 보이는 곳으로",
+       "미리 꺼내둠"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "환경을 바꾸는 게 왜 도움이 되나요?",
+    "집에서 바꾸기 쉬운 건 뭐가 있나요?",
+    "가족과 함께하면 어떤 점이 다른가요?"
+   ],
+   "warning_actions": {
+    "diet": {
+     "id": "w9:warn_spot",
+     "text": "기록하기 편한 자리를 오늘 한 번 확인해요",
+     "cite": "nutri",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "exercise": {
+     "id": "w9:warn_spot",
+     "text": "기록하기 편한 자리를 오늘 한 번 확인해요",
+     "cite": "phc",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "habit": {
+     "id": "w9:warn_spot",
+     "text": "기록하기 편한 자리를 오늘 한 번 확인해요",
+     "cite": "phc",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   }
+  },
+  {
+   "w": 10,
+   "theme": "내 데이터로 나를 설명하기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "언제 잘 되고 언제 안 되는지, 3문장으로 확정해요.",
+   "unlock": "개인 요약 카드",
+   "actions": {
+    "diet": {
+     "id": "w10:confirm_pattern",
+     "text": "'내 패턴 한 줄'을 보고 맞는지 골라요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "맞아요",
+       "조금 달라요"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w10:confirm_pattern",
+     "text": "'내 패턴 한 줄'을 보고 맞는지 골라요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "맞아요",
+       "조금 달라요"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w10:confirm_pattern",
+     "text": "'내 패턴 한 줄'을 보고 맞는지 골라요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "맞아요",
+       "조금 달라요"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "제 기록에서 무엇을 읽을 수 있나요?",
+    "패턴을 어떻게 활용하나요?",
+    "기록을 진료에 어떻게 쓰나요?"
+   ]
+  },
+  {
+   "w": 11,
+   "theme": "밖으로 가져가기 — 진료·검진에 쓰기",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "질문 3개와 기록 요약 1장을 준비하고, 검진 주기를 확인해요.",
+   "unlock": "진료 준비 시트",
+   "actions": {
+    "diet": {
+     "id": "w11:save_question",
+     "text": "진료 때 물어볼 질문 하나를 저장해요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "기록에서 더 볼 것",
+       "먼저 바꿀 습관",
+       "검진에서 볼 항목"
+      ]
+     }
+    },
+    "exercise": {
+     "id": "w11:save_question",
+     "text": "진료 때 물어볼 질문 하나를 저장해요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "기록에서 더 볼 것",
+       "먼저 바꿀 습관",
+       "검진에서 볼 항목"
+      ]
+     }
+    },
+    "habit": {
+     "id": "w11:save_question",
+     "text": "진료 때 물어볼 질문 하나를 저장해요",
+     "cite": "checkup",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "기록에서 더 볼 것",
+       "먼저 바꿀 습관",
+       "검진에서 볼 항목"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "진료 때 무엇을 물어보면 좋을까요?",
+    "검진은 얼마 주기로 받나요?",
+    "기록을 어떻게 보여드리면 되나요?"
+   ]
+  },
+  {
+   "w": 12,
+   "theme": "내 유지 루틴 확정 — 적게 남기기",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "다음 3개월 동안 이어갈 루틴 1~2개를 확정해요.",
+   "unlock": "trophy:12주 완주",
+   "actions": {
+    "diet": {
+     "id": "w12:pick_keeper",
+     "text": "가장 잘 지킨 행동에 '유지 루틴'을 표시해요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "exercise": {
+     "id": "w12:pick_keeper",
+     "text": "가장 잘 지킨 행동에 '유지 루틴'을 표시해요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "habit": {
+     "id": "w12:pick_keeper",
+     "text": "가장 잘 지킨 행동에 '유지 루틴'을 표시해요",
+     "cite": "kdca",
+     "minutes": 1,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "3개월 뒤에는 무엇을 이어가면 좋을까요?",
+    "유지 루틴은 몇 개가 적당한가요?",
+    "다음 목표는 어떻게 정하나요?"
+   ]
+  }
+ ],
+ "support_pool": {
+  "diet": [
+   {
+    "key": "soup_half",
+    "text": "국물은 절반만 남기기",
+    "cite": "mfds_sodium",
+    "tags": [
+     "외식"
+    ]
+   },
+   {
+    "key": "ramen_weekly",
+    "text": "라면·면류는 주 1회로 줄이기",
+    "cite": "phc_nutrition",
+    "tags": [
+     "외식"
+    ]
+   },
+   {
+    "key": "processed_down",
+    "text": "가공식품·국물요리 줄이기",
+    "cite": "mfds_sodium",
+    "tags": [
+     "외식"
+    ]
+   },
+   {
+    "key": "sauce_dip",
+    "text": "간장·소스는 찍어 먹기",
+    "cite": "mfds_sodium",
+    "tags": [
+     "짠맛"
+    ]
+   },
+   {
+    "key": "taste_light",
+    "text": "간을 평소보다 싱겁게 하기",
+    "cite": "phc_nutrition",
+    "tags": [
+     "짠맛"
+    ]
+   },
+   {
+    "key": "water_more",
+    "text": "국물 대신 물을 충분히 마시기",
+    "cite": "phc_nutrition",
+    "tags": [
+     "짠맛"
+    ]
+   },
+   {
+    "key": "veggie_add",
+    "text": "끼니마다 채소 한 접시 더하기",
+    "cite": "phc_nutrition",
+    "tags": [
+     "균형"
+    ]
+   }
+  ],
+  "exercise": [
+   {
+    "key": "walk_more",
+    "text": "하루 10분 더 걷기부터 시작",
+    "cite": "who_pa",
+    "tags": [
+     "시작"
+    ]
+   },
+   {
+    "key": "stairs",
+    "text": "엘리베이터 대신 계단 이용",
+    "cite": "hpa",
+    "tags": [
+     "일상"
+    ]
+   },
+   {
+    "key": "move_break",
+    "text": "한 시간에 한 번 일어나 움직이기",
+    "cite": "who_pa",
+    "tags": [
+     "좌식"
+    ]
+   },
+   {
+    "key": "walk_3x",
+    "text": "주 3회 가벼운 걷기(20~30분)",
+    "cite": "who_pa",
+    "tags": [
+     "유산소"
+    ]
+   },
+   {
+    "key": "stretch",
+    "text": "자기 전 가벼운 스트레칭",
+    "cite": "hpa",
+    "tags": [
+     "유연"
+    ]
+   }
+  ],
+  "habit": [
+   {
+    "key": "sleep_fix",
+    "text": "취침·기상 시간 일정하게 하기",
+    "cite": "kdca_life",
+    "tags": [
+     "수면"
+    ]
+   },
+   {
+    "key": "screen_off",
+    "text": "자기 1시간 전 화면 줄이기",
+    "cite": "kdca_life",
+    "tags": [
+     "수면"
+    ]
+   },
+   {
+    "key": "caffeine",
+    "text": "오후엔 카페인 줄이기",
+    "cite": "phc_nutrition",
+    "tags": [
+     "수면"
+    ]
+   },
+   {
+    "key": "breathe",
+    "text": "하루 5분 천천히 호흡하기",
+    "cite": "kdca_life",
+    "tags": [
+     "스트레스"
+    ]
+   },
+   {
+    "key": "rest",
+    "text": "짧은 휴식을 자주 갖기",
+    "cite": "phc_life",
+    "tags": [
+     "스트레스"
+    ]
+   },
+   {
+    "key": "smoke_help",
+    "text": "보건소 금연클리닉 상담 연계",
+    "cite": "phc_smoke",
+    "tags": [
+     "금연·절주"
+    ]
+   },
+   {
+    "key": "drink_down",
+    "text": "음주 횟수와 양 줄이기",
+    "cite": "phc_drink",
+    "tags": [
+     "금연·절주"
+    ]
+   }
+  ]
+ },
+ "support_rules": {
+  "diet": {
+   "rules": [
+    {
+     "when": {
+      "eatout": [
+       "거의 매일",
+       "주 2~3회"
+      ]
+     },
+     "add": [
+      "soup_half",
+      "ramen_weekly",
+      "processed_down"
+     ]
+    },
+    {
+     "when": {
+      "salty": [
+       "강함",
+       "보통"
+      ]
+     },
+     "add": [
+      "sauce_dip",
+      "taste_light",
+      "water_more"
+     ]
+    },
+    {
+     "add": [
+      "veggie_add"
+     ]
+    }
+   ],
+   "default": [
+    "soup_half",
+    "veggie_add"
+   ]
+  },
+  "exercise": {
+   "rules": [
+    {
+     "when": {
+      "now": [
+       "거의 안 함"
+      ]
+     },
+     "add": [
+      "walk_more",
+      "stairs",
+      "move_break"
+     ]
+    },
+    {
+     "unless": {
+      "now": [
+       "거의 안 함"
+      ]
+     },
+     "add": [
+      "walk_3x",
+      "stretch",
+      "walk_more"
+     ]
+    },
+    {
+     "add": [
+      "stretch"
+     ]
+    }
+   ],
+   "default": [
+    "walk_more",
+    "stairs"
+   ]
+  },
+  "habit": {
+   "rules": [
+    {
+     "when": {
+      "focus": [
+       "수면",
+       null
+      ]
+     },
+     "add": [
+      "sleep_fix",
+      "screen_off",
+      "caffeine"
+     ]
+    },
+    {
+     "when": {
+      "focus": [
+       "스트레스"
+      ]
+     },
+     "add": [
+      "breathe",
+      "rest"
+     ]
+    },
+    {
+     "when": {
+      "focus": [
+       "금연·절주"
+      ]
+     },
+     "add": [
+      "smoke_help",
+      "drink_down"
+     ]
+    },
+    {
+     "add": [
+      "breathe"
+     ]
+    }
+   ],
+   "default": [
+    "sleep_fix",
+    "breathe"
+   ]
+  }
+ },
+ "support_pool_cap": {
+  "default": 4,
+  "경고": 2
+ },
+ "banners": {
+  "diet": {
+   "주의": "측정값이 주의 구간이에요. 식이 조절은 진료와 병행하세요. 진단은 아니에요.",
+   "경고": "측정값이 경고 구간이에요. 진료 확인이 먼저예요. 루틴은 기록 하나만 이어가요. 진단은 아니에요."
+  },
+  "exercise": {
+   "주의": "측정값이 주의 구간이에요. 무리한 운동은 피하고 진료와 병행하세요. 진단은 아니에요.",
+   "경고": "측정값이 경고 구간이에요. 운동 전 의료진 상담(clearance)을 받아 주세요. 강도를 올리는 항목은 넣지 않았어요. 진단은 아니에요."
+  },
+  "habit": {
+   "주의": "측정값이 주의 구간이에요. 생활 관리와 함께 진료를 병행하세요. 진단은 아니에요.",
+   "경고": "측정값이 경고 구간이에요. 진료 확인이 먼저예요. 루틴은 기록 하나만 이어가요. 진단은 아니에요."
+  }
+ },
+ "transition": {
+  "advance": 0.7,
+  "simplify": 0.4
+ },
+ "sources": [
+  {
+   "key": "kdca",
+   "label": "질병관리청 국가건강정보포털 건강생활실천"
+  },
+  {
+   "key": "phc",
+   "label": "지역보건소 건강생활실천사업"
+  },
+  {
+   "key": "nhis",
+   "label": "국민건강보험공단 일반건강검진 결과 안내"
+  },
+  {
+   "key": "mfds",
+   "label": "식품의약품안전처 나트륨·당류 저감 실천"
+  },
+  {
+   "key": "who",
+   "label": "WHO 신체활동 지침"
+  },
+  {
+   "key": "nutri",
+   "label": "지역보건소 영양관리사업"
+  },
+  {
+   "key": "checkup",
+   "label": "국민건강보험공단 일반건강검진 안내"
+  },
+  {
+   "key": "mfds_sodium",
+   "label": "식약처 나트륨 저감"
+  },
+  {
+   "key": "phc_nutrition",
+   "label": "보건소 영양관리"
+  },
+  {
+   "key": "who_pa",
+   "label": "WHO 신체활동 지침"
+  },
+  {
+   "key": "kdca_life",
+   "label": "질병청 건강생활"
+  },
+  {
+   "key": "phc_life",
+   "label": "보건소 건강생활"
+  },
+  {
+   "key": "phc_smoke",
+   "label": "보건소 금연사업"
+  },
+  {
+   "key": "phc_drink",
+   "label": "보건소 절주사업"
+  },
+  {
+   "key": "hpa",
+   "label": "한국건강증진개발원 신체활동 안내",
+   "url": null
+  },
+  {
+   "key": "phc_quit",
+   "label": "지역보건소 금연·절주 상담사업",
+   "url": null
+  }
+ ]
+}

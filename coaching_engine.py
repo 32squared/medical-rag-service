@@ -18,10 +18,11 @@ import coaching_compliance as _cc
 # 28 루틴 팩 플랫폼 이후 내용은 팩 파일 한 곳에만 있다. 이 모듈은 레거시 /coaching/* 용
 # 형태(문항 옵션 = 문자열 목록, KB 항목 = key/text/cite/tag)로 펼쳐 보여줄 뿐이다.
 # 공신력 일반 생활수칙만. 효능·치료·용량 표현 금지(WC-C5 화이트리스트) — 팩 lint 가 강제.
+# 레거시 API 는 v1 에 고정한다(웹은 /routine 만 쓰고, 새 루틴은 팩 최신 버전을 쓴다).
 import routine_engine as _re
 import routine_packs as _rp
 
-_HEALTH = _rp.get(_rp.DEFAULT_PACK_ID)
+_HEALTH = _rp.get(_rp.DEFAULT_PACK_ID, 1)
 
 INTAKE_QUESTIONS: Dict[str, List[Dict]] = {
     t: [{"id": q.id, "q": q.q, "options": [o.label for o in q.options]} for q in qs]

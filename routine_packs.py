@@ -392,8 +392,9 @@ _ANCHOR = re.compile(r"(anchor|when|time|언제|시각|시간대)")
 _MEDICAL_SOURCES = re.compile(r"(질병관리청|질병청|식품의약품안전처|식약처|국민건강보험공단|건강보험|"
                               r"WHO|보건소|국민체육진흥|한국건강증진개발원|보건복지부)")
 # 이전 코드에서 넘어온 팩의 예외(28 §10 리스크 1). 해당 규칙은 경고로만 낸다.
-LEGACY_WARN_ONLY: Dict[str, Tuple[str, ...]] = {
-    "health_12w": ("L3", "L10"),     # 27 §2 교체본 카피 반영은 별도 PR
+# (id, version) 단위 — 교체본이 나온 뒤에도 진행 중 프로그램이 쓰는 옛 버전 파일은 고치지 않는다.
+LEGACY_WARN_ONLY: Dict[Tuple[str, int], Tuple[str, ...]] = {
+    ("health_12w", 1): ("L3", "L10"),     # 교체본 카피(27 §2)는 v2
 }
 
 
@@ -438,7 +439,7 @@ def lint(p: Pack) -> List[Dict]:
     import coaching_compliance as cc
 
     out: List[Dict] = []
-    soft = set(LEGACY_WARN_ONLY.get(p.id, ()))
+    soft = set(LEGACY_WARN_ONLY.get((p.id, p.version), ()))
 
     def add(rule, path, msg, level="error"):
         if level == "error" and rule in soft:
@@ -513,13 +514,15 @@ def lint(p: Pack) -> List[Dict]:
         for t in p.track_ids:
             if not p.banners.get(t, {}).get(band):
                 add("L9", f"banners.{t}.{band}", f"{p.safety_profile} 팩은 {band} 배너 필수")
-    # 경고 밴드 치환 행동 — physical 은 필수(운동을 그대로 시키지 않는다), medical 은 권고
-    if p.safety_profile in ("medical", "physical"):
-        lvl = "error" if p.safety_profile == "physical" else "warn"
+    # 경고 밴드 치환 행동 — physical 은 주차마다 필수(운동을 그대로 시키지 않는다).
+    # medical 은 원행동이 기록형이라 행동을 얹는 주차만 치환한다(27 §2-5) → 팩에 하나도 없을 때만 권고
+    if p.safety_profile == "physical":
         for w in p.weeks:
             miss = [t for t in p.track_ids if t not in w.warning_actions]
             if miss:
-                add("L9", f"weeks[{w.w}].warning_actions", f"경고 밴드 치환 행동 없음: {miss}", lvl)
+                add("L9", f"weeks[{w.w}].warning_actions", f"경고 밴드 치환 행동 없음: {miss}")
+    elif p.safety_profile == "medical" and not any(w.warning_actions for w in p.weeks):
+        add("L9", "weeks.*.warning_actions", "경고 밴드 치환 행동 없음 — 행동을 얹는 주차는 기록형으로 치환 권고", "warn")
 
     # L10 아이콘
     for t in p.tracks:
