@@ -2165,7 +2165,8 @@ import re as _re_fp
 # 오인하면 수치를 인용한 L1 문장이 전부 KEEP 강제돼 오탐 규칙이 적용되지 않는다(rev 00053 실측).
 _FP_DOSAGE_RE = _re_fp.compile(
     r"(?:\d+\s*(?:mg|밀리그램|마이크로그램|IU|cc|㏄|ml|㎖|정|알|캡슐|포)(?!\s*/\s*(?:d[lL]|[lL]|m[lL]))|"
-    r"하루\s*\d+\s*(?:번|회)|\d+\s*시간마다)"
+    # '하루 0회'(끊기·줄이기 목표)는 용량이 아니다 — "단순당 섭취를 하루 0회로 줄여 보세요"
+    r"하루\s*(?!0\s*(?:번|회))\d+\s*(?:번|회)|\d+\s*시간마다)"
 )
 # (g) 빈도만 있는 표현("하루 3회", "8시간마다")은 약물 맥락에서만 용법이다.
 #     "중립자세 연습을 1회 5분, 하루 3회"처럼 비약물 행동에도 그대로 쓰이므로
@@ -2215,10 +2216,17 @@ _FP_DX_HISTORY = (
 )
 
 
+# '시럽'은 간식·음료 목록에서는 음식이다 — "단순당(탄산음료·주스·시럽·과자) 섭취를 줄여 보세요"
+# (rev 00060 CRITICAL prescription 차단 실측). 음식 낱말이 같이 있을 때만 약물 토큰에서 뺀다.
+_FP_FOOD_WORDS = ("탄산음료", "음료", "주스", "과자", "단순당", "설탕", "사탕", "간식", "디저트")
+
+
 def _fp_has_drug(text: str) -> bool:
     """약물 토큰이 있는지 — (k) 비약물 낱말을 지운 뒤 본다."""
     for w in _FP_NON_DRUG_WORDS:
         text = text.replace(w, "")
+    if any(f in text for f in _FP_FOOD_WORDS):
+        text = text.replace("시럽", "")
     return any(d in text for d in _FP_DRUG_TOKEN)
 
 

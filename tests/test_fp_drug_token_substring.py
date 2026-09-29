@@ -81,3 +81,18 @@ def test_history_word_does_not_hide_real_assertion():
     assert not _dropped("검사 결과", "진단받은 적은 없지만 검사 결과 당뇨병이 의심됩니다",
                         rule="diagnosis")
     assert not _dropped("검사 결과", "진단명이 없더라도 검사 결과 고혈압 소견입니다", rule="diagnosis")
+
+
+# ── rev 00060 실측: '하루 0회'·간식 목록의 '시럽' ──────────────────
+
+def test_zero_count_is_not_a_dose():
+    assert _dropped("하루 0회", "단순당(탄산음료·주스·시럽·과자) 섭취를 하루 0회로 줄여 보세요 [4]. - 식후 30~60분 안에")
+
+
+def test_syrup_in_snack_list_is_food():
+    assert _dropped("하루 1회", "시럽·과자 같은 간식은 하루 1회 이하로 줄여 보세요")
+
+
+def test_medicine_syrup_is_kept():
+    assert not _dropped("하루 3회", "기침 시럽을 하루 3회 드세요")
+    assert not _dropped("5ml", "해열제 시럽 5ml를 드세요")
