@@ -1,12 +1,13 @@
 """
 seed_kb_expansion.py — KB 확장 P1~P6 시드 일괄 실행 오케스트레이터.
 
-신규 시드 5종을 순차 실행한다 (각 시드는 멱등 — upsert=True):
+신규 시드 6종을 순차 실행한다 (각 시드는 멱등 — upsert=True):
   1. seed_reference_ranges  — 참조범위 구조화 테이블 + KB 문서 (P2)
   2. seed_vaccination_kb    — 국가예방접종 NIP (P1-1)
   3. seed_navigation_kb     — 진료과·응급실·건강보험·검진 안내 (P4 + P1-2)
   4. seed_lifecycle_kb      — 암·정신건강·임신·노인·희귀·만성질환 (P3)
   5. seed_safety_kb         — 중독·소아 응급 (P6)
+  6. seed_checkup_criteria_kb — 국가건강검진 판정기준 (보건복지부 고시)
 
 실행:
   python seed_kb_expansion.py            # 전체 적재
@@ -40,6 +41,7 @@ def main():
     from seed_navigation_kb import seed_navigation_kb
     from seed_lifecycle_kb import seed_lifecycle_kb
     from seed_safety_kb import seed_safety_kb
+    from seed_checkup_criteria_kb import seed_checkup_criteria_kb
 
     seeds = [
         ("reference_ranges", seed_reference_ranges),
@@ -47,6 +49,7 @@ def main():
         ("navigation", seed_navigation_kb),
         ("lifecycle", seed_lifecycle_kb),
         ("safety", seed_safety_kb),
+        ("checkup_criteria", seed_checkup_criteria_kb),
     ]
 
     failed = []
