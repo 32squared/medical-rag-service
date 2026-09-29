@@ -96,3 +96,16 @@ def test_syrup_in_snack_list_is_food():
 def test_medicine_syrup_is_kept():
     assert not _dropped("하루 3회", "기침 시럽을 하루 3회 드세요")
     assert not _dropped("5ml", "해열제 시럽 5ml를 드세요")
+
+
+# ── rev 00062 실측: ';' 로 이어 붙인 생활 지시와 복약 경고 ──────────────
+
+def test_semicolon_separates_lifestyle_order_from_drug_warning():
+    """뒤 절의 '처방약'(복용 금지 경고)이 앞 절의 음주 중단을 복약 지시로 만들면 안 된다."""
+    assert _dropped("중단하세요", "간 취침·기상 시간을 일정하게 하고, 음주는 가능하면 중단하세요; "
+                                  "남은 처방약은 임의로 복용하지 마세요 [4]")
+
+
+def test_semicolon_keeps_drug_order_in_its_own_clause():
+    assert not _dropped("중단하세요", "스타틴 복용은 이번 주부터 중단하세요; 대신 식단 조절을 해 보세요")
+    assert not _dropped("중단하세요", "식단을 조절하고; 혈압약은 중단하세요")
