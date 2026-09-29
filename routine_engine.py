@@ -41,8 +41,11 @@ FOCUS_TRACK = {f: t.id for t in _DEFAULT.tracks for f in t.recommend_when}
 
 
 def _week_dict(wk: "_rp.Week") -> Dict:
-    return {"w": wk.w, "theme": wk.theme, "goal_days": wk.goal_days,
-            "support": wk.support_cap, "unlock": wk.unlock, "mission": wk.mission}
+    d = {"w": wk.w, "theme": wk.theme, "goal_days": wk.goal_days,
+         "support": wk.support_cap, "unlock": wk.unlock, "mission": wk.mission}
+    if wk.warning_mission:              # 선택 필드는 있을 때만(v1 페이로드 불변)
+        d["warning_mission"] = wk.warning_mission
+    return d
 
 
 WEEKS: List[Dict] = [_week_dict(w) for w in _DEFAULT.weeks]
@@ -115,8 +118,18 @@ def banner_for(track: str, band: Optional[str], pack: PackRef = None) -> Optiona
 
 
 def _action_dict(p: "_rp.Pack", a: "_rp.Action") -> Dict:
-    return {"id": a.id, "text": a.text, "cite": p.source_label(a.cite), "minutes": a.minutes,
-            "input": {"kind": a.input.kind, "options": list(a.input.options)}}
+    d = {"id": a.id, "text": a.text, "cite": p.source_label(a.cite), "minutes": a.minutes,
+         "input": {"kind": a.input.kind, "options": list(a.input.options)}}
+    for k in ("meta", "coach"):         # 선택 필드는 있을 때만(v1 페이로드 불변)
+        if getattr(a, k):
+            d[k] = getattr(a, k)
+    return d
+
+
+def mission_for(week, band: Optional[str] = None, pack: PackRef = None) -> str:
+    """주간 미션. 경고 밴드는 팩의 치환 미션이 있으면 그것(27 §2-5)."""
+    wk = _week(week, pack)
+    return (wk.warning_mission if band == "경고" and wk.warning_mission else wk.mission)
 
 
 def today_action(week, track: str, pack: PackRef = None, band: Optional[str] = None) -> Dict:

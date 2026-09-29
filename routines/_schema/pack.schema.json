@@ -23,6 +23,16 @@
     },
     "input": {
      "$ref": "#/$defs/Input"
+    },
+    "meta": {
+     "default": "",
+     "title": "Meta",
+     "type": "string"
+    },
+    "coach": {
+     "default": "",
+     "title": "Coach",
+     "type": "string"
     }
    },
    "required": [
@@ -421,6 +431,11 @@
      "default": {},
      "title": "Warning Actions",
      "type": "object"
+    },
+    "warning_mission": {
+     "default": "",
+     "title": "Warning Mission",
+     "type": "string"
     }
    },
    "required": [
