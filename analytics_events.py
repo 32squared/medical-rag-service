@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 _LABEL_FIELDS = (
     "intent", "primary_domain", "risk_level",
     "guardrail_action", "gate_decision", "evidence_quality",
-    "track",                 # 웰니스 코칭 트랙(diet/exercise/habit) — 비식별 라벨
+    "track",                 # 루틴 트랙 id(팩이 정의, 예: diet/reading) — 비식별 라벨
+    "pack_id",               # 루틴 팩 id(health_12w/golf_6m 등) — 비식별 라벨(28 FR-S11)
     "consent_item",          # 동의 항목 키(personal_info 등) — 비식별 라벨(P0 BFF)
     # ── 오늘의 나 재미 레이어(docs/design/todays-me-mockups/02 §8) — 라벨만, 수치·밴드 금지 ──
     "archetype_id", "type_id", "metric", "method", "trigger", "cta_variant",

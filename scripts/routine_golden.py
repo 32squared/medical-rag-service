@@ -23,6 +23,9 @@ if str(ROOT) not in sys.path:
 GOLDEN = ROOT / "tests" / "golden" / "health_12w.json"
 BANDS = [None, "안정", "주의", "경고"]
 TRACKS = ["diet", "exercise", "habit"]
+# generate_program 출력 중 스냅샷에서 뺄 키: weeks = week_preview 와 동일,
+# pack_id = 팩 플랫폼이 **추가**한 키(기존 키 값은 그대로여야 한다).
+_PROGRAM_ADDED = ("weeks", "pack_id")
 
 
 def _intake_combos(questions):
@@ -64,7 +67,7 @@ def build() -> dict:
                 plan = ce.generate_plan(t, combo, band=b)
                 plans[key] = {"intake": combo, **plan}
                 prog = eng.generate_program(t, combo, band=b, focus=None, anchor=None)
-                prog = {k: v for k, v in prog.items() if k != "weeks"}   # weeks = preview 와 동일
+                prog = {k: v for k, v in prog.items() if k not in _PROGRAM_ADDED}
                 programs[key] = prog
                 skey = f"{t}|{','.join(x['key'] for x in plan['items'])}|{b}"   # 풀이 같으면 결과도 같다
                 if skey not in support:

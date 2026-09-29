@@ -294,8 +294,9 @@ def load_file(path: pathlib.Path) -> Pack:
     return pack
 
 
-def load_all(packs_dir: pathlib.Path = PACKS_DIR) -> Dict[Tuple[str, int], Pack]:
+def load_all(packs_dir: Optional[pathlib.Path] = None) -> Dict[Tuple[str, int], Pack]:
     """전 팩·전 버전 로드. 하나라도 틀리면 RuntimeError — 서버 기동을 막는다."""
+    packs_dir = pathlib.Path(packs_dir or PACKS_DIR)
     reg: Dict[Tuple[str, int], Pack] = {}
     errors: List[str] = []
     for path in sorted(packs_dir.glob("*/v*.json")):
@@ -303,7 +304,7 @@ def load_all(packs_dir: pathlib.Path = PACKS_DIR) -> Dict[Tuple[str, int], Pack]
             p = load_file(path)
             reg[(p.id, p.version)] = p
         except Exception as e:                     # noqa: BLE001 — 모아서 한 번에 보고
-            errors.append(f"{path.relative_to(packs_dir.parent.parent)}: {e}")
+            errors.append(f"{path.parent.name}/{path.name}: {e}")
     if errors:
         raise RuntimeError("invalid routine pack(s):\n" + "\n".join(errors))
     if not any(pid == DEFAULT_PACK_ID for pid, _ in reg):
