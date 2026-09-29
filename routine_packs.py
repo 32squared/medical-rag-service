@@ -98,6 +98,8 @@ class Action(_M):
     cite: str                           # sources[].key
     minutes: int = Field(ge=1, le=60)
     input: Input
+    meta: str = ""                      # 메타 캡션(소요·입력, 27 §0-4) — 없으면 화면이 "N분"
+    coach: str = ""                     # 완료 직후 코치 한 줄(27 §2) — 없으면 화면 기본 문구
 
 
 class Week(_M):
@@ -110,6 +112,7 @@ class Week(_M):
     actions: Dict[str, Action]
     ask_chips: List[str] = []
     warning_actions: Dict[str, Action] = {}   # 경고 밴드 치환(27 §2-5), 없으면 원행동
+    warning_mission: str = ""                 # 경고 밴드 주간 미션(27 §2-5), 없으면 mission
 
 
 class SupportItem(_M):
@@ -357,6 +360,17 @@ def get(pack_id: Optional[str] = None, version: Optional[int] = None) -> Pack:
     return reg[(pid, latest_version(pid))]
 
 
+def for_program(program: Optional[Dict]) -> Pack:
+    """프로그램이 시작한 (팩, 버전). 프로그램이 없으면 기본 팩 최신.
+
+    버전이 비어 있으면 1 — 025 이전 행은 v1 로 시작했다(DDL 기본값과 같은 뜻).
+    최신으로 폴백하면 새 버전이 나오는 순간 진행 중 프로그램의 문구가 바뀐다.
+    """
+    if not program:
+        return get()
+    return get(program.get("pack_id"), program.get("pack_version") or 1)
+
+
 def catalog() -> List[Pack]:
     """최신 버전만, 기본 팩 먼저."""
     out = [get(pid) for pid in pack_ids()]
@@ -376,7 +390,7 @@ def json_schema() -> Dict:
 BUDGET = {
     "name": 20, "tagline": 30, "track.name": 12, "track.desc": 40, "phase.name": 8,
     "phase.desc": 30, "theme": 20, "mission": 40, "unlock": 20, "action": 30,
-    "option": 12, "chip": 24, "intake.q": 24, "intake.why": 20, "intake.option": 16,
+    "option": 12, "chip": 24, "meta": 20, "coach": 30, "intake.q": 24, "intake.why": 20, "intake.option": 16,
     "support": 30, "banner": 80,
 }
 # 아이콘 키(web/js/archetypes.js ICON 과 동기 — 테스트가 확인). 이모지 금지(design.md).
@@ -392,8 +406,9 @@ _ANCHOR = re.compile(r"(anchor|when|time|언제|시각|시간대)")
 _MEDICAL_SOURCES = re.compile(r"(질병관리청|질병청|식품의약품안전처|식약처|국민건강보험공단|건강보험|"
                               r"WHO|보건소|국민체육진흥|한국건강증진개발원|보건복지부)")
 # 이전 코드에서 넘어온 팩의 예외(28 §10 리스크 1). 해당 규칙은 경고로만 낸다.
-LEGACY_WARN_ONLY: Dict[str, Tuple[str, ...]] = {
-    "health_12w": ("L3", "L10"),     # 27 §2 교체본 카피 반영은 별도 PR
+# (id, version) 단위 — 교체본이 나온 뒤에도 진행 중 프로그램이 쓰는 옛 버전 파일은 고치지 않는다.
+LEGACY_WARN_ONLY: Dict[Tuple[str, int], Tuple[str, ...]] = {
+    ("health_12w", 1): ("L3", "L10"),     # 교체본 카피(27 §2)는 v2
 }
 
 
@@ -417,6 +432,7 @@ def _texts(p: Pack):
     for w in p.weeks:
         yield f"weeks[{w.w}].theme", w.theme, "theme"
         yield f"weeks[{w.w}].mission", w.mission, "mission"
+        yield f"weeks[{w.w}].warning_mission", w.warning_mission, "mission"
         if w.unlock:
             yield f"weeks[{w.w}].unlock", w.unlock, "unlock"
         for i, c in enumerate(w.ask_chips):
@@ -424,6 +440,8 @@ def _texts(p: Pack):
         for kind, acts in (("actions", w.actions), ("warning_actions", w.warning_actions)):
             for t, a in acts.items():
                 yield f"weeks[{w.w}].{kind}.{t}.text", a.text, "action"
+                yield f"weeks[{w.w}].{kind}.{t}.meta", a.meta, "meta"
+                yield f"weeks[{w.w}].{kind}.{t}.coach", a.coach, "coach"
                 for o in a.input.options:
                     yield f"weeks[{w.w}].{kind}.{t}.option", o, "option"
     for t, pool in p.support_pool.items():
@@ -438,7 +456,7 @@ def lint(p: Pack) -> List[Dict]:
     import coaching_compliance as cc
 
     out: List[Dict] = []
-    soft = set(LEGACY_WARN_ONLY.get(p.id, ()))
+    soft = set(LEGACY_WARN_ONLY.get((p.id, p.version), ()))
 
     def add(rule, path, msg, level="error"):
         if level == "error" and rule in soft:
@@ -513,13 +531,15 @@ def lint(p: Pack) -> List[Dict]:
         for t in p.track_ids:
             if not p.banners.get(t, {}).get(band):
                 add("L9", f"banners.{t}.{band}", f"{p.safety_profile} 팩은 {band} 배너 필수")
-    # 경고 밴드 치환 행동 — physical 은 필수(운동을 그대로 시키지 않는다), medical 은 권고
-    if p.safety_profile in ("medical", "physical"):
-        lvl = "error" if p.safety_profile == "physical" else "warn"
+    # 경고 밴드 치환 행동 — physical 은 주차마다 필수(운동을 그대로 시키지 않는다).
+    # medical 은 원행동이 기록형이라 행동을 얹는 주차만 치환한다(27 §2-5) → 팩에 하나도 없을 때만 권고
+    if p.safety_profile == "physical":
         for w in p.weeks:
             miss = [t for t in p.track_ids if t not in w.warning_actions]
             if miss:
-                add("L9", f"weeks[{w.w}].warning_actions", f"경고 밴드 치환 행동 없음: {miss}", lvl)
+                add("L9", f"weeks[{w.w}].warning_actions", f"경고 밴드 치환 행동 없음: {miss}")
+    elif p.safety_profile == "medical" and not any(w.warning_actions for w in p.weeks):
+        add("L9", "weeks.*.warning_actions", "경고 밴드 치환 행동 없음 — 행동을 얹는 주차는 기록형으로 치환 권고", "warn")
 
     # L10 아이콘
     for t in p.tracks:

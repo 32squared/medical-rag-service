@@ -6,6 +6,9 @@
 tests/golden/health_12w.json 은 팩 플랫폼 도입 **전** 코드로 만든 기준본이고,
 tests/test_routine_packs.py 가 이후 코드의 `build()` 결과와 동등 비교한다.
 
+기준은 **v1** 이다 — 진행 중 프로그램은 시작한 버전에 고정되므로 v1 출력은 영원히 같아야 한다.
+새 버전(v2~)은 별도 파일이라 이 스냅샷과 무관하다.
+
 재생성은 의도적으로 동작을 바꿀 때만:
     python scripts/routine_golden.py --write
 """
@@ -41,21 +44,24 @@ def _intake_combos(questions):
 def build() -> dict:
     import coaching_engine as ce
     import routine_engine as eng
+    import routine_packs as rp
+
+    V1 = rp.get(rp.DEFAULT_PACK_ID, 1)
 
     engine = {}
     for w in range(1, 13):
         engine[str(w)] = {
-            "phase": eng.phase_of(w),
-            "meta": eng.week_meta(w),
-            "goal_days": eng.goal_days(w),
-            "ask_chips": eng.ask_chips(w),
-            "actions": {t: eng.today_action(w, t) for t in TRACKS},
-            "band_cap": {str(b): eng.band_cap(b, w) for b in BANDS},
+            "phase": eng.phase_of(w, V1),
+            "meta": eng.week_meta(w, V1),
+            "goal_days": eng.goal_days(w, V1),
+            "ask_chips": eng.ask_chips(w, V1),
+            "actions": {t: eng.today_action(w, t, V1) for t in TRACKS},
+            "band_cap": {str(b): eng.band_cap(b, w, V1) for b in BANDS},
         }
 
-    banners = {t: {str(b): eng.banner_for(t, b) for b in BANDS} for t in TRACKS}
-    preview = {str(b): eng.week_preview(b) for b in BANDS}
-    transition = {f"{d}/{g}/{b}": eng.transition(d, g, b)
+    banners = {t: {str(b): eng.banner_for(t, b, V1) for b in BANDS} for t in TRACKS}
+    preview = {str(b): eng.week_preview(b, V1) for b in BANDS}
+    transition = {f"{d}/{g}/{b}": eng.transition(d, g, b, V1)
                   for d in range(0, 8) for g in range(1, 8) for b in BANDS}
 
     intake = {t: ce.get_intake(t) for t in TRACKS}
@@ -66,12 +72,12 @@ def build() -> dict:
                 key = f"{t}|{i}|{b}"
                 plan = ce.generate_plan(t, combo, band=b)
                 plans[key] = {"intake": combo, **plan}
-                prog = eng.generate_program(t, combo, band=b, focus=None, anchor=None)
+                prog = eng.generate_program(t, combo, band=b, focus=None, anchor=None, pack=V1)
                 prog = {k: v for k, v in prog.items() if k not in _PROGRAM_ADDED}
                 programs[key] = prog
                 skey = f"{t}|{','.join(x['key'] for x in plan['items'])}|{b}"   # 풀이 같으면 결과도 같다
                 if skey not in support:
-                    support[skey] = {str(w): eng.support_items(plan["items"], w, b) for w in range(1, 13)}
+                    support[skey] = {str(w): eng.support_items(plan["items"], w, b, V1) for w in range(1, 13)}
 
     return {
         "engine": engine,
@@ -82,9 +88,9 @@ def build() -> dict:
         "coaching_plans": plans,
         "programs": programs,
         "support_items": support,
-        "tracks": list(eng.TRACKS),
-        "weeks_total": eng.WEEKS_TOTAL,
-        "curriculum_version": eng.CURRICULUM_VERSION,
+        "tracks": list(V1.track_ids),
+        "weeks_total": V1.weeks_total,
+        "curriculum_version": V1.version,
     }
 
 

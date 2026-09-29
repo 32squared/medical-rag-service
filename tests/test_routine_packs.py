@@ -25,9 +25,33 @@ def _health_raw():
 def test_registry_loads_default_pack():
     rp.reload()
     p = rp.get()
-    assert p.id == rp.DEFAULT_PACK_ID and p.version == 1
-    assert p.weeks_total == 12 and p.track_ids == ["diet", "exercise", "habit"]
-    assert [(x.from_, x.to) for x in p.phases] == [(1, 2), (3, 6), (7, 10), (11, 12)]
+    assert p.id == rp.DEFAULT_PACK_ID and p.version == rp.latest_version(rp.DEFAULT_PACK_ID)
+    assert rp.get(rp.DEFAULT_PACK_ID, 1).version == 1                   # 진행 중 프로그램의 고정 버전
+    for v in (1, p.version):
+        q = rp.get(rp.DEFAULT_PACK_ID, v)
+        assert q.weeks_total == 12 and q.track_ids == ["diet", "exercise", "habit"]
+        assert [(x.from_, x.to) for x in q.phases] == [(1, 2), (3, 6), (7, 10), (11, 12)]
+
+
+def test_health_v2_is_copy_only_replacement():
+    """27 §2 교체본(v2): 구조·행동 id·입력 형태는 v1 그대로, 문구만 예산 안으로(27 §6 #1)."""
+    v1, v2 = rp.get(rp.DEFAULT_PACK_ID, 1), rp.get(rp.DEFAULT_PACK_ID, 2)
+    assert [w.goal_days for w in v1.weeks] == [w.goal_days for w in v2.weeks]
+    assert [w.support_cap for w in v1.weeks] == [w.support_cap for w in v2.weeks]
+    for a, b in zip(v1.weeks, v2.weeks):
+        for t in v1.track_ids:
+            x, y = a.actions[t], b.actions[t]
+            assert (x.id, x.minutes, x.input.kind) == (y.id, y.minutes, y.input.kind)
+            assert "해당없음" not in y.input.options                     # 화면의 [해당없음] 과 중복
+    assert (rp.DEFAULT_PACK_ID, 2) not in rp.LEGACY_WARN_ONLY          # 예외 없이
+    assert rp.lint(v2) == []                                           # 경고까지 0
+    assert all("진단은 아니에요" in txt for b in v2.banners.values() for txt in b.values())
+    assert {w.w for w in v2.weeks if w.warning_actions} == {5, 6, 8, 9}  # 27 §2-5 치환 주차
+    values = {q.id: {o.value for o in q.options} for qs in v2.intake.values() for q in qs}
+    for ts in v2.support_rules.values():                               # 라벨만 바뀌고 매칭 value 는 유지
+        for r in ts.rules:
+            for qid, vals in list(r.when.items()) + list(r.unless.items()):
+                assert {x for x in vals if x} <= values[qid], (qid, vals)
 
 
 def test_get_falls_back_to_default_and_latest():

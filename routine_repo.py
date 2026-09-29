@@ -416,7 +416,7 @@ def build_week_state(program: Dict, cur_week: int, pack=None) -> List[Dict]:
     """전체 주차 진도 배열 — 프론트 타임라인/히트맵 소스. pack 없으면 프로그램의 팩."""
     import routine_engine as eng
     import routine_packs as rp
-    pk = pack or rp.get((program or {}).get("pack_id"), (program or {}).get("pack_version"))
+    pk = pack or rp.for_program(program)
     out = []
     for w in range(1, weeks_total_of(program) + 1):
         g = eng.goal_days(w, pk)

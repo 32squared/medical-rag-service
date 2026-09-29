@@ -169,4 +169,45 @@ def test_existing_program_rows_default_to_health_pack(client):
         conn.commit()
     t = client.get("/routine/today", headers=h).json()
     assert t["program"]["pack_id"] == "health_12w" and t["program"]["weeks_total"] == 12
+    assert t["pack"]["version"] == 1                     # 최신(v2)이 아니라 시작 당시 v1
+    assert t["today"]["text"] == rp.get("health_12w", 1).weeks[0].actions["diet"].text
     assert rr.get_program(pid)["pack_id"] is None
+
+
+# ══════════════════════════ 선택 카피 필드(27 §2 메타·코치·경고 미션) ══════════════════════════
+def test_optional_copy_fields_only_when_present():
+    import routine_engine as eng
+    v1, v2 = rp.get("health_12w", 1), rp.get("health_12w", 2)
+    a1, a2 = eng.today_action(1, "diet", v1), eng.today_action(1, "diet", v2)
+    assert "meta" not in a1 and "coach" not in a1                     # v1 페이로드 불변(골든)
+    assert a2["meta"] and a2["coach"]
+    assert "warning_mission" not in eng.week_meta(5, v1)
+    assert eng.mission_for(5, "경고", v2) == v2.weeks[4].warning_mission != v2.weeks[4].mission
+    assert eng.mission_for(5, "주의", v2) == v2.weeks[4].mission
+    assert eng.mission_for(1, "경고", v2) == v2.weeks[0].mission      # 치환 미션 없는 주차는 원문
+    assert eng.today_action(5, "habit", v2, "경고")["coach"]           # 경고 치환 행동에도 코치 한 줄
+
+
+def test_copy_field_budgets_are_linted():
+    d = json.loads((rp.PACKS_DIR / "health_12w" / "v2.json").read_text(encoding="utf-8"))
+    d["weeks"][0]["actions"]["diet"]["meta"] = "가" * 21
+    d["weeks"][0]["actions"]["diet"]["coach"] = "나" * 31
+    d["weeks"][4]["warning_mission"] = "다" * 41
+    paths = {e["path"] for e in rp.lint_errors(rp.Pack.model_validate(d)) if e["rule"] == "L3"}
+    assert {"weeks[1].actions.diet.meta", "weeks[1].actions.diet.coach",
+            "weeks[5].warning_mission"} <= paths
+
+
+def test_health_start_saves_anchor_and_checkin_returns_coach_line(client):
+    h = _login(client, identity="pk-coach", persona="healthy_office")
+    r = client.post("/routine/start", json={"track": "habit", "mode": "restart",
+                                            "intake": {"focus": "수면", "reg": "보통", "anchor": "bedtime"}},
+                    headers=h)
+    assert r.status_code == 200, r.text
+    t = client.get("/routine/today", headers=h).json()
+    assert t["program"]["anchor"] == "bedtime"
+    main = t["today"]
+    ck = client.post("/routine/checkin", json={"action_id": main["id"], "status": "done"}, headers=h).json()
+    assert ck["accepted"] and ck["coach_line"] == main["coach"]
+    other = client.post("/routine/checkin", json={"action_id": "zzz", "status": "done"}, headers=h).json()
+    assert other["coach_line"] is None

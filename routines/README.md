@@ -42,7 +42,7 @@ python scripts/pack_draft.py routines/briefs/running_8w.json
 
 | id | 프로필 | 기간 | 트랙 | 비고 |
 |---|---|---|---|---|
-| `health_12w` | medical | 12주 | diet · exercise · habit | 기존 코드에서 추출(골든 무회귀). L3·L10 경고 예외 |
+| `health_12w` | medical | 12주 | diet · exercise · habit | v2 = 27 §2 교체본 카피(새 프로그램). v1 = 기존 코드 추출본(진행 중 프로그램·골든 무회귀, L3·L10 경고 예외) |
 | `golf_6m` | physical | 26주 | range · home | 경고 밴드에선 새로 시작 불가, 진행 중이면 "스윙은 쉬고 몸 상태만" 으로 치환 |
 | `japanese_6m` | neutral | 26주 | reading · listening | 밴드 캡·배너 없음(응급만 중단) |
 
@@ -66,10 +66,12 @@ python scripts/pack_draft.py routines/briefs/running_8w.json
 | `weeks_total` | 4~52. `weeks` 길이와 같다 |
 | `phases` | 1..weeks_total 을 빈틈·겹침 없이 덮는다. 4단계 권고(정착 → 쌓기 → 써먹기 → 유지) |
 | `tracks[]` | 같은 팩 안의 변주(골프: 연습장/집). `icon` 은 아래 아이콘 키만 |
-| `intake.<track>[]` | 문진. `options` 는 `{label, value}` — 매칭은 `value` 로 한다. 자유 입력 없음 |
+| `intake.<track>[]` | 문진. `options` 는 `{label, value}` — 매칭은 `value` 로 한다. 자유 입력 없음. 문항 id `anchor`(언제 할지)의 답은 프로그램 `anchor` 로 저장된다 |
 | `weeks[].actions.<track>` | 오늘 할 것 **1개**. 모든 트랙을 덮는다. `cite` 는 `sources[].key` |
 | `weeks[].actions.*.input` | `tap`(옵션 없음) · `choice`(2~5개) · `scale`(라벨 3~5개). 숫자·텍스트 입력 없음 |
 | `weeks[].warning_actions` | 경고 밴드용 치환 행동. `physical` 은 전 주차·전 트랙 필수 |
+| `weeks[].actions.*.meta` · `.coach` | (선택) 메타 캡션 20자(소요·입력, 없으면 "N분") · 완료 직후 코치 한 줄 30자(없으면 기본 문구) |
+| `weeks[].warning_mission` | (선택) 경고 밴드 주간 미션 40자. 없으면 `mission` |
 | `weeks[].support_cap` | 0~2. 밴드 캡과 작은 쪽을 쓴다. 정착기는 0(medical·physical 필수) |
 | `weeks[].ask_chips` | 정확히 3개. 그 주 행동에서 이어지는 질문 |
 | `support_pool` / `support_rules` | 보조 행동 풀과 문진 기반 선택 규칙. 규칙은 **누적**: `when`(모두 맞으면, `null`=미응답) 이면서 `unless` 에 하나도 안 걸리면 `add` 를 더한다. 아무것도 안 붙으면 `default` |
@@ -107,11 +109,11 @@ python scripts/pack_draft.py routines/briefs/running_8w.json
 | L6 | medical 출처 화이트리스트 / 안 쓰는 출처 | error / warn |
 | L7 | 입력 위젯 옵션 수 | error |
 | L8 | 정착기 보조 0 / 1주 목표·단계 수·앵커·복구 | error / warn |
-| L9 | 밴드 배너 · 경고 치환 행동(physical) | error |
+| L9 | 밴드 배너 · 경고 치환 행동(physical 은 주차마다, medical 은 팩에 하나도 없으면 warn) | error |
 | L10 | 이모지 · 모르는 아이콘 키 | error |
 | L11 | 질문칩 3개 | error |
 
-`health_12w` 는 기존 코드에서 옮긴 팩이라 L3·L10 을 경고로만 낸다(`LEGACY_WARN_ONLY`). 새 팩엔 예외가 없다.
+`health_12w` **v1** 은 기존 코드에서 옮긴 파일이라 L3·L10 을 경고로만 낸다(`LEGACY_WARN_ONLY`, `(id, version)` 키). v2 와 새 팩엔 예외가 없다.
 
 ## 6. PR 체크리스트
 

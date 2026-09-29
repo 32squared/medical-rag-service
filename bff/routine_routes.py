@@ -78,10 +78,15 @@ def _safe(fn, default=None):
         return default
 
 
+def _anchor_of(intake: Optional[Dict]) -> Optional[str]:
+    """문진의 기록 앵커 답(문항 id 'anchor', 27 §1-3) → routine_program.anchor. 문자열 value 만."""
+    v = (intake or {}).get("anchor")
+    return v[:32] if isinstance(v, str) and v else None
+
+
 def _pack_of(program: Optional[Dict]):
     """프로그램이 시작한 (팩, 버전). 프로그램이 없으면 기본 팩."""
-    p = program or {}
-    return rp.get(p.get("pack_id"), p.get("pack_version"))
+    return rp.for_program(program)
 
 
 def _pack_available(pack, band: Optional[str]) -> Optional[str]:
@@ -253,7 +258,7 @@ def register(app, deps: Dict) -> None:
                 "started_on": program.get("started_on"), "week_no": wk, "day_no": dno,
                 "weeks_total": total, "phase": eng.phase_of(wk, pk), "theme": meta["theme"],
                 "pack_id": pk.id,
-                "mission": meta["mission"], "goal_days": goal, "item_cap": cap,
+                "mission": eng.mission_for(wk, eff_band, pk), "goal_days": goal, "item_cap": cap,
                 "mode": program.get("mode") or "daily", "status": program.get("status") or "active",
             },
             "today": {**action, "status": st_today,
@@ -371,6 +376,7 @@ def register(app, deps: Dict) -> None:
 
         pid = repo.create_program(
             subject_id=sid, track=track, plan_id=plan_id, focus=req.focus,
+            anchor=_anchor_of(req.intake),
             intake=req.intake or {}, band=band, item_cap=prog["item_cap"],
             curriculum_version=pk.version, pack_id=pk.id, pack_version=pk.version,
             weeks_total=pk.weeks_total)
@@ -433,6 +439,12 @@ def register(app, deps: Dict) -> None:
         stats = _stats(sid, program)
         _safe(lambda: __import__("analytics_events").emit(
             "routine_checkin", checkin_done=(req.status == "done"), pack_id=pk.id))
+        coach_line = None                   # 완료 직후 코치 한 줄(27 §2) — 오늘의 메인 행동일 때만
+        if req.status == "done":
+            eff_band = band or program.get("band_at_start")
+            main = eng.today_action(wk, program.get("track"), pk, eff_band)
+            if main["id"] == req.action_id:
+                coach_line = main.get("coach")
 
         return {"ok": True, "accepted": True, "applied_date": applied,
                 "duplicate": bool(res.get("duplicate")),
@@ -440,6 +452,7 @@ def register(app, deps: Dict) -> None:
                 "week": {"w": wk, "done_days": wstat["done_days"], "goal_days": wstat["goal_days"]},
                 "coach": _coach({**stats, "adherence": _pace_adherence(
                     program, wk, wstat["done_days"], wstat.get("eff_goal") or goal)}),
+                "coach_line": coach_line,
                 "ask_chips": eng.ask_chips(wk, pk)}
 
     @app.post("/routine/action/add")
