@@ -187,6 +187,18 @@ def test_persly_safe_checkup_band_follows_category_ban():
     assert "(검진 판정 구분 포함)" in _persly_ban_section(p)
 
 
+# 실측(dev rev 00063): 판정 구분 줄만으로는 "118은 참고범위 100 미만과 비교해 경계 범위(100~125)에
+# 해당합니다"가 남았다(persly-safe 공복혈당 3/8). eGFR 때처럼 예를 붙인다 — 측정 질문(공복혈당)에
+# 맞추지 않으려고 혈압으로 쓴다.
+
+def test_persly_safe_checkup_band_has_example():
+    p = B("q", [], personal_kind="raw", style="persly-safe")
+    rule1 = p[p.index("1. 첫 문장이 답입니다"):p.index("2. 되묻지 않습니다")]
+    ex = rule1[rule1.index("판정은 기록에 적힌 문구만 옮깁니다"):]
+    assert "보다 높다고까지만" in ex and "경계 범위나 정상B 에 해당한다고 쓰지 않습니다" in ex
+    assert "공복혈당" not in ex.split("2.")[0]
+
+
 def test_default_keeps_l1_band_placement():
     """default 규칙 9 L1 은 "…기준 범위이며 이번 수치가 여기에 해당합니다"를 허용한다 — 건드리지 않는다."""
     p = B("q", [], personal_kind="raw")
