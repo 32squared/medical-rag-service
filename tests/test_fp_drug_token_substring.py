@@ -109,3 +109,38 @@ def test_semicolon_separates_lifestyle_order_from_drug_warning():
 def test_semicolon_keeps_drug_order_in_its_own_clause():
     assert not _dropped("중단하세요", "스타틴 복용은 이번 주부터 중단하세요; 대신 식단 조절을 해 보세요")
     assert not _dropped("중단하세요", "식단을 조절하고; 혈압약은 중단하세요")
+
+
+# ── rev 00062 실측: 문맥 창(±30자)이 '조정'을 '정'으로 잘랐다 ───────────────
+
+_FULL = ("**집에서 해볼 수 있는 관리**\n- 식사 조정 4주: 튀김·가공육·달달한 음료·과자·크림 소스를 "
+         "하루 1회 이하로 줄이고, 생선·두부·콩·채소를 하루 2번 이상 넣어 드세요")
+_CTX = ("...정 4주: 튀김·가공육·달달한 음료·과자·크림 소스를 하루 1회 이하로 줄이고, "
+        "생선·두부·콩·채소를 하루 2번 이상...")
+
+
+def _dropped_full(matched, context, full, rule="prescription", severity="CRITICAL"):
+    kept, dropped = F([{"rule_id": rule, "severity": severity,
+                        "matched_text": matched, "context": context}], full_text=full)
+    return len(dropped) == 1
+
+
+def test_window_cut_word_is_restored_from_full_text():
+    assert not _dropped("하루 1회", _CTX)            # 창만 보면 '정'이 약물 토큰 — 보존(원문 없을 때 동작)
+    assert _dropped_full("하루 1회", _CTX, _FULL)    # 원문으로 '조정' 복원 — 약물 아님
+
+
+def test_window_cut_drug_name_is_still_a_drug():
+    full = "두통이 잦다면 아스피린정 하루 1회 드세요. 증상이 이어지면 상담하세요."
+    assert not _dropped_full("하루 1회", "...정 하루 1회 드세요. 증상이 이어지면...", full)
+
+
+def test_context_not_in_full_text_is_left_as_is():
+    assert not _dropped_full("하루 1회", _CTX, "전혀 다른 본문")
+
+
+def test_guardrail_violations_passes_full_text():
+    """실제 경로(_guardrail_violations)가 원문을 넘기는지 — 저장된 원답 구절 그대로."""
+    from rag_engine import _guardrail_violations
+    kept, _ = _guardrail_violations(_FULL, "총콜레스테롤이랑 중성지방 수치는 어떤가요?")
+    assert not [v for v in kept if v["rule_id"] == "prescription" and v["matched_text"] == "하루 1회"]

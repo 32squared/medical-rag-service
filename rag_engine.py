@@ -2223,6 +2223,27 @@ _FP_DX_HISTORY = (
 _FP_FOOD_WORDS = ("탄산음료", "음료", "주스", "과자", "단순당", "설탕", "사탕", "간식", "디저트")
 
 
+def _fp_complete_edges(ctx: str, full_text: str) -> str:
+    """analyzer 문맥(매칭 ±30자, '...' 로 감쌈)의 양 끝에서 잘린 어절을 원문으로 복원한다.
+
+    창이 낱말 가운데를 자르면 '식사 조정 4주'가 '...정 4주'가 되어 '정'이 약물 토큰으로 읽혔다
+    (rev 00062 CRITICAL prescription 차단 실측). 창 끝 어절을 버리면 '...린정'(아스피린정) 같은
+    실제 약물명도 잃으므로, 버리지 않고 원문에서 어절 경계까지 이어 붙인다. 원문에서 찾지 못하면
+    그대로 둔다.
+    """
+    core = ctx[3:] if ctx.startswith("...") else ctx
+    core = core[:-3] if core.endswith("...") else core
+    i = full_text.find(core) if core else -1
+    if i < 0:
+        return ctx
+    j = i + len(core)
+    while i > 0 and not full_text[i - 1].isspace():
+        i -= 1
+    while j < len(full_text) and not full_text[j].isspace():
+        j += 1
+    return full_text[i:j]
+
+
 def _fp_has_drug(text: str) -> bool:
     """약물 토큰이 있는지 — (k) 비약물 낱말을 지운 뒤 본다."""
     for w in _FP_NON_DRUG_WORDS:
@@ -2232,7 +2253,7 @@ def _fp_has_drug(text: str) -> bool:
     return any(d in text for d in _FP_DRUG_TOKEN)
 
 
-def _filter_guardrail_false_positives(violations_dicts):
+def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
     """RAG 답변 가드레일 오탐 필터. (kept, dropped) 반환.
 
     analyzer/violation_rules 미변경 — RAG 후처리에서만 동작.
@@ -2244,6 +2265,7 @@ def _filter_guardrail_false_positives(violations_dicts):
       (e) 되묻는 질문('…어떻게 되시나요?') 안의 지시형 매칭
       (f) 매칭 문구 '안'에서 행위가 부정됨('처방약을 임의로 복용하지 마세요')
     단, 구체적 용량(mg/정/캡슐)이 있으면 (실제 처방) 무조건 보존.
+    full_text 가 있으면 문맥 양 끝에서 잘린 어절을 원문으로 복원한 뒤 본다(_fp_complete_edges).
     (g) 빈도만 있는 표현(하루 N회)은 약물 토큰이 함께 있을 때만 보존한다 —
         "중립자세 연습을 하루 3회"는 용법이 아니다.
     (h) prescription 은 한 문장 안에 '약물'과 '상담 권유가 아닌 명령형'이 함께
@@ -2264,6 +2286,8 @@ def _filter_guardrail_false_positives(violations_dicts):
     kept, dropped = [], []
     for v in violations_dicts:
         ctx = v.get("context") or ""
+        if full_text:
+            ctx = _fp_complete_edges(ctx, full_text)
         mt = v.get("matched_text") or ""
         rid = v.get("rule_id") or ""
         # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존.
@@ -2415,7 +2439,7 @@ def _guardrail_violations(text: str, query: str) -> tuple:
         "matched_text": v.matched_text,
         "context": getattr(v, "context", "") or "",
     } for v in violations]
-    return _filter_guardrail_false_positives(dicts)
+    return _filter_guardrail_false_positives(dicts, full_text=text)
 
 
 def _unsafe_rule_ids(text: str, query: str) -> list:
