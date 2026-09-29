@@ -624,7 +624,7 @@ class RagRoutesMixin:
             offset = (page - 1) * page_size
 
             count_sql = f"""
-                SELECT COUNT(*) FROM kb_documents d
+                SELECT COUNT(*) AS total FROM kb_documents d
                 {where_clause}
             """
             select_sql = f"""
@@ -644,7 +644,12 @@ class RagRoutesMixin:
             with db.get_conn() as (conn, cur):
                 cur.execute(count_sql, args)
                 total_row = cur.fetchone()
-                total = total_row[0] if total_row else 0
+                if not total_row:
+                    total = 0
+                elif isinstance(total_row, dict):  # PostgreSQL RealDictCursor
+                    total = total_row['total']
+                else:
+                    total = total_row[0]
 
                 cur.execute(select_sql, list_args)
                 rows = cur.fetchall()
@@ -709,8 +714,8 @@ class RagRoutesMixin:
 
                 # chunks 조회
                 cur.execute(
-                    "SELECT id, chunk_index, content, section_path_json, token_count, "
-                    "evidence_country, evidence_topic, regulatory_korea, topic_keywords_json, "
+                    "SELECT id, chunk_index, content, section_path, token_count, "
+                    "evidence_country, evidence_topic, regulatory_korea, topic_keywords, "
                     "created_at "
                     "FROM kb_chunks "
                     f"WHERE document_id = {db._p()} ORDER BY chunk_index",
@@ -729,13 +734,14 @@ class RagRoutesMixin:
                 else:
                     ch = {
                         'id': cr[0], 'chunk_index': cr[1], 'content': cr[2],
-                        'section_path_json': cr[3], 'token_count': cr[4],
+                        'section_path': cr[3], 'token_count': cr[4],
                         'evidence_country': cr[5], 'evidence_topic': cr[6],
-                        'regulatory_korea': cr[7], 'topic_keywords_json': cr[8],
+                        'regulatory_korea': cr[7], 'topic_keywords': cr[8],
                         'created_at': cr[9],
                     }
-                raw_sp = ch.pop('section_path_json', None)
-                raw_kw = ch.pop('topic_keywords_json', None)
+                # 두 컬럼 모두 JSON 배열 문자열(TEXT) — 목록으로 풀어 같은 키에 둔다
+                raw_sp = ch.get('section_path')
+                raw_kw = ch.get('topic_keywords')
                 ch['section_path'] = db._pg_json_loads(raw_sp) if raw_sp else []
                 ch['topic_keywords'] = db._pg_json_loads(raw_kw) if raw_kw else []
                 chunks.append(ch)
