@@ -214,6 +214,83 @@ class TestOpenAIProviderStreamChat:
 
 
 # ════════════════════════════════════════════════════════════
+#  reasoning_effort — 모델 계열별 지원값 (2026-09-29 실측)
+#  gpt-5 는 'none' 을, gpt-5.4-mini 는 'minimal' 을 400 으로 거부한다.
+#  재생성 폴백(gpt-5.4-mini)이 minimal 을 받아 매번 400 → 사과문이 됐다.
+# ════════════════════════════════════════════════════════════
+
+_UNSUPPORTED_MINIMAL = (
+    "Error code: 400 - {'error': {'message': \"Unsupported value: 'reasoning_effort' does not "
+    "support 'minimal' with this model. Supported values are: 'none', 'low', 'medium', 'high', "
+    "and 'xhigh'.\", 'type': 'invalid_request_error', 'param': 'reasoning_effort', "
+    "'code': 'unsupported_value'}}"
+)
+
+
+def _provider(model_id):
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}):
+        with patch("openai.OpenAI"):
+            from llm_router import OpenAIProvider
+            p = OpenAIProvider(model_id=model_id)
+    p._client = MagicMock()
+    return p
+
+
+class TestReasoningEffort:
+    def setup_method(self):
+        import llm_router
+        llm_router._EFFORTS_LEARNED.clear()
+
+    def test_fastest_step_maps_per_family(self):
+        from llm_router import resolve_reasoning_effort as r
+        assert r("gpt-5", "minimal") == "minimal"
+        assert r("gpt-5", "none") == "minimal"
+        assert r("gpt-5-mini", "minimal") == "minimal"
+        assert r("gpt-5.4-mini", "minimal") == "none"
+        assert r("gpt-5.4-mini", "none") == "none"
+        assert r("gpt-5.5", "minimal") == "none"
+
+    def test_other_steps_kept_or_nearest(self):
+        from llm_router import resolve_reasoning_effort as r
+        assert r("gpt-5.4-mini", "low") == "low"
+        assert r("gpt-5", "xhigh") == "high"
+        assert r("gpt-5.4-mini", "xhigh") == "xhigh"
+        assert r("gpt-5.4-mini", "bogus") == "none"     # 알 수 없는 값 → 가장 빠른 단계
+
+    def test_env_default_used(self):
+        from llm_router import resolve_reasoning_effort as r
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            assert r("gpt-5.4-mini") == "none"
+            assert r("gpt-5") == "minimal"
+
+    def test_fallback_model_request_sends_none(self):
+        p = _provider("gpt-5.4-mini")
+        p._client.chat.completions.create.return_value = iter([])
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            list(p.stream_chat("s", "u"))
+        assert p._client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "none"
+
+    def test_unsupported_value_400_retried_once_with_learned_value(self):
+        """표가 틀려도(모델이 지원값을 바꿔도) 400 메시지의 지원값으로 한 번 다시 보낸다."""
+        p = _provider("gpt-5")                      # 표상 minimal 을 받는 계열
+        p._client.chat.completions.create.side_effect = [Exception(_UNSUPPORTED_MINIMAL), iter([])]
+        with patch.dict(os.environ, {"LLM_REASONING_EFFORT": "minimal"}):
+            events = list(p.stream_chat("s", "u"))
+        calls = p._client.chat.completions.create.call_args_list
+        assert [c.kwargs["reasoning_effort"] for c in calls] == ["minimal", "none"]
+        assert events[-1]["type"] == "STOP"
+        from llm_router import resolve_reasoning_effort
+        assert resolve_reasoning_effort("gpt-5", "minimal") == "none"   # 이후 호출은 처음부터 맞춘다
+
+    def test_other_errors_not_retried(self):
+        p = _provider("gpt-5.4-mini")
+        p._client.chat.completions.create.side_effect = Exception("rate limit")
+        events = list(p.stream_chat("s", "u"))
+        assert p._client.chat.completions.create.call_count == 1
+        assert events[-1]["type"] == "ERROR"
+
+
+# ════════════════════════════════════════════════════════════
 #  TC-3: stream_chat — 오류 시 ERROR 청크
 # ════════════════════════════════════════════════════════════
 
