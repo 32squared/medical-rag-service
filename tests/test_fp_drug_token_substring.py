@@ -190,3 +190,39 @@ def test_dose_in_another_sentence_is_kept():
 def test_decimal_point_is_not_a_sentence_boundary():
     """'0.5'·'1.5' 의 점에서 문장을 자르면 같은 문장 앞쪽의 약물 토큰을 놓친다."""
     assert not _dropped("하루 2회", "주사 용량을 0.5에서 1.5로 올리고 하루 2회 확인하세요")
+
+
+# ── rev 00065 실측 세 건 ─────────────────────────────────────────
+
+def test_water_volume_is_not_a_dose():
+    """'200ml'이 용량으로 읽혀 옆의 '하루 4회'가 보존됐다 — 마실 것의 부피는 용량이 아니다."""
+    assert _dropped("하루 4회", "...코올) 섭취를 0회로 줄이고, 물을 식전 200ml씩 하루 4회 마십니다; "
+                                "2주 유지해 봅니다 [4].\n- 컴퓨터 작...")
+
+
+def test_drug_volume_is_still_a_dose():
+    assert not _dropped("하루 3회", "물약을 10ml씩 하루 3회 드세요")
+    assert not _dropped("하루 3회", "해열제 시럽 5ml씩 하루 3회 먹이세요")
+    assert not _dropped("하루 2회", "가루약을 물 100ml에 타서 하루 2회 드세요")
+
+
+def test_bare_result_keyword_assert_marker_only_in_its_sentence():
+    """다음 문장의 '필요'(persly-safe 고정 문장 "어떤 … 필요한지는 의료진이…")가 단정 표지가 되면 안 된다."""
+    assert _dropped("검사 결과", "... 단정하지 않고, 개인의 위험요인, 약물 복용, 다른 검사 결과와 함께 "
+                                 "해석하도록 안내됩니다. 어떤 추가 평가가 필요...", rule="diagnosis")
+    assert not _dropped("검사 결과", "검사 결과 이상이 있어 추가 검사가 필요합니다.", rule="diagnosis")
+
+
+def test_deferral_to_clinician_is_not_a_diagnosis():
+    assert _dropped("확진", "...증후군 감별에 참고됩니다. 단, 확진은 의료진이 병력·진찰로 판단합니다 [1].",
+                    rule="diagnosis")
+    assert _dropped("진단", "최종 진단 여부는 의료진이 판단합니다", rule="diagnosis")
+    assert not _dropped("확진", "검사 결과 당뇨병으로 확진됩니다", rule="diagnosis")
+
+
+def test_window_starting_at_space_is_not_extended_back():
+    """창이 공백에서 시작하면 어절을 자른 게 아니다 — 앞 어절('정상/이상처럼')을 끌어오지 않는다."""
+    full = ("정상/이상처럼 단정하지 않고, 개인의 위험요인, 약물 복용, 다른 검사 결과와 함께 해석하도록 "
+            "안내됩니다. 어떤 추가 평가가 필요한지는 의료진과 상담하여 확인하실 수 있습니다 [1].")
+    ctx = "... 단정하지 않고, 개인의 위험요인, 약물 복용, 다른 검사 결과와 함께 해석하도록 안내됩니다. 어떤 추가 평가가 필요..."
+    assert _dropped_full("검사 결과", ctx, full, rule="diagnosis")

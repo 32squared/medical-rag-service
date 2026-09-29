@@ -2234,9 +2234,17 @@ _FP_DOSING_VERB = (
 )
 # 줄 안의 문장 경계 — '1.3' 같은 소수점은 경계가 아니다.
 _FP_FREQ_SENT_BOUNDARY_RE = _re_fp.compile(r"(?:(?<!\d)\.|\.(?!\d)|[!?。;；])+")
+# 부피 단위(ml·cc)는 마실 것의 양일 수 있다 — "물을 식전 200ml씩 하루 4회 마십니다"
+# (rev 00065 CRITICAL prescription 차단 실측). 그 문장에 마실 것 낱말이 있고 약물 토큰이
+# 없으면 용량으로 보지 않는다('물약'·'시럽'은 약물 토큰이라 그대로 용량).
+_FP_VOLUME_DOSE_RE = _re_fp.compile(r"\d+\s*(?:cc|㏄|ml|㎖)$")
+_FP_DRINK_WORDS = ("물", "수분", "음료", "우유", "주스")
+# (l) 진단 낱말이 '의료진이 판단한다'는 위임 문장의 주어 — "단, 확진은 의료진이 병력·진찰로
+#     판단합니다"(rev 00065 CRITICAL diagnosis 차단 실측). 진단을 하지 않겠다는 문장이다.
+_FP_DX_DEFER_RE = _re_fp.compile(r"\s*(?:여부)?\s*(?:은|는|이|가)?\s*의료진")
 
 
-def _fp_freq_scope(ctx: str, pos: int) -> tuple:
+def _fp_sentence_scope(ctx: str, pos: int) -> tuple:
     """(pos 가 든 문장, 그 문장에 같은 줄의 바로 앞 문장을 더한 범위)."""
     ls = ctx.rfind("\n", 0, pos) + 1
     le = ctx.find("\n", pos)
@@ -2255,10 +2263,18 @@ def _fp_freq_scope(ctx: str, pos: int) -> tuple:
 def _fp_freq_is_dosing(ctx: str, pos: int) -> bool:
     """ctx 의 pos 에 있는 빈도 표현이 약물 용법으로 읽히는지 — 그 문장이나 같은 줄 바로 앞
     문장에 약물 토큰이 있거나, 그 문장의 동사가 복용 동사이고 문맥 어딘가에 약물 토큰이 있을 때."""
-    sent, scope = _fp_freq_scope(ctx, pos)
+    sent, scope = _fp_sentence_scope(ctx, pos)
     if _fp_has_drug(scope):
         return True
     return any(w in sent for w in _FP_DOSING_VERB) and _fp_has_drug(ctx)
+
+
+def _fp_is_drink_volume(ctx: str, m) -> bool:
+    """용량 매칭 m 이 마실 것의 부피인지 — 부피 단위이고, 그 문장에 마실 것 낱말이 있고 약물 토큰이 없다."""
+    if not _FP_VOLUME_DOSE_RE.search(m.group(0).strip()):
+        return False
+    sent = _fp_sentence_scope(ctx, m.start())[0]
+    return any(w in sent for w in _FP_DRINK_WORDS) and not _fp_has_drug(sent)
 
 
 def _fp_complete_edges(ctx: str, full_text: str) -> str:
@@ -2275,10 +2291,14 @@ def _fp_complete_edges(ctx: str, full_text: str) -> str:
     if i < 0:
         return ctx
     j = i + len(core)
-    while i > 0 and not full_text[i - 1].isspace():
-        i -= 1
-    while j < len(full_text) and not full_text[j].isspace():
-        j += 1
+    # 창 끝이 공백이면 어절을 자른 게 아니다 — 앞 어절까지 끌어오지 않는다
+    # ("... 단정하지 않고"가 "정상/이상처럼 단정하지 않고"가 되어 '이상'이 단정 표지로 읽혔다).
+    if not core[0].isspace():
+        while i > 0 and not full_text[i - 1].isspace():
+            i -= 1
+    if not core[-1].isspace():
+        while j < len(full_text) and not full_text[j].isspace():
+            j += 1
     return full_text[i:j]
 
 
@@ -2313,10 +2333,12 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
           "진통제 사용 계획을 다음 진료에서 논의해 보세요" → 상담 권유
           "음주는 중단하세요"                            → 약물 아님
         용량이 있으면 위에서 이미 KEEP 되므로 여기 오지 않는다.
-    (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 문맥에 진단 단정 표지가 없고
+    (i) 공용 diagnosis 키워드('검사 결과') 단독 매칭 — 키워드가 든 문장에 진단 단정 표지가 없고
         키워드 바로 뒤(15자)에 단정 어미가 없으면 제거. "검사 결과 암입니다"는 보존.
     (j) 공용 risk_probability 예시가 '/'로 쪼개져 생긴 단독 매칭어('높습니다') — 문맥에
         위험·확률·가능성 주어가 없으면 제거. "치매 진행 위험이 매우 높습니다"는 보존.
+    (l) diagnosis 매칭어가 '…은 의료진이' 위임 문장의 주어면 제거 — "확진은 의료진이 판단합니다".
+    용량 KEEP 에서 마실 것의 부피("물을 식전 200ml씩")는 용량으로 보지 않는다.
     """
     if not violations_dicts:
         return violations_dicts, []
@@ -2332,8 +2354,8 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
         # 구체적 용량/용법 → 실제 처방 가능성 높음 → 보존.
         # (g) 다만 빈도만 있는 매칭(하루 N회)은 그 문장이 약물 용법일 때(_fp_freq_is_dosing)나
         #     문맥에 검사 토큰이 있을 때만 — 아니면 KEEP을 강제하지 않고 아래 오탐 규칙들의 판정을
-        #     받게 둔다. 용량(mg·정…)은 문맥 어디에 있든 보존한다.
-        _doses = list(_FP_DOSAGE_RE.finditer(ctx))
+        #     받게 둔다. 용량(mg·정…)은 문맥 어디에 있든 보존한다 — 마실 것의 부피("물을 200ml씩")는 빼고.
+        _doses = [m for m in _FP_DOSAGE_RE.finditer(ctx) if not _fp_is_drink_volume(ctx, m)]
         if _doses:
             if (any(not _FP_FREQ_ONLY_RE.fullmatch(m.group(0).strip()) for m in _doses)
                     or any(_fp_freq_is_dosing(ctx, m.start()) for m in _doses)
@@ -2398,15 +2420,21 @@ def _filter_guardrail_false_positives(violations_dicts, full_text: str = ""):
         # (i) 공용 diagnosis 키워드 단독 매칭 — 진단 단정이 붙지 않은 일반 명사구는 오탐.
         #     예: "이전 검사 결과 유무…는 해석에 참고가 됩니다" / "반복 검사 결과·동반 소견을
         #     함께 보고 의료진이 판단하도록". 단정 표지나 바로 뒤 단정 어미가 있으면 보존.
+        #     단정 표지는 키워드가 든 문장에서만 본다 — 다음 문장 "어떤 추가 평가가 필요한지는
+        #     의료진과…"의 '필요'가 앞 문장의 '검사 결과'를 단정으로 만들었다(rev 00065 실측).
         if (not is_fp and rid == "diagnosis" and mt.strip() in _FP_BARE_DX_KEYWORDS
                 and mt in ctx):
             _after_kw = ctx.split(mt, 1)[1][:15]
-            _ctx_dx = ctx
+            _ctx_dx = _fp_sentence_scope(ctx, ctx.find(mt))[0]
             for _h in _FP_DX_HISTORY:          # 이미 받은 진단을 가리키는 말은 단정이 아니다
                 _ctx_dx = _ctx_dx.replace(_h, "")
             if (not any(a in _ctx_dx for a in _FP_DX_ASSERT)
                     and not any(e in _after_kw for e in _FP_ASSERT_END)):
                 is_fp = True
+        # (l) 진단 낱말이 '의료진이 판단'하는 위임 문장의 주어 — "확진은 의료진이 병력·진찰로 판단합니다".
+        if (not is_fp and rid == "diagnosis" and mt and mt in ctx
+                and _FP_DX_DEFER_RE.match(ctx.split(mt, 1)[1])):
+            is_fp = True
         # (j) risk_probability 단독 매칭어('높습니다') — 값 비교·일반 양상 문장은 위험도 제시가 아니다.
         #     예: "참고범위 200 mg/dL 이하보다 높습니다", "전형적으로 중성지방이 높습니다".
         if (not is_fp and rid == "risk_probability" and mt.strip() in _FP_BARE_RISK_PHRASES
