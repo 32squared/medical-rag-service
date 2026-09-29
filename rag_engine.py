@@ -2322,10 +2322,10 @@ def _regenerate_with_warning(
     violations: list,
 ) -> str:
     """
-    HIGH 위반 감지 시 gpt-5-mini로 1회 재생성.
+    HIGH 위반 감지 시 폴백 모델로 1회 재생성.
 
     시스템 프롬프트에 위반 경고를 추가해 재생성한다.
-    비용 절감을 위해 get_fallback_provider() (gpt-5-mini) 사용.
+    비용 절감을 위해 get_fallback_provider() (RAG_LLM_FALLBACK_MODEL, 기본 gpt-5.4-mini) 사용.
     """
     from llm_router import get_fallback_provider
 

@@ -186,7 +186,7 @@ __SVG_LOOP__
 <tr><td>꼬리(마지막 토큰→STOP)</td><td>~30초</td><td>~0초</td></tr></table>
 <ul>
 <li><b>SSE 연결 즉시 종료</b>: <code>Connection: close</code> + close_connection (keep-alive+settimeout(30) 유휴 대기 제거).</li>
-<li><b>reasoning_effort=minimal</b>: gpt-5.4-mini 지원값 minimal/low/medium/high (none은 400, fail-safe).</li>
+<li><b>reasoning_effort=minimal</b>: 가장 빠른 단계 이름이 모델마다 다름 — gpt-5 는 minimal, gpt-5.4-mini 등 gpt-5.x 는 none. resolve_reasoning_effort 가 맞추고, 400 이면 지원값으로 1회 재시도.</li>
 <li><b>DB 후처리 비차단화</b>: 감사·검수·analytics 데몬 스레드.</li>
 <li><b>INSUFFICIENT 인용-0건 재생성 생략</b>.</li>
 </ul></section>
