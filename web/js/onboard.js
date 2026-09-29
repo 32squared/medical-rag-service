@@ -1,12 +1,13 @@
 // onboard.js — 첫 진입 여정. 정본 §C-1(F0~F5).
-//   웰컴 → 동의 → 본인인증(mock) → 체험 프로필(②PHR 대체) → 상태 진단(③) → 트랙 선택 → 루틴 시작(④)
+//   웰컴 → 동의 → 본인인증(mock) → 체험 프로필(②PHR 대체) → 상태 진단(③) → 루틴·트랙 선택 → 루틴 시작(④)
 // 설계: 설명 화면을 늘리지 않는다. 선택지 = 결정 부담 = 이탈.
 
 import { useState } from 'preact/hooks';
 import { GET, GET_PUB, POST, POST_PUB, setTok, deviceIdentity, errText } from './api.js';
 import {
-  html, Header, Loading, ErrorView, useLoader, useLatest, arr, str, num,
+  html, Header, Loading, ErrorView, useLoader, useLatest, normPack, arr, str, num,
 } from './ui.js';
+import { iconOf } from './archetypes.js';
 
 const ITEM_DESC = {
   personal_info: '서비스 이용을 위한 기본 개인정보',
@@ -62,7 +63,7 @@ export function Onboarding({ onDone }) {
       <div class="brand" style="font-size:26px"><span class="dot">+</span> 마이헬스케어</div>
       <p class="muted" style="margin-top:14px;line-height:1.7">
         하루 30초, <b>오늘의 행동 하나</b>부터.<br/>
-        12주 동안 기록이 쌓이면 내 건강 패턴이 보이고,
+        기록이 쌓이면 내 패턴이 보이고,
         궁금한 건 근거와 함께 바로 물어볼 수 있어요.</p>
       <div style="height:24px"></div>
       <button class="btn" onClick=${goConsent}>시작하기</button>
@@ -141,88 +142,153 @@ export function PersonaPick({ onDone }) {
   </div>`;
 }
 
-// ── 3. 상태 진단(③) + 트랙 선택 + 루틴 시작(④) ──────────────────
-const TRACK_META = {
-  diet: { emoji: '🥗', name: '식이 기록', desc: '식사 시각·짠맛 습관을 하루 30초로 남겨요' },
-  exercise: { emoji: '🏃', name: '활동 기록', desc: '오늘 몸을 움직였는지 1탭으로 남겨요' },
-  habit: { emoji: '🌙', name: '생활 리듬', desc: '취침 시각과 컨디션을 하루 30초로 남겨요' },
+// ── 3. 상태 진단(③) + 루틴 고르기 + 트랙 선택 + 루틴 시작(④) ─────────
+// 루틴은 팩(routines/packs/*)에서 온다(28 FR-F1). 팩이 하나면 고르기 화면을 건너뛴다.
+// 트랙이 하나면 트랙 화면도 건너뛴다. 문진은 label 을 보여주고 value 를 보낸다.
+const GATE_TEXT = {
+  clearance_required: '지금 구간에서는 진료 상담 뒤에 시작해요',
+  emergency_block: '지금은 루틴보다 진료가 먼저예요',
 };
+
+function Icon({ k }) {
+  return html`<div class="tkemoji" aria-hidden="true"
+    dangerouslySetInnerHTML=${{ __html: iconOf(k, '#141414', 26) }}></div>`;
+}
 
 export function StartRoutine({ onStarted, onSkip }) {
   const D = useLoader(() => GET('/diagnosis'), []);
+  const P = useLoader(() => GET('/routine/packs'), []);
+  const [packId, setPackId] = useState(null);
   const [track, setTrack] = useState(null);
   const [intake, setIntake] = useState({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const C = useLoader(() => GET('/coaching/config'), []);
 
-  if (D.state === 'loading') return html`<div key="sl"><${Header} title="루틴 시작" /><${Loading} /></div>`;
+  if (D.state === 'loading' || P.state === 'loading') {
+    return html`<div key="sl"><${Header} title="루틴 시작" /><${Loading} /></div>`;
+  }
+  if (P.state === 'error') {
+    return html`<div key="spe"><${Header} title="루틴 시작" />
+      <${ErrorView} err=${P.err} text=${errText(P.err)} onRetry=${P.reload} /></div>`;
+  }
 
   const d = (D.state === 'data' && D.data) || {};
   const rec = (d.recommended && typeof d.recommended === 'object') ? d.recommended : {};
-  const recTrack = str(rec.track) || 'diet';
-  const cfg = (C.state === 'data' && arr((C.data || {}).tracks)) || [];
-  const qs = track ? arr((cfg.find((t) => t && t.key === track) || {}).intake) : [];
-  const ready = !track ? false : qs.every((q) => intake[q.id]);
+  const packs = arr((P.data || {}).packs).map(normPack).filter((x) => x.tracks.length);
+  const single = packs.length === 1;
+  const pk = packs.find((x) => x.id === packId) || (single ? packs[0] : null);
+  const tr = pk && (pk.tracks.find((t) => t.id === track) || (pk.tracks.length === 1 ? pk.tracks[0] : null));
+  const qs = tr ? tr.intake : [];
+  const ready = qs.every((q) => intake[q.id]);
+
+  function back() {
+    setErr(''); setIntake({});
+    if (tr && pk.tracks.length > 1) { setTrack(null); return; }
+    setTrack(null); setPackId(null);
+  }
 
   async function start() {
     setBusy(true); setErr('');
-    const r = await POST('/routine/start', { track, intake, focus: rec.focus || null });
+    const r = await POST('/routine/start', {
+      pack_id: pk.id, track: tr.id, intake,
+      focus: pk.recommended ? (rec.focus || null) : null,
+    });
     setBusy(false);
     if (!r.ok) { setErr(errText(r)); return; }
     onStarted();
   }
 
-  if (!track) {
-    return html`<div key="trackpick">
-      <${Header} title="루틴 시작" />
-      <div class="scroll">
-        ${d.band ? html`<div class="dgcard" key="dg">
-          <div class="dgtop"><div class="dgband">${str(d.band)} 구간</div></div>
-          ${arr(d.items).length ? html`<div class="dgitems" key="di">
-            ${arr(d.items).map((it) => html`<div class="dgrow" key=${str(it.key)}>
-              <span>${str(it.label)}</span>
-              <span class=${'dgstate s-' + (str(it.state) || 'none')}>${str(it.state)}</span>
-            </div>`)}</div>` : null}
-          <div class="dgnotice">${str(d.notice)}</div>
-        </div>` : null}
+  const diag = d.band ? html`<div class="dgcard" key="dg">
+    <div class="dgtop"><div class="dgband">${str(d.band)} 구간</div></div>
+    ${arr(d.items).length ? html`<div class="dgitems" key="di">
+      ${arr(d.items).map((it) => html`<div class="dgrow" key=${str(it.key)}>
+        <span>${str(it.label)}</span>
+        <span class=${'dgstate s-' + (str(it.state) || 'none')}>${str(it.state)}</span>
+      </div>`)}</div>` : null}
+    <div class="dgnotice">${str(d.notice)}</div>
+  </div>` : null;
+  const skip = onSkip ? html`<button class="btn ghost" key="skip" style="margin-top:12px"
+    onClick=${onSkip}>나중에 하기</button>` : null;
 
-        <div class="sectitle" key="t1" style="margin-top:14px">어떤 기록부터 시작할까요?</div>
+  // ① 루틴 고르기
+  if (!pk) {
+    return html`<div key="packpick">
+      <${Header} title="루틴 고르기" />
+      <div class="scroll">
+        ${diag}
+        <div class="sectitle" key="t0" style="margin-top:14px">어떤 루틴을 시작할까요?</div>
         <p class="muted" style="font-size:12.5px;margin-bottom:10px">
-          12주 동안 매일 30초. 언제든 바꿀 수 있어요.</p>
-        ${Object.keys(TRACK_META).map((k) => html`<button class="card trackcard2" key=${k}
-            onClick=${() => setTrack(k)}>
-          <div class="tkemoji">${TRACK_META[k].emoji}</div>
+          하루 한 가지씩. 진행 중인 루틴은 하나만 둘 수 있어요.</p>
+        ${packs.map((x) => html`<button class=${'card trackcard2' + (x.available ? '' : ' off')} key=${x.id}
+            disabled=${!x.available} aria-disabled=${!x.available}
+            onClick=${() => { if (x.available) { setPackId(x.id); setTrack(null); setIntake({}); } }}>
+          <${Icon} k=${x.tracks[0].icon} />
           <div class="tkbody">
-            <div class="tkname">${TRACK_META[k].name}
-              ${k === recTrack ? html`<span class="rectag" key="r">추천</span>` : null}</div>
-            <div class="tkdesc">${TRACK_META[k].desc}</div>
+            <div class="tkname">${x.name}
+              ${x.recommended && rec.track ? html`<span class="rectag" key="r">추천</span>` : null}</div>
+            <div class="tkdesc">${x.tagline}</div>
+            <div class="tkmeta">${x.weeksTotal}주 · ${x.phases.length}단계${x.tracks.length > 1 ? ` · 방식 ${x.tracks.length}가지` : ''}</div>
+            ${x.available ? null : html`<div class="tkmeta" key="g">${GATE_TEXT[x.reason] || '지금은 시작할 수 없어요'}</div>`}
           </div>
-          <span class="muted">›</span>
+          ${x.available ? html`<span class="muted" key="c">›</span>` : null}
         </button>`)}
-        ${onSkip ? html`<button class="btn ghost" key="skip" style="margin-top:12px"
-          onClick=${onSkip}>나중에 하기</button>` : null}
+        ${skip}
         <div class="bottompad"></div>
       </div>
     </div>`;
   }
 
+  // ② 트랙(방식) 고르기
+  if (!tr) {
+    const recTrack = pk.recommended ? (str(rec.track) || pk.tracks[0].id) : '';
+    return html`<div key="trackpick">
+      <${Header} title=${single ? '루틴 시작' : pk.name} onBack=${single ? null : back} />
+      <div class="scroll">
+        ${single ? diag : null}
+        <div class="sectitle" key="t1" style="margin-top:14px">
+          ${pk.safetyProfile === 'medical' ? '어떤 기록부터 시작할까요?' : '어떤 방식으로 시작할까요?'}</div>
+        <p class="muted" style="font-size:12.5px;margin-bottom:10px">
+          ${pk.weeksTotal}주 동안 하루 한 가지. 언제든 바꿀 수 있어요.</p>
+        ${pk.tracks.map((t) => html`<button class="card trackcard2" key=${t.id}
+            onClick=${() => { setTrack(t.id); setIntake({}); }}>
+          <${Icon} k=${t.icon} />
+          <div class="tkbody">
+            <div class="tkname">${t.name}
+              ${t.id === recTrack ? html`<span class="rectag" key="r">추천</span>` : null}</div>
+            <div class="tkdesc">${t.desc}</div>
+          </div>
+          <span class="muted">›</span>
+        </button>`)}
+        ${single ? skip : null}
+        <div class="bottompad"></div>
+      </div>
+    </div>`;
+  }
+
+  // ③ 문진 → 시작
+  const canBack = !single || pk.tracks.length > 1;
   return html`<div key="intake">
-    <${Header} title=${TRACK_META[track].name} onBack=${() => { setTrack(null); setIntake({}); }} />
+    <${Header} title=${tr.name} onBack=${canBack ? back : null} />
     <div class="scroll">
-      <p class="muted" style="line-height:1.7">몇 가지만 알려주시면 12주 루틴을 만들어 드려요.</p>
-      <div style="height:10px"></div>
-      ${qs.length ? qs.map((q) => html`<div class="card" key=${str(q.id)} style="margin-bottom:10px">
-        <div style="font-size:14px;margin-bottom:8px">${str(q.q)}</div>
+      <p class="muted" style="line-height:1.7">몇 가지만 알려주시면 ${pk.weeksTotal}주 루틴을 만들어 드려요.</p>
+      ${pk.firstWeek && pk.firstWeek.mission ? html`<div class="card" key="fw" style="margin:10px 0">
+        <div class="sectitle">첫 주</div>
+        <div style="font-size:14px">${pk.firstWeek.theme}</div>
+        <div class="muted" style="font-size:12.5px;margin-top:4px">${pk.firstWeek.mission}</div>
+      </div>` : html`<div style="height:10px" key="sp"></div>`}
+      ${qs.length ? qs.map((q) => html`<div class="card" key=${q.id} style="margin-bottom:10px">
+        <div style=${`font-size:14px;margin-bottom:${q.why ? 2 : 8}px`}>${q.q}</div>
+        ${q.why ? html`<div class="muted" key="why" style="font-size:12px;margin-bottom:8px">${q.why}</div>` : null}
         <div class="chips">
-          ${arr(q.options).map((o) => html`<button class=${'chip' + (intake[q.id] === o ? ' sel' : '')}
-            key=${o} onClick=${() => setIntake((s) => ({ ...s, [q.id]: o }))}>${o}</button>`)}
+          ${q.options.map((o) => html`<button class=${'chip' + (intake[q.id] === o.value ? ' sel' : '')}
+            key=${o.value} aria-pressed=${intake[q.id] === o.value}
+            onClick=${() => setIntake((x) => ({ ...x, [q.id]: o.value }))}>${o.label}</button>`)}
         </div>
       </div>`) : html`<div class="muted" key="noq" style="font-size:13px">바로 시작할 수 있어요.</div>`}
       ${err ? html`<div class="err" key="serr">${err}</div>` : null}
       <button class="btn" key="go" style="margin-top:8px"
-        disabled=${busy || (qs.length > 0 && !ready)} onClick=${start}>
-        ${busy ? '만드는 중…' : '12주 루틴 시작하기'}</button>
+        disabled=${busy || !ready} onClick=${start}>
+        ${busy ? '만드는 중…' : `${pk.weeksTotal}주 루틴 시작하기`}</button>
       <div class="bottompad"></div>
     </div>
   </div>`;

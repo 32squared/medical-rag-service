@@ -1,0 +1,36 @@
+{
+ "id": "running_8w",
+ "name": "달리기 입문 8주",
+ "domain": "sport",
+ "safety_profile": "physical",
+ "weeks": 8,
+ "audience": "운동 습관이 거의 없는 20~40대 직장인",
+ "goal": "걷기와 가벼운 달리기를 섞어 주 3회 20분 움직이는 습관 만들기",
+ "notes": "걷기-달리기 인터벌로 시작해 달리는 시간을 조금씩 늘린다. 속도·거리 목표나 체중 감량 언급 없이. 통증이 있는 날은 쉬고 해당없음.",
+ "tracks": [
+  {
+   "id": "outdoor",
+   "name": "밖에서 달리기",
+   "icon": "run",
+   "hint": "동네·공원에서 걷기와 달리기를 섞는다"
+  },
+  {
+   "id": "indoor",
+   "name": "집에서 준비",
+   "icon": "home",
+   "hint": "비 오는 날·바쁜 날 집에서 준비운동·제자리 걷기"
+  }
+ ],
+ "sources": [
+  {
+   "key": "kspo",
+   "label": "국민체육진흥공단 국민체력100 운동 안내",
+   "url": "https://nfa.kspo.or.kr"
+  },
+  {
+   "key": "who",
+   "label": "WHO 신체활동·좌식행동 지침(2020)",
+   "url": "https://www.who.int/publications/i/item/9789240015128"
+  }
+ ]
+}

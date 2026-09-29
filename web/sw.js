@@ -5,7 +5,7 @@
 //    계속 실행되어 '고쳤는데 그대로'가 발생한다(과거 실제 사고).
 //  - 아이콘·매니페스트 등 불변 자산만 cache-first.
 // 배포 시 CACHE 버전을 올린다.
-const CACHE = 'mhc-shell-v4';
+const CACHE = 'mhc-shell-v6';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (e) => {

@@ -1,4 +1,4 @@
-"""routine_repo.py — 12주 루틴 프로그램 영속 계층.
+"""routine_repo.py — 루틴 프로그램 영속 계층(팩 기반, 기본 = 건강 12주).
 
 정본: docs/plan/25-routine-transition-spec.md §E(데이터 모델)·§F(API 계약).
 
@@ -7,6 +7,8 @@
   - 개인별 격리 키 = subject_id(= account_id = conversation_id).
   - 파생값(주차·스트릭·adherence)은 **전부 서버에서 결정적으로 계산**(E-3).
   - 저장 금지: 원시 측정값·진단명. value 는 선택지 라벨만.
+  - 프로그램은 시작 시점의 (pack_id, pack_version, weeks_total) 을 저장하고 그 값으로
+    진도를 계산한다(28 루틴 팩 플랫폼). 기존 행은 기본값 = health_12w v1 · 12주.
   - 모든 함수는 실패해도 예외를 밖으로 던지지 않는다(조회=빈값, 쓰기=None/False).
     루틴은 매일 쓰는 화면이라 부분 실패가 화면 전체를 깨면 안 된다.
 """
@@ -61,7 +63,11 @@ _DDL = [
            adherence_state TEXT DEFAULT 'active', paused_days INTEGER DEFAULT 0,
            paused_until TEXT, freeze_used_on TEXT, week_state_json TEXT,
            nudge_sent_json TEXT, curriculum_version INTEGER DEFAULT 1,
-           last_seen_on TEXT, completed_on TEXT, created_at TEXT, updated_at TEXT)""",
+           last_seen_on TEXT, completed_on TEXT, created_at TEXT, updated_at TEXT,
+           pack_id TEXT DEFAULT 'health_12w', pack_version INTEGER DEFAULT 1)""",
+    # 025 — 팩 컬럼(기존 DB 는 ALTER, 이미 있으면 실패를 무시)
+    "ALTER TABLE routine_program ADD COLUMN pack_id TEXT DEFAULT 'health_12w'",
+    "ALTER TABLE routine_program ADD COLUMN pack_version INTEGER DEFAULT 1",
     "CREATE INDEX IF NOT EXISTS ix_routine_program_subject ON routine_program (subject_id, status)",
     """CREATE TABLE IF NOT EXISTS routine_checkin (
            checkin_id TEXT PRIMARY KEY, program_id TEXT NOT NULL, subject_id TEXT NOT NULL,
@@ -108,7 +114,8 @@ def _ensure() -> None:
 _PROG_COLS = ("program_id, subject_id, plan_id, track, focus, anchor, intake_json, "
               "band_at_start, item_cap, started_on, current_week, weeks_total, status, "
               "mode, adherence_state, paused_days, paused_until, freeze_used_on, "
-              "week_state_json, nudge_sent_json, curriculum_version, last_seen_on, completed_on")
+              "week_state_json, nudge_sent_json, curriculum_version, last_seen_on, completed_on, "
+              "pack_id, pack_version")
 
 
 def get_active_program(subject_id: str) -> Optional[Dict]:
@@ -142,7 +149,8 @@ def create_program(*, subject_id: str, track: str, plan_id: Optional[str] = None
                    focus: Optional[str] = None, anchor: Optional[str] = None,
                    intake: Optional[Dict] = None, band: Optional[str] = None,
                    item_cap: int = 0, started_on: Optional[str] = None,
-                   curriculum_version: int = 1) -> Optional[str]:
+                   curriculum_version: int = 1, pack_id: str = "health_12w",
+                   pack_version: int = 1, weeks_total: int = 12) -> Optional[str]:
     """프로그램 생성 → program_id. 실패 시 None."""
     _ensure()
     pid = _uuid.uuid4().hex
@@ -153,11 +161,12 @@ def create_program(*, subject_id: str, track: str, plan_id: Optional[str] = None
                 f"INSERT INTO routine_program (program_id, subject_id, plan_id, track, focus, "
                 f"anchor, intake_json, band_at_start, item_cap, started_on, current_week, "
                 f"weeks_total, status, mode, adherence_state, paused_days, curriculum_version, "
-                f"last_seen_on, created_at, updated_at) VALUES ("
-                + ", ".join([_p()] * 20) + ")",
+                f"last_seen_on, created_at, updated_at, pack_id, pack_version) VALUES ("
+                + ", ".join([_p()] * 22) + ")",
                 (pid, subject_id, plan_id, track, focus, anchor,
                  json.dumps(intake or {}, ensure_ascii=False), band, int(item_cap), day,
-                 1, 12, "active", "daily", "active", 0, int(curriculum_version), day, now, now))
+                 1, int(weeks_total), "active", "daily", "active", 0, int(curriculum_version),
+                 day, now, now, pack_id, int(pack_version)))
             conn.commit()
         return pid
     except Exception:
@@ -335,17 +344,27 @@ def best_streak(dates: List[str]) -> int:
     return best
 
 
-def week_of(started_on: str, action_date: str, paused_days: int = 0) -> int:
+def weeks_total_of(program: Optional[Dict]) -> int:
+    """프로그램 기간(주). 컬럼이 비었거나 이상하면 12(건강 팩 기본)."""
+    try:
+        n = int((program or {}).get("weeks_total") or 12)
+    except (TypeError, ValueError):
+        return 12
+    return max(1, min(52, n))
+
+
+def week_of(started_on: str, action_date: str, paused_days: int = 0,
+            weeks_total: int = 12) -> int:
     """행동일이 속한 주차(1-base). 일시정지 일수는 진도에서 제외."""
     n = days_between(started_on, action_date) - max(0, int(paused_days or 0))
-    return max(1, min(12, n // 7 + 1))
+    return max(1, min(int(weeks_total or 12), n // 7 + 1))
 
 
 def current_week(program: Dict, today: Optional[str] = None) -> int:
     if not program:
         return 1
     return week_of(program.get("started_on") or today_kst(), today or today_kst(),
-                   int(program.get("paused_days") or 0))
+                   int(program.get("paused_days") or 0), weeks_total_of(program))
 
 
 def day_no(program: Dict, today: Optional[str] = None) -> int:
@@ -364,10 +383,11 @@ def week_stats(program: Dict, week_no: int, goal: int) -> Dict:
     pid = (program or {}).get("program_id")
     started = (program or {}).get("started_on") or today_kst()
     paused = int((program or {}).get("paused_days") or 0)
+    total = weeks_total_of(program)
     done, na = set(), set()
     for c in list_checkins(pid, slot="main"):
         d = c.get("action_date")
-        if not d or week_of(started, d, paused) != week_no:
+        if not d or week_of(started, d, paused, total) != week_no:
             continue
         if c.get("status") == "done":
             done.add(d)
@@ -392,12 +412,14 @@ def program_adherence(program: Dict) -> int:
     return round(d / (d + s) * 100) if (d + s) else 0
 
 
-def build_week_state(program: Dict, cur_week: int) -> List[Dict]:
-    """12주 진도 배열 — 프론트 타임라인/히트맵 소스."""
+def build_week_state(program: Dict, cur_week: int, pack=None) -> List[Dict]:
+    """전체 주차 진도 배열 — 프론트 타임라인/히트맵 소스. pack 없으면 프로그램의 팩."""
     import routine_engine as eng
+    import routine_packs as rp
+    pk = pack or rp.for_program(program)
     out = []
-    for w in range(1, 13):
-        g = eng.goal_days(w)
+    for w in range(1, weeks_total_of(program) + 1):
+        g = eng.goal_days(w, pk)
         if w < cur_week:
             st = week_stats(program, w, g)
             state = "done" if st["done_days"] >= st["eff_goal"] else "past"
@@ -408,7 +430,7 @@ def build_week_state(program: Dict, cur_week: int) -> List[Dict]:
             st = {"done_days": 0, "goal_days": g, "eff_goal": g, "na_days": 0, "adherence": 0}
             state = "future"
         out.append({"w": w, "state": state, "done_days": st["done_days"],
-                    "goal_days": st["goal_days"]})
+                    "goal_days": st["goal_days"], "theme": eng.week_meta(w, pk).get("theme", "")})
     return out
 
 
@@ -446,7 +468,7 @@ def heat_days(program: Dict) -> List[Dict]:
         marks[d] = max(marks.get(d, 0), lv)
     out, today = [], today_kst()
     n = max(0, days_between(started, today))
-    for i in range(min(n + 1, 84)):
+    for i in range(min(n + 1, weeks_total_of(program) * 7)):
         d = add_days(started, i)
         out.append({"date": d, "level": marks.get(d, 0)})
     return out

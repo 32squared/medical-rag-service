@@ -1,0 +1,2199 @@
+{
+ "schema_version": 1,
+ "id": "golf_6m",
+ "version": 1,
+ "name": "골프 6개월 루틴",
+ "tagline": "하루 한 가지로 내 연습 루틴 만들기",
+ "domain": "sport",
+ "safety_profile": "physical",
+ "weeks_total": 26,
+ "phases": [
+  {
+   "id": "settle",
+   "name": "정착기",
+   "from": 1,
+   "to": 3,
+   "desc": "같은 시각, 짧게, 가볍게"
+  },
+  {
+   "id": "build",
+   "name": "쌓기",
+   "from": 4,
+   "to": 12,
+   "desc": "아이언 하나로 기본 다지기"
+  },
+  {
+   "id": "use",
+   "name": "써먹기",
+   "from": 13,
+   "to": 22,
+   "desc": "코스·스크린에서 써 보기"
+  },
+  {
+   "id": "keep",
+   "name": "유지",
+   "from": 23,
+   "to": 26,
+   "desc": "내 연습 루틴 확정"
+  }
+ ],
+ "tracks": [
+  {
+   "id": "range",
+   "name": "연습장 루틴",
+   "icon": "golf",
+   "desc": "연습장에서 짧게, 한 번에 한 가지만 연습해요",
+   "target_noun": "연습"
+  },
+  {
+   "id": "home",
+   "name": "집 연습 루틴",
+   "icon": "home",
+   "desc": "집에서 10분, 빈 스윙·퍼팅으로 감을 이어가요",
+   "target_noun": "연습"
+  }
+ ],
+ "intake": {
+  "range": [
+   {
+    "id": "level",
+    "q": "골프는 어느 정도 해 보셨나요?",
+    "options": [
+     {
+      "label": "처음이에요",
+      "value": "zero"
+     },
+     {
+      "label": "연습장만 가봤어요",
+      "value": "range"
+     },
+     {
+      "label": "라운드 해봤어요",
+      "value": "round"
+     }
+    ],
+    "why": "시작 분량을 맞춰요"
+   },
+   {
+    "id": "anchor",
+    "q": "연습은 주로 언제 할까요?",
+    "options": [
+     {
+      "label": "출근 전",
+      "value": "morning"
+     },
+     {
+      "label": "퇴근 후",
+      "value": "evening"
+     },
+     {
+      "label": "주말",
+      "value": "weekend"
+     }
+    ],
+    "why": "그때 알려드려요"
+   },
+   {
+    "id": "body",
+    "q": "요즘 몸 상태는 어떤가요?",
+    "options": [
+     {
+      "label": "가뿐해요",
+      "value": "fine"
+     },
+     {
+      "label": "가끔 뻐근해요",
+      "value": "stiff"
+     },
+     {
+      "label": "허리·어깨가 불편해요",
+      "value": "pain"
+     }
+    ],
+    "why": "강도를 맞춰요"
+   }
+  ],
+  "home": [
+   {
+    "id": "level",
+    "q": "골프는 어느 정도 해 보셨나요?",
+    "options": [
+     {
+      "label": "처음이에요",
+      "value": "zero"
+     },
+     {
+      "label": "연습장만 가봤어요",
+      "value": "range"
+     },
+     {
+      "label": "라운드 해봤어요",
+      "value": "round"
+     }
+    ],
+    "why": "시작 분량을 맞춰요"
+   },
+   {
+    "id": "anchor",
+    "q": "집 연습은 언제 할까요?",
+    "options": [
+     {
+      "label": "아침",
+      "value": "morning"
+     },
+     {
+      "label": "저녁 식사 뒤",
+      "value": "evening"
+     },
+     {
+      "label": "자기 전",
+      "value": "night"
+     }
+    ],
+    "why": "그때 알려드려요"
+   },
+   {
+    "id": "space",
+    "q": "연습할 공간은 어떤가요?",
+    "options": [
+     {
+      "label": "거실 한쪽",
+      "value": "living"
+     },
+     {
+      "label": "방·좁은 곳",
+      "value": "small"
+     }
+    ],
+    "why": "동작을 고를 때 써요"
+   }
+  ]
+ },
+ "weeks": [
+  {
+   "w": 1,
+   "theme": "그립 잡고 10번",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "7일 중 3일, 그립 잡고 빈 스윙 10번 하고 탭",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w1:range:swing10",
+     "text": "연습 시작 전 빈 스윙 10번 하고 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w1:home:swing10",
+     "text": "저녁에 그립 잡고 빈 스윙 10번 후 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "그립은 어떻게 잡나요?",
+    "빈 스윙은 왜 먼저 하나요?",
+    "하루 몇 번이 적당한가요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w1:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w1:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 2,
+   "theme": "같은 시각·같은 자리",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "7일 중 3일, 정한 시각에 빈 스윙 10번",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w2:range:same_time",
+     "text": "정한 시각에 빈 스윙 10번, 느낌 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "편함",
+       "뻣뻣함",
+       "잘 모름"
+      ]
+     }
+    },
+    "home": {
+     "id": "w2:home:same_time",
+     "text": "정한 시각에 빈 스윙 10번, 느낌 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "편함",
+       "뻣뻣함",
+       "잘 모름"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "연습 시각은 언제가 좋나요?",
+    "뻣뻣한 느낌은 왜 드나요?",
+    "빈 스윙만 해도 되나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w2:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w2:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 3,
+   "theme": "내 몸 상태 알기",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "7일 중 3일, 연습 뒤 몸 상태 하나 탭",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w3:range:body",
+     "text": "연습 뒤 몸 상태를 하나 골라 탭",
+     "cite": "kspo",
+     "minutes": 20,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "뻐근",
+       "통증"
+      ]
+     }
+    },
+    "home": {
+     "id": "w3:home:body",
+     "text": "빈 스윙 10번 뒤 몸 상태 하나 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "뻐근",
+       "통증"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "준비운동은 얼마나 하나요?",
+    "뻐근한 날도 해도 되나요?",
+    "통증은 누구와 상의하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w3:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w3:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 4,
+   "theme": "7번 아이언 하나로",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 7번 아이언 20구(집은 하프 스윙)",
+   "unlock": "아이언 연습 카드",
+   "actions": {
+    "range": {
+     "id": "w4:range:iron20",
+     "text": "7번 아이언 20구, 잘 맞은 비율 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "절반 이상",
+       "몇 개",
+       "거의 없음"
+      ]
+     }
+    },
+    "home": {
+     "id": "w4:home:half20",
+     "text": "하프 스윙 20번, 끝 자세 유지 후 탭",
+     "cite": "kga",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "왜 7번 아이언부터 하나요?",
+    "20구면 충분한가요?",
+    "잘 맞은 공은 어떻게 알아요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w4:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w4:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 5,
+   "theme": "어드레스 맞추기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 공 앞 자세를 먼저 확인하고 시작",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w5:range:address",
+     "text": "발·공 위치 확인하고 20구 친 뒤 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w5:home:address",
+     "text": "거울 앞 어드레스 5번, 맞았는지 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "맞아요",
+       "조금 달라요",
+       "모르겠어요"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "공 위치는 어디가 맞나요?",
+    "발 간격은 얼마가 좋나요?",
+    "거울이 없으면 어떻게 하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w5:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w5:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 6,
+   "theme": "템포 하나 정하기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, '하나-둘' 템포로 스윙",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w6:range:tempo",
+     "text": "하나-둘 템포로 20구, 느낌 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "일정함",
+       "빨라짐",
+       "들쑥날쑥"
+      ]
+     }
+    },
+    "home": {
+     "id": "w6:home:tempo",
+     "text": "하나-둘 소리 내며 빈 스윙 15번",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "템포는 왜 중요한가요?",
+    "스윙이 빨라지면요?",
+    "메트로놈을 써도 되나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w6:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w6:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 7,
+   "theme": "짧은 거리 감각",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 짧은 어프로치로 거리감 익히기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w7:range:approach",
+     "text": "50m 어프로치 15구, 거리감 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "짧음",
+       "맞음",
+       "김"
+      ]
+     }
+    },
+    "home": {
+     "id": "w7:home:putt1m",
+     "text": "1m 퍼팅 10번, 들어간 수 탭",
+     "cite": "kga",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "7개 이상",
+       "4~6개",
+       "3개 이하"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "어프로치는 어떻게 치나요?",
+    "거리감은 어떻게 익히나요?",
+    "집에서 퍼팅 매트가 필요한가요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w7:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w7:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 8,
+   "theme": "퍼팅 10분",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 퍼팅 연습 10분",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w8:range:putt10",
+     "text": "연습 그린에서 퍼팅 10분 후 탭",
+     "cite": "kga",
+     "minutes": 15,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w8:home:putt2m",
+     "text": "2m 퍼팅 10번, 들어간 수 탭",
+     "cite": "kga",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "7개 이상",
+       "4~6개",
+       "3개 이하"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "퍼팅 자세는 어떻게 잡나요?",
+    "짧은 퍼팅부터 하는 이유는?",
+    "퍼팅은 얼마나 연습하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w8:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w8:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 9,
+   "theme": "무너지는 날 찾기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 연습 뒤 오늘 상황 하나 태그",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w9:range:context",
+     "text": "연습 뒤 오늘 상황 하나 탭",
+     "cite": "kspo",
+     "minutes": 20,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "피곤함",
+       "시간 부족",
+       "통증"
+      ]
+     }
+    },
+    "home": {
+     "id": "w9:home:context",
+     "text": "연습 뒤 오늘 상황 하나 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "피곤함",
+       "시간 부족",
+       "통증"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "시간이 없을 땐 뭐부터 하나요?",
+    "피곤한 날은 어떻게 할까요?",
+    "상황 태그는 어디에 쓰이나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w9:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w9:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 10,
+   "theme": "불편한 날은 쉬기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "몸이 불편한 날은 쉬고 해당없음으로 남기기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w10:range:rest_ok",
+     "text": "20구 치기, 불편한 날은 쉬고 해당없음",
+     "cite": "kspo",
+     "minutes": 30,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w10:home:rest_ok",
+     "text": "빈 스윙 10번, 불편한 날은 쉬고 해당없음",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "쉬는 날도 기록이 되나요?",
+    "얼마나 쉬어야 하나요?",
+    "불편함은 누구와 상의하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w10:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w10:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 11,
+   "theme": "하프에서 풀스윙으로",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 7번 아이언 풀스윙 20구",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w11:range:full20",
+     "text": "풀스윙 20구, 끝 자세 3초 유지 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "잘 됨",
+       "반반",
+       "흔들림"
+      ]
+     }
+    },
+    "home": {
+     "id": "w11:home:full10",
+     "text": "풀스윙 빈 스윙 10번, 끝 자세 유지",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "풀스윙은 언제부터 하나요?",
+    "끝 자세가 흔들리면요?",
+    "힘은 얼마나 줘야 하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w11:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w11:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 12,
+   "theme": "쌓기 돌아보기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "지금까지 가장 잘 지킨 연습 하나 고르기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w12:range:review",
+     "text": "가장 잘 된 연습 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "빈 스윙",
+       "아이언",
+       "어프로치",
+       "퍼팅"
+      ]
+     }
+    },
+    "home": {
+     "id": "w12:home:review",
+     "text": "가장 꾸준했던 연습 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "빈 스윙",
+       "어드레스",
+       "퍼팅",
+       "템포"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "다음 단계는 뭘 하나요?",
+    "잘 된 연습은 계속하나요?",
+    "연습 시간을 늘려도 되나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w12:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w12:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 13,
+   "theme": "드라이버 맛보기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 드라이버 10구와 아이언 20구",
+   "unlock": "코스 준비 체크리스트",
+   "actions": {
+    "range": {
+     "id": "w13:range:driver",
+     "text": "드라이버 10구, 방향 느낌 탭",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "곧게",
+       "왼쪽",
+       "오른쪽",
+       "들쑥날쑥"
+      ]
+     }
+    },
+    "home": {
+     "id": "w13:home:driver",
+     "text": "드라이버 템포로 빈 스윙 10번",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "드라이버는 아이언과 뭐가 달라요?",
+    "티 높이는 어떻게 하나요?",
+    "방향이 들쑥날쑥하면요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w13:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w13:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 14,
+   "theme": "9홀 나가보기",
+   "goal_days": 2,
+   "support_cap": 1,
+   "mission": "이번 주 라운드·스크린 1회 잡고 기록",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w14:range:round",
+     "text": "라운드·스크린 예약하거나 다녀오면 탭",
+     "cite": "randa",
+     "minutes": 60,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w14:home:round_prep",
+     "text": "코스 가기 전 빈 스윙 10번 후 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "첫 라운드 전 알아둘 매너는?",
+    "스크린부터 해도 되나요?",
+    "안전하게 치려면 뭘 보나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w14:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w14:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 15,
+   "theme": "샷 전 루틴 만들기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 칠 때마다 같은 준비 동작 반복",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w15:range:preshot",
+     "text": "샷 전 준비 동작 똑같이 하며 20구",
+     "cite": "kga",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "매번 했어요",
+       "반쯤",
+       "자주 잊음"
+      ]
+     }
+    },
+    "home": {
+     "id": "w15:home:preshot",
+     "text": "준비 동작 하고 빈 스윙 10번 후 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "준비 동작은 뭘 넣나요?",
+    "준비 동작은 얼마나 걸려요?",
+    "매번 같아야 하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w15:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w15:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 16,
+   "theme": "어려운 자리 연습",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 러프·벙커 같은 자리 샷 10구",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w16:range:trouble",
+     "text": "러프·벙커 연습 10구, 느낌 탭",
+     "cite": "randa",
+     "minutes": 30,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "할 만함",
+       "어려움",
+       "못 해봄"
+      ]
+     }
+    },
+    "home": {
+     "id": "w16:home:slope",
+     "text": "경사 자세로 빈 스윙 10번 후 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "벙커 규칙은 뭐가 다른가요?",
+    "러프에서는 어떻게 치나요?",
+    "경사에서 자세는 어떻게요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w16:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w16:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 17,
+   "theme": "스코어 대신 한 가지",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "연습·라운드마다 잘 된 샷 하나만 기록",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w17:range:best_shot",
+     "text": "오늘 잘 된 샷 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "드라이버",
+       "아이언",
+       "어프로치",
+       "퍼팅"
+      ]
+     }
+    },
+    "home": {
+     "id": "w17:home:best_drill",
+     "text": "오늘 잘 된 연습 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "빈 스윙",
+       "퍼팅",
+       "템포",
+       "어드레스"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "스코어는 언제부터 세나요?",
+    "잘 된 샷을 적는 이유는?",
+    "라운드 기록은 어떻게 하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w17:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w17:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 18,
+   "theme": "거른 날 다시 잇기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "거른 다음 날은 빈 스윙 10번만 하고 탭",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w18:range:resume",
+     "text": "거른 뒤엔 빈 스윙 10번만 하고 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w18:home:resume",
+     "text": "거른 뒤엔 퍼팅 5번만 하고 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "며칠 쉬면 다시 처음부터요?",
+    "짧게만 해도 괜찮나요?",
+    "다시 시작이 어려울 땐요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w18:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w18:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 19,
+   "theme": "짧은 게임 위주로",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "7일 중 3일, 연습의 절반 이상을 어프로치·퍼팅으로",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w19:range:short_game",
+     "text": "어프로치·퍼팅 위주로 20분 후 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w19:home:putt2m",
+     "text": "2m 퍼팅 10번, 들어간 수 탭",
+     "cite": "kga",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "7개 이상",
+       "4~6개",
+       "3개 이하"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "짧은 게임이 왜 중요한가요?",
+    "칩샷과 피치샷은 뭐가 달라요?",
+    "퍼팅 거리감은 어떻게요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w19:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w19:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 20,
+   "theme": "두 번 연속 거르지 않기",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "하루 쉬면 다음 날은 짧게라도 하기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w20:range:no_two",
+     "text": "오늘은 짧게라도 했는지 하나 탭",
+     "cite": "kspo",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "짧게",
+       "오늘은 패스"
+      ]
+     }
+    },
+    "home": {
+     "id": "w20:home:no_two",
+     "text": "오늘은 짧게라도 했는지 하나 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "짧게",
+       "오늘은 패스"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "패스한 날도 기록하나요?",
+    "짧게는 몇 분이면 되나요?",
+    "주말에 몰아서 해도 되나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w20:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w20:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 21,
+   "theme": "라운드 한 번 더",
+   "goal_days": 2,
+   "support_cap": 1,
+   "mission": "이번 달 두 번째 라운드·스크린 잡기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w21:range:round2",
+     "text": "라운드·스크린 뒤 느낌 하나 탭",
+     "cite": "randa",
+     "minutes": 60,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "즐거움",
+       "아쉬움",
+       "지침"
+      ]
+     }
+    },
+    "home": {
+     "id": "w21:home:round_prep",
+     "text": "라운드 전 빈 스윙 10번 후 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "라운드 중 순서는 어떻게요?",
+    "지칠 땐 어떻게 페이스를 잡나요?",
+    "라운드 뒤 뭘 돌아보나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w21:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w21:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 22,
+   "theme": "약한 샷 하나 골라",
+   "goal_days": 3,
+   "support_cap": 1,
+   "mission": "가장 자신 없는 샷 하나를 골라 집중 연습",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w22:range:weak",
+     "text": "약한 샷 하나만 15구 연습 후 탭",
+     "cite": "kga",
+     "minutes": 20,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w22:home:weak",
+     "text": "약한 샷 자세로 빈 스윙 10번",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "약한 샷은 어떻게 고르나요?",
+    "한 가지만 연습해도 되나요?",
+    "레슨은 언제 받으면 좋나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w22:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w22:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 23,
+   "theme": "내 패턴 한 줄",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "기록을 보고 연습이 잘 되는 때 찾기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w23:range:pattern",
+     "text": "연습이 잘 되는 때 하나 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주중 아침",
+       "주중 저녁",
+       "주말"
+      ]
+     }
+    },
+    "home": {
+     "id": "w23:home:pattern",
+     "text": "연습이 잘 되는 때 하나 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주중 아침",
+       "주중 저녁",
+       "주말"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "내 패턴은 어떻게 보나요?",
+    "때를 바꿔도 되나요?",
+    "바쁜 주에는 어떻게 하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w23:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w23:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 24,
+   "theme": "덜어낼 연습 고르기",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "빼도 되는 연습 하나 골라 덜어내기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w24:range:trim",
+     "text": "덜어낼 연습 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "드라이버",
+       "아이언",
+       "어프로치",
+       "퍼팅"
+      ]
+     }
+    },
+    "home": {
+     "id": "w24:home:trim",
+     "text": "덜어낼 연습 하나 골라 탭",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "빈 스윙",
+       "퍼팅",
+       "템포",
+       "어드레스"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "왜 연습을 줄이나요?",
+    "무엇을 남기면 좋을까요?",
+    "줄이면 감이 떨어지나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w24:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w24:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 25,
+   "theme": "유지 루틴 초안",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "주 몇 회·무엇을 할지 한 줄로 정하기",
+   "unlock": null,
+   "actions": {
+    "range": {
+     "id": "w25:range:plan",
+     "text": "앞으로 주 몇 회 연습할지 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주 1회",
+       "주 2회",
+       "주 3회 이상"
+      ]
+     }
+    },
+    "home": {
+     "id": "w25:home:plan",
+     "text": "앞으로 주 몇 회 연습할지 탭",
+     "cite": "kspo",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주 1회",
+       "주 2회",
+       "주 3회 이상"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "주 몇 회가 적당한가요?",
+    "유지 루틴엔 뭘 넣나요?",
+    "쉬는 날은 어떻게 정하나요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w25:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w25:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  },
+  {
+   "w": 26,
+   "theme": "내 연습 루틴 확정",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "6개월 중 가장 잘 지킨 연습 하나에 유지 표시",
+   "unlock": "내 연습 루틴 카드",
+   "actions": {
+    "range": {
+     "id": "w26:range:keep",
+     "text": "가장 잘 지킨 연습에 유지 표시",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "home": {
+     "id": "w26:home:keep",
+     "text": "가장 잘 지킨 연습에 유지 표시",
+     "cite": "kga",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "다음엔 무엇을 해 볼까요?",
+    "루틴을 다시 시작할 수 있나요?",
+    "유지 표시는 어디에 쓰여요?"
+   ],
+   "warning_actions": {
+    "range": {
+     "id": "w26:range:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    },
+    "home": {
+     "id": "w26:home:warn",
+     "text": "스윙은 쉬고 오늘 몸 상태만 탭",
+     "cite": "kspo",
+     "minutes": 1,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "가뿐",
+       "보통",
+       "불편"
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "support_pool": {
+  "range": [
+   {
+    "key": "warmup",
+    "text": "연습 전 5분 준비운동 하고 탭",
+    "cite": "kspo",
+    "tags": [
+     "body"
+    ]
+   },
+   {
+    "key": "target",
+    "text": "칠 때마다 목표 방향 하나 정하기",
+    "cite": "kga",
+    "tags": [
+     "skill"
+    ]
+   },
+   {
+    "key": "break",
+    "text": "30구마다 1분 쉬고 물 마시기",
+    "cite": "kspo",
+    "tags": [
+     "body"
+    ]
+   },
+   {
+    "key": "note",
+    "text": "오늘 잘 된 샷 하나만 메모",
+    "cite": "kga",
+    "tags": [
+     "skill"
+    ]
+   },
+   {
+    "key": "cooldown",
+    "text": "마치고 어깨·허리 천천히 돌리기",
+    "cite": "kspo",
+    "tags": [
+     "body"
+    ]
+   }
+  ],
+  "home": [
+   {
+    "key": "mirror",
+    "text": "거울 앞에서 어드레스 자세 확인",
+    "cite": "kga",
+    "tags": [
+     "skill"
+    ]
+   },
+   {
+    "key": "putt",
+    "text": "1m 퍼팅 10번 해 보기",
+    "cite": "kga",
+    "tags": [
+     "skill"
+    ]
+   },
+   {
+    "key": "towel",
+    "text": "수건 스윙 10번으로 템포 느끼기",
+    "cite": "kga",
+    "tags": [
+     "skill"
+    ]
+   },
+   {
+    "key": "shoulder",
+    "text": "자기 전 어깨 돌리기 1분",
+    "cite": "kspo",
+    "tags": [
+     "body"
+    ]
+   }
+  ]
+ },
+ "support_rules": {
+  "range": {
+   "rules": [
+    {
+     "when": {
+      "body": [
+       "stiff",
+       "pain"
+      ]
+     },
+     "add": [
+      "warmup",
+      "cooldown",
+      "break"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "zero"
+      ]
+     },
+     "add": [
+      "break",
+      "target"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "range",
+       "round"
+      ]
+     },
+     "unless": {
+      "body": [
+       "pain"
+      ]
+     },
+     "add": [
+      "target",
+      "note"
+     ]
+    }
+   ],
+   "default": [
+    "warmup",
+    "target"
+   ]
+  },
+  "home": {
+   "rules": [
+    {
+     "when": {
+      "space": [
+       "small"
+      ]
+     },
+     "add": [
+      "mirror",
+      "putt"
+     ]
+    },
+    {
+     "when": {
+      "space": [
+       "living"
+      ]
+     },
+     "add": [
+      "towel",
+      "putt"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "zero"
+      ]
+     },
+     "add": [
+      "mirror"
+     ]
+    }
+   ],
+   "default": [
+    "mirror",
+    "shoulder"
+   ]
+  }
+ },
+ "support_pool_cap": {
+  "default": 4,
+  "경고": 2
+ },
+ "banners": {
+  "range": {
+   "주의": "측정값이 주의 구간이에요. 연습은 가볍게, 몸이 불편한 날은 쉬어 가요.",
+   "경고": "측정값이 경고 구간이에요. 스윙 연습 전에 의료진과 먼저 상담해 주세요. 지금은 몸 상태 기록만 안내해요."
+  },
+  "home": {
+   "주의": "측정값이 주의 구간이에요. 연습은 가볍게, 몸이 불편한 날은 쉬어 가요.",
+   "경고": "측정값이 경고 구간이에요. 스윙 연습 전에 의료진과 먼저 상담해 주세요. 지금은 몸 상태 기록만 안내해요."
+  }
+ },
+ "transition": {
+  "advance": 0.7,
+  "simplify": 0.4
+ },
+ "sources": [
+  {
+   "key": "kga",
+   "label": "대한골프협회(KGA) 골프 기초 안내",
+   "url": "https://www.kgagolf.or.kr"
+  },
+  {
+   "key": "kspo",
+   "label": "국민체육진흥공단 국민체력100 운동 안내",
+   "url": "https://nfa.kspo.or.kr"
+  },
+  {
+   "key": "randa",
+   "label": "R&A 골프 규칙·에티켓",
+   "url": "https://www.randa.org"
+  }
+ ]
+}

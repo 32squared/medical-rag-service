@@ -1,23 +1,22 @@
-// program.js — '프로그램'(12주 진도) 탭 + 주간 리포트. 정본 §D-3 · §B-6.
+// program.js — '프로그램'(주차 진도) 탭 + 주간 리포트. 정본 §D-3 · §B-6.
 
 import { GET, POST, errText } from './api.js';
 import {
-  html, Header, Loading, ErrorView, Empty, useLoader, normToday, arr, num, str, clamp,
+  html, Header, Loading, ErrorView, Empty, useLoader, normToday, phaseName, arr, num, str, clamp,
 } from './ui.js';
 
-// ── 12주 타임라인 ────────────────────────────────────────────────
-function Timeline({ weeks, current, preview }) {
+// ── 주차 타임라인(단계 라벨은 팩 phases) ──────────────────────────────────────────────
+function Timeline({ weeks, current, preview, phases }) {
   const list = arr(weeks).length ? arr(weeks) : arr(preview).map((p) => ({
     w: num(p.w, 1), state: 'future', done: 0, goal: num(p.goal_days, 5), theme: str(p.theme),
   }));
   if (!list.length) return null;
-  const PHASE = (w) => (w <= 2 ? '정착기' : w <= 6 ? '확장기' : w <= 10 ? '내재화기' : '전환기');
   return html`<div class="timeline" key="timeline">
     ${list.map((w) => html`<div class=${'tlrow tl-' + w.state + (w.w === current ? ' tl-now' : '')}
         key=${'tl' + w.w}>
       <div class="tlweek"><b>${w.w}</b><span>주</span></div>
       <div class="tlbody">
-        <div class="tlphase">${PHASE(w.w)}</div>
+        <div class="tlphase">${phaseName(w.w, phases)}</div>
         <div class="tltheme">${str(w.theme) || '—'}</div>
       </div>
       <div class="tlstat">${w.state === 'future' ? '' : `${num(w.done)}/${num(w.goal, 1)}`}</div>
@@ -53,20 +52,21 @@ export function ProgramTab({ go }) {
   if (!d.program) {
     return html`<div key="pnone"><${Header} title="프로그램" />
       <${Empty} title="아직 시작한 루틴이 없어요"
-        desc="3개월 루틴을 시작하면 여기에서 12주 진도를 볼 수 있어요."
+        desc="루틴을 시작하면 여기에서 주차별 진도를 볼 수 있어요."
         cta="오늘 탭으로 가기" onCta=${() => go('today')} />
     </div>`;
   }
 
   const p = d.program;
   const st = d.stats;
+  const title = d.pack.name || `${d.weeksTotal}주 프로그램`;
   return html`<div key="program">
-    <${Header} title="12주 프로그램" />
+    <${Header} title=${title} />
     <div class="scroll">
       <div class="pgsummary" key="sum">
         <div class="pgring">
           <div class="pgweek">${p.week}<span>주</span></div>
-          <div class="pgtotal">/ 12주</div>
+          <div class="pgtotal">/ ${d.weeksTotal}주</div>
         </div>
         <div class="pgstats">
           <div><b>${num(st.streak)}</b><span>연속</span></div>
@@ -78,7 +78,8 @@ export function ProgramTab({ go }) {
       <button class="btn ghost" key="reportbtn" style="margin:4px 0 12px"
         onClick=${() => go('report', {})}>주간 리포트 보기</button>
 
-      <${Timeline} weeks=${d.weeks} current=${p.week} preview=${d.previewWeeks} />
+      <${Timeline} weeks=${d.weeks} current=${p.week} preview=${d.previewWeeks}
+        phases=${d.pack.phases} />
       <${Heatmap} days=${d.days} />
       <div class="bottompad"></div>
     </div>
@@ -100,7 +101,7 @@ export function ReportView({ week, go, onAsk }) {
   }
 
   const r = L.data || {};
-  const wk = clamp(r.week_no, 1, 12);
+  const wk = clamp(r.week_no, 1, clamp(r.weeks_total || 12, 1, 52));
   const done = num(r.done_days);
   const goal = num(r.goal_days, 1);
   const bars = arr(r.weekly_bars);

@@ -1,7 +1,7 @@
-# 28 — 루틴 팩 플랫폼: 계획과 핵심 요건 (승인용 v0.1)
+# 28 — 루틴 팩 플랫폼: 계획과 핵심 요건 (v1.0 — 구현 완료)
 
 > 목적: "골프 6개월 코스", "일본어 6개월 루틴"처럼 **타당한 루틴을 만들어 꽂아 넣을 수 있는 구조**로 전환한다. 현재 루틴 엔진은 건강 12주 커리큘럼 1개가 코드에 박혀 있다.
-> 상태: **승인 대기.** 이 문서의 결정 항목 D1~D9 를 확정한 뒤 Phase 0 부터 착수한다.
+> 상태: **승인(2026-09-04, D1~D9 권고안 그대로) → Phase 0~3 구현 완료(2026-09-29).** 구현 중 달라진 점은 §12. 브랜치 `feat/routine-pack-platform`.
 > 정본 관계: 이 문서는 [25-routine-transition-spec](25-routine-transition-spec.md)·[27-routine-content](27-routine-content.md)를 **대체하지 않는다.** 건강 12주 커리큘럼의 내용 정본은 27 그대로이고, 이 문서는 그 커리큘럼을 "팩 1호"로 옮겨 담는 **그릇(플랫폼)** 의 정본이다.
 > 작성: 2026-09-04 · 브랜치 `feat/routine-packs`
 
@@ -352,3 +352,51 @@ web/js/*                        ← 주차 수·단계·트랙 카드를 페이�
 1. D1~D9 확정값을 이 문서 §8 에 기록(권고안 그대로면 "승인 2026-09-xx" 한 줄).
 2. Phase 0: 스키마 파일·추출 스크립트·골든 스냅샷·`health_12w/pack.json` 커밋.
 3. Phase 1 착수 전, 골든 108 케이스가 초록인 상태를 CI 에 올린다.
+
+---
+
+## 12. 구현 기록 (2026-09-29)
+
+### 12-1. 계획과 달라진 점
+
+| 항목 | 계획 | 구현 | 이유 |
+|---|---|---|---|
+| 팩 파일 이름 | `routines/packs/<id>/pack.json` + `history[]` | `routines/packs/<id>/v<version>.json`, 버전마다 파일 하나 | 진행 중 프로그램의 버전 고정이 파일 존재만으로 보장된다. 로더가 "디렉터리 = id, 파일 = v<version>" 을 검사 |
+| 보조 행동 규칙(§4-5) | 위에서부터 첫 매치, `pick` | **누적** 규칙: `when`(AND, `null`=미응답) · `unless`(하나라도 걸리면 제외) → `add`, 결과가 비면 `default` | 기존 `_select_keys()` 의 if 누적 로직을 그대로 옮겨야 골든이 같아진다 |
+| 풀 크기 상한 | 없음 | `support_pool_cap` (`{"default": 4, "경고": 2}`) | 기존 코드의 경고 밴드 풀 2개 규칙 |
+| 경고 치환 행동 | `warning_variant` | `weeks[].warning_actions.<track>` | 트랙별 치환이 필요 |
+| `routine_program.phases_json` (FR-S4) | 추가 | **추가 안 함** — `pack_id`·`pack_version` 만 | 단계는 고정된 버전 파일에서 읽으면 된다(중복 저장 불필요) |
+| 추출 스크립트 | 커밋 | 1회 사용 후 삭제. 골든 생성기 `scripts/routine_golden.py` 만 유지 | 팩 JSON 이 정본 |
+| 팩 테스트 파일 | `tests/test_packs.py` | `tests/test_routine_packs.py`(레지스트리·lint·스모크·골든) + `tests/test_routine_packs_runtime.py`(라우트) | 기존 이름 규칙 |
+| lint 추가 | — | L0(TODO 자리표시자), P4 앵커·P5 복구는 경고, physical 경고 치환 행동 누락은 error | 스캐폴드가 lint 에서 떨어지게(FR-T2), physical 안전 |
+| 경고 밴드 physical 신규 시작 | 카탈로그 `available=false` | + `POST /routine/start` 409 `clearance_required` | 우회 방지 |
+| 프론트 | FR-F1~F5 | 팩 1개면 고르기 화면, 트랙 1개면 트랙 화면을 건너뜀(기존 건강 온보딩과 동일 경험). `/routine/today` `weeks[]` 에 `theme` 추가 | 26주 타임라인 가독성 |
+
+### 12-2. 진행
+
+| Phase | 커밋 | 결과 |
+|---|---|---|
+| 0 추출 | `e30216b` | `health_12w/v1.json`, 골든 스냅샷, 로더 |
+| 1 엔진·저장소·API | `766aa19` | 팩 인자화, mig 025(`pack_id`·`pack_version`), `/routine/packs`, 컴플라 프로필. 81개 라우트 페이로드 전후 비교 값 변화 0(키 추가만) |
+| 2a 도구 | `c1ac881` | `pack_lint.py`(CI 게이트)·`pack_new.py`·JSON Schema·작성 가이드 `routines/README.md` |
+| 2b 프론트 | `b079529` | 루틴 고르기, "12주" 리터럴 0건(테스트로 고정) |
+| 3 샘플 팩 | `bc987bb` | `golf_6m`·`japanese_6m` 26주, lint 0 error·0 warning, 코드 변경 0줄 |
+| 4 | `18a02b7` | 스테이징 배포(BFF rev 00018→00019, 이미지만 교체·env 보존) + GCS 정적 사본. 온라인 스모크 통과 |
+| D8 초안 도구 | `3eda845` | `scripts/pack_draft.py` — 브리프 → 스캐폴드 구조 + LLM 문구 → lint·초안 점검 → 걸린 주차만 재작성 → `routines/drafts/`. 샘플 브리프 `running_8w` 실측: 호출 4회·3분, error 0 · warning 1 |
+| 5 건강 카피 교체 | (이 커밋) | `health_12w/v2.json` — 27 §2 행동 36개·미션·§4 질문칩·§5 출처(`hpa`·`phc_quit` 추가, `kspo` 제거)·§2-5 경고 치환(5·6·8·9주)·§3-6 배너(이모지 없음, "진단은 아니에요")·§1-3 문진(라벨만 교체, value 유지, '목표 기간'·'체중' → 기록 앵커 문항). 행동 id·분·입력 형태 불변. lint 0 error·0 warning. v1 은 그대로(진행 중 프로그램 고정), 골든·레거시 `/coaching/*` 은 v1 고정 |
+
+전체 테스트 1069 passed / 12 skipped. 로컬 E2E(모바일 375): 경고 밴드 페르소나 → 골프 비활성 → 일본어 시작 → 홈 → 완료 → 프로그램 26주 → 주간 리포트.
+
+### 12-3. 남은 일
+
+- 샘플 팩 내용은 **도메인 전문가 검수 전**이다(골프 코치·일본어 강사). 출처 URL 중 `kgagolf.or.kr` 은 사내망 차단으로 열어 보지 못했다.
+- ~~`health_12w` L3·L10 경고~~ → v2 로 해소. `LEGACY_WARN_ONLY` 는 `(id, version)` 키로 바꿔 v1 에만 남김(옛 버전 파일은 고치지 않는다).
+- ~~메타 캡션·코치 한 줄·경고 밴드 주간 미션~~ → 선택 필드 `Action.meta`·`Action.coach`·`Week.warning_mission`(있을 때만 페이로드에 실음 → v1 불변) + 홈 카드·체크인 응답 `coach_line`. v2 에 27 표 그대로 채움(9주차 메타만 입력 형태에 맞춰 수정).
+- ~~문진 `anchor` 답~~ → `routine_program.anchor` 로 저장. 알림 기본 시각으로 쓰는 것은 온보딩에 알림 단계가 없어 보류(동의 없이 알림을 켜지 않는다).
+- 자동 하향 셀(27 §2-6, D1~D2 실행 0) — 트리거가 없다(`/routine/replan` 은 웹 미사용). 흐름 결정 필요.
+- 홈 카드: choice 행동에도 [오늘은 해당없음] 을 보인다(5주차 보기에서 '해당없음'을 뺀 뒤 탈출구).
+- L9 규칙 변경: medical 팩은 원행동이 기록형이라 행동을 얹는 주차만 치환한다(27 §2-5) → 치환이 팩에 하나도 없을 때만 경고. physical 은 주차별 필수 그대로.
+- D8 초안 도구는 완료. 교훈: lint 0 error 여도 초안 버릇(질문칩이 앱→사용자 방향, 경고 배너에 질환 나열, 전부 tap)이 있어 초안 전용 점검을 따로 둠. 모델은 llm_router 기본(OpenAI) — 계획의 Claude API 는 이 저장소에 SDK·키가 없어 주입식(`LLM` 콜러블)으로 열어 둠.
+- ~~`health_12w` 5주차 보기의 '해당없음'~~ → v2 에서 뺌.
+- D2(b) 건강 1 + 비건강 1 동시 진행 — 홈 UX 결정 필요.
+

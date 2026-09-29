@@ -1,0 +1,1395 @@
+{
+ "schema_version": 1,
+ "id": "japanese_6m",
+ "version": 1,
+ "name": "일본어 6개월 루틴",
+ "tagline": "하루 10분, 소리 내 읽고 따라 말하기",
+ "domain": "language",
+ "safety_profile": "neutral",
+ "weeks_total": 26,
+ "phases": [
+  {
+   "id": "settle",
+   "name": "정착기",
+   "from": 1,
+   "to": 3,
+   "desc": "매일 같은 때에 10분"
+  },
+  {
+   "id": "build",
+   "name": "쌓기",
+   "from": 4,
+   "to": 14,
+   "desc": "글자에서 문장으로"
+  },
+  {
+   "id": "use",
+   "name": "써먹기",
+   "from": 15,
+   "to": 22,
+   "desc": "듣고 말하고 틀려보기"
+  },
+  {
+   "id": "keep",
+   "name": "유지",
+   "from": 23,
+   "to": 26,
+   "desc": "내 학습 루틴 확정"
+  }
+ ],
+ "tracks": [
+  {
+   "id": "reading",
+   "name": "읽기 루틴",
+   "icon": "book",
+   "desc": "히라가나·짧은 문장을 하루 10분 소리 내 읽어요",
+   "target_noun": "읽은 분량"
+  },
+  {
+   "id": "listening",
+   "name": "듣기 루틴",
+   "icon": "headphones",
+   "desc": "짧은 음성을 하루 10분 듣고 따라 말해요",
+   "target_noun": "들은 분량"
+  }
+ ],
+ "intake": {
+  "reading": [
+   {
+    "id": "level",
+    "q": "지금 일본어는 어느 정도인가요?",
+    "options": [
+     {
+      "label": "처음이에요",
+      "value": "zero"
+     },
+     {
+      "label": "히라가나는 읽어요",
+      "value": "kana"
+     },
+     {
+      "label": "짧은 문장은 돼요",
+      "value": "basic"
+     }
+    ],
+    "why": "시작 분량을 맞춰요"
+   },
+   {
+    "id": "anchor",
+    "q": "공부는 언제 붙일까요?",
+    "options": [
+     {
+      "label": "출근길",
+      "value": "commute"
+     },
+     {
+      "label": "점심 뒤",
+      "value": "lunch"
+     },
+     {
+      "label": "자기 전",
+      "value": "night"
+     }
+    ],
+    "why": "그때 알려드려요"
+   },
+   {
+    "id": "goal",
+    "q": "무엇을 해 보고 싶나요?",
+    "options": [
+     {
+      "label": "여행 회화",
+      "value": "travel"
+     },
+     {
+      "label": "콘텐츠 보기",
+      "value": "media"
+     },
+     {
+      "label": "시험 준비",
+      "value": "exam"
+     }
+    ],
+    "why": "예문 고를 때 참고해요"
+   }
+  ],
+  "listening": [
+   {
+    "id": "level",
+    "q": "지금 일본어는 어느 정도인가요?",
+    "options": [
+     {
+      "label": "처음이에요",
+      "value": "zero"
+     },
+     {
+      "label": "히라가나는 읽어요",
+      "value": "kana"
+     },
+     {
+      "label": "짧은 문장은 돼요",
+      "value": "basic"
+     }
+    ],
+    "why": "시작 분량을 맞춰요"
+   },
+   {
+    "id": "anchor",
+    "q": "공부는 언제 붙일까요?",
+    "options": [
+     {
+      "label": "출근길",
+      "value": "commute"
+     },
+     {
+      "label": "점심 뒤",
+      "value": "lunch"
+     },
+     {
+      "label": "자기 전",
+      "value": "night"
+     }
+    ],
+    "why": "그때 알려드려요"
+   },
+   {
+    "id": "goal",
+    "q": "무엇을 해 보고 싶나요?",
+    "options": [
+     {
+      "label": "여행 회화",
+      "value": "travel"
+     },
+     {
+      "label": "콘텐츠 보기",
+      "value": "media"
+     },
+     {
+      "label": "시험 준비",
+      "value": "exam"
+     }
+    ],
+    "why": "예문 고를 때 참고해요"
+   }
+  ]
+ },
+ "weeks": [
+  {
+   "w": 1,
+   "theme": "히라가나 5개",
+   "goal_days": 3,
+   "support_cap": 0,
+   "mission": "7일 중 3일, 정한 때에 가나 5개 소리 내 읽기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w1:reading:kana5",
+     "text": "정한 때에 히라가나 5개 소리 내 읽기",
+     "cite": "marugoto",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w1:listening:kana5",
+     "text": "정한 때에 가나 발음 5개 따라 말하기",
+     "cite": "nhk",
+     "minutes": 5,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "히라가나는 몇 개인가요?",
+    "어떤 순서로 외우나요?",
+    "하루 5개면 충분한가요?"
+   ]
+  },
+  {
+   "w": 2,
+   "theme": "같은 자리·같은 때",
+   "goal_days": 4,
+   "support_cap": 0,
+   "mission": "7일 중 4일, 같은 때에 10분",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w2:reading:kana_line",
+     "text": "히라가나 한 줄 읽고 느낌 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w2:listening:greeting",
+     "text": "인사말 음성 3번 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "공부 시간은 언제가 좋나요?",
+    "헷갈리는 글자는 어떻게 해요?",
+    "발음은 어떻게 확인하나요?"
+   ]
+  },
+  {
+   "w": 3,
+   "theme": "내 기준선",
+   "goal_days": 4,
+   "support_cap": 0,
+   "mission": "7일 중 4일, 오늘 한 양을 평소와 비교해 탭",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w3:reading:baseline",
+     "text": "오늘 읽은 양, 평소보다 어땠는지 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "비슷",
+       "많이",
+       "적게"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w3:listening:baseline",
+     "text": "오늘 들은 양, 평소보다 어땠는지 탭",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "비슷",
+       "많이",
+       "적게"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "적게 한 날도 괜찮나요?",
+    "매일 같은 양이어야 하나요?",
+    "기준선은 왜 보나요?"
+   ]
+  },
+  {
+   "w": 4,
+   "theme": "가타카나 시작",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 가타카나 5개씩",
+   "unlock": "가타카나 표",
+   "actions": {
+    "reading": {
+     "id": "w4:reading:katakana",
+     "text": "가타카나 5개 소리 내 읽고 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w4:listening:loanword",
+     "text": "외래어 단어 음성 5개 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "가타카나는 언제 쓰나요?",
+    "히라가나와 같이 외워도 되나요?",
+    "외래어 발음은 왜 다른가요?"
+   ]
+  },
+  {
+   "w": 5,
+   "theme": "문장 하나 통째로",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 예문 하나를 소리 내 읽고 기록",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w5:reading:sentence",
+     "text": "예문 하나 소리 내 읽고 느낌 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "못 읽음"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w5:listening:sentence",
+     "text": "예문 음성 3번 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "따라 됨",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "같은 문장을 며칠 반복하나요?",
+    "뜻을 몰라도 읽어도 되나요?",
+    "못 읽는 날은 어떻게 하나요?"
+   ]
+  },
+  {
+   "w": 6,
+   "theme": "자기소개 한 줄",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 자기소개 문장 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w6:reading:intro",
+     "text": "자기소개 문장 읽고 느낌 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w6:listening:intro",
+     "text": "자기소개 음성 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "자기소개는 어떻게 시작하나요?",
+    "이름 뒤에 뭘 붙이나요?",
+    "존댓말은 언제 쓰나요?"
+   ]
+  },
+  {
+   "w": 7,
+   "theme": "숫자와 시각",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 숫자·시각 표현 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w7:reading:number",
+     "text": "숫자·시각 예문 하나 읽고 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w7:listening:time",
+     "text": "시각 음성 듣고 받아 적은 뒤 탭",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "다 맞음",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "숫자 읽기는 왜 여러 가지예요?",
+    "시각은 어떻게 말하나요?",
+    "받아 적기가 어려우면요?"
+   ]
+  },
+  {
+   "w": 8,
+   "theme": "기본 한자 5개",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 기본 한자 5개씩 읽기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w8:reading:kanji5",
+     "text": "기본 한자 5개 읽고 탭",
+     "cite": "jlpt",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "다 읽음",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w8:listening:kanji5",
+     "text": "한자 단어 음성 5개 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "처음엔 한자 몇 개가 필요해요?",
+    "음독·훈독은 뭐예요?",
+    "한자는 쓰면서 외워야 하나요?"
+   ]
+  },
+  {
+   "w": 9,
+   "theme": "조사 は·が·を",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 조사가 들어간 예문 하나씩",
+   "unlock": "조사 카드",
+   "actions": {
+    "reading": {
+     "id": "w9:reading:particle",
+     "text": "조사에 표시하며 예문 하나 읽기",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w9:listening:particle",
+     "text": "예문 듣고 들린 조사 하나 탭",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "は",
+       "が",
+       "を",
+       "に"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "は와 が는 뭐가 달라요?",
+    "조사를 빼고 말해도 되나요?",
+    "を는 왜 お로 읽나요?"
+   ]
+  },
+  {
+   "w": 10,
+   "theme": "무너지는 날 찾기",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 공부 뒤 오늘 상황 하나 태그",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w10:reading:context",
+     "text": "공부 뒤 오늘 상황 하나 탭",
+     "cite": "marugoto",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "야근",
+       "약속",
+       "피곤"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w10:listening:context",
+     "text": "공부 뒤 오늘 상황 하나 탭",
+     "cite": "nhk",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "야근",
+       "약속",
+       "피곤"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "바쁜 날은 뭐부터 하나요?",
+    "피곤한 날은 어떻게 할까요?",
+    "상황 태그는 어디에 쓰이나요?"
+   ]
+  },
+  {
+   "w": 11,
+   "theme": "주문 표현",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 주문할 때 쓰는 문장 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w11:reading:order",
+     "text": "주문 표현 예문 하나 읽고 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w11:listening:order",
+     "text": "주문 대화 음성 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "따라 됨",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "주문할 때 자주 쓰는 말은?",
+    "ください는 언제 쓰나요?",
+    "가격은 어떻게 묻나요?"
+   ]
+  },
+  {
+   "w": 12,
+   "theme": "길 묻기 표현",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, 길 묻는 문장 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w12:reading:direction",
+     "text": "길 묻는 예문 읽고 느낌 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w12:listening:direction",
+     "text": "길 안내 음성 듣고 방향 탭",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "오른쪽",
+       "왼쪽",
+       "곧장",
+       "모르겠음"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "길은 어떻게 묻나요?",
+    "방향 표현은 뭐가 있나요?",
+    "빨리 말하면 어떻게 하나요?"
+   ]
+  },
+  {
+   "w": 13,
+   "theme": "동사 ます형",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "7일 중 5일, ます형 문장 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w13:reading:masu",
+     "text": "ます형 예문 하나 소리 내 읽기",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w13:listening:masu",
+     "text": "ます형 문장 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "따라 됨",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "ます형은 언제 쓰나요?",
+    "사전형과 뭐가 달라요?",
+    "동사는 몇 종류인가요?"
+   ]
+  },
+  {
+   "w": 14,
+   "theme": "쌓기 돌아보기",
+   "goal_days": 5,
+   "support_cap": 1,
+   "mission": "지금까지 가장 편했던 공부 방법 하나 고르기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w14:reading:review",
+     "text": "가장 편했던 방법 하나 골라 탭",
+     "cite": "jlpt",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "소리 내 읽기",
+       "단어 카드",
+       "한자",
+       "예문"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w14:listening:review",
+     "text": "가장 편했던 방법 하나 골라 탭",
+     "cite": "nhk",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "따라 말하기",
+       "받아 적기",
+       "반복 듣기",
+       "대본 보기"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "지금 N5 범위 어디쯤인가요?",
+    "다음 단계는 뭘 하나요?",
+    "공부 시간을 늘려도 되나요?"
+   ]
+  },
+  {
+   "w": 15,
+   "theme": "틀려보기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 짧은 문장 하나 직접 써 보기",
+   "unlock": "내 문장 노트",
+   "actions": {
+    "reading": {
+     "id": "w15:reading:write",
+     "text": "짧은 문장 하나 써 보고 확인 후 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w15:listening:dictation",
+     "text": "들은 문장 하나 받아 적고 확인 탭",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "틀린 문장은 어떻게 확인하나요?",
+    "쓰기는 왜 필요한가요?",
+    "틀려도 괜찮을까요?"
+   ]
+  },
+  {
+   "w": 16,
+   "theme": "과거형 た",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 과거형 문장 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w16:reading:past",
+     "text": "た형 예문 하나 읽고 느낌 탭",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w16:listening:past",
+     "text": "지난 일 이야기 음성 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "た형은 어떻게 만드나요?",
+    "ました와 뭐가 달라요?",
+    "て형과 비슷한가요?"
+   ]
+  },
+  {
+   "w": 17,
+   "theme": "좋아하는 것 말하기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 좋아하는 것 한 문장씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w17:reading:like",
+     "text": "좋아하는 것 한 문장 써서 읽기",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w17:listening:like",
+     "text": "취미 대화 듣고 들린 단어 적기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "好き는 어떻게 쓰나요?",
+    "취미는 어떻게 말하나요?",
+    "이유는 어떻게 붙이나요?"
+   ]
+  },
+  {
+   "w": 18,
+   "theme": "쉬운 일본어 한 꼭지",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 쉬운 일본어 자료 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w18:reading:easy_read",
+     "text": "쉬운 기사 제목 하나 읽고 탭",
+     "cite": "jlpt",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "술술",
+       "더듬더듬",
+       "어려움"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w18:listening:easy_listen",
+     "text": "짧은 음성 한 꼭지 끝까지 듣기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "대부분",
+       "절반",
+       "조금"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "쉬운 자료는 어디서 찾나요?",
+    "모르는 단어가 많으면요?",
+    "자막을 켜도 되나요?"
+   ]
+  },
+  {
+   "w": 19,
+   "theme": "거른 날 다시 잇기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "거른 다음 날은 3분만 하고 탭",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w19:reading:resume",
+     "text": "거른 뒤엔 예문 하나만 읽고 탭",
+     "cite": "marugoto",
+     "minutes": 3,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w19:listening:resume",
+     "text": "거른 뒤엔 음성 1분만 듣고 탭",
+     "cite": "nhk",
+     "minutes": 3,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "며칠 쉬면 다시 처음부터요?",
+    "3분만 해도 괜찮나요?",
+    "다시 시작이 어려울 땐요?"
+   ]
+  },
+  {
+   "w": 20,
+   "theme": "여행 회화 세트",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 여행 표현 하나씩",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w20:reading:travel",
+     "text": "여행 표현 하나 소리 내 읽기",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w20:listening:travel",
+     "text": "여행 대화 듣고 따라 말하기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "따라 됨",
+       "반쯤",
+       "어려움"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "호텔에서 쓰는 말은?",
+    "도움을 청할 땐 뭐라 하나요?",
+    "교통 표현은 뭐가 있나요?"
+   ]
+  },
+  {
+   "w": 21,
+   "theme": "두 번 연속 거르지 않기",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "하루 쉬면 다음 날은 짧게라도 하기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w21:reading:no_two",
+     "text": "오늘은 짧게라도 했는지 탭",
+     "cite": "marugoto",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "짧게",
+       "오늘은 패스"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w21:listening:no_two",
+     "text": "오늘은 짧게라도 했는지 탭",
+     "cite": "nhk",
+     "minutes": 5,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "평소대로",
+       "짧게",
+       "오늘은 패스"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "패스한 날도 기록하나요?",
+    "짧게는 몇 분이면 되나요?",
+    "주말에 몰아서 해도 되나요?"
+   ]
+  },
+  {
+   "w": 22,
+   "theme": "혼잣말 한 줄",
+   "goal_days": 5,
+   "support_cap": 2,
+   "mission": "7일 중 5일, 오늘 한 일을 일본어 한 문장으로",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w22:reading:diary",
+     "text": "오늘 한 일 한 문장 써서 읽기",
+     "cite": "marugoto",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w22:listening:record",
+     "text": "내 문장 녹음해 한 번 들어보기",
+     "cite": "nhk",
+     "minutes": 10,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "혼잣말은 어떻게 시작하나요?",
+    "녹음은 왜 해 보나요?",
+    "문법이 맞는지 어떻게 봐요?"
+   ]
+  },
+  {
+   "w": 23,
+   "theme": "내 패턴 한 줄",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "기록을 보고 공부가 잘 되는 때 찾기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w23:reading:pattern",
+     "text": "공부가 잘 되는 때 하나 탭",
+     "cite": "marugoto",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "출근길",
+       "점심 뒤",
+       "자기 전",
+       "주말"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w23:listening:pattern",
+     "text": "공부가 잘 되는 때 하나 탭",
+     "cite": "nhk",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "출근길",
+       "점심 뒤",
+       "자기 전",
+       "주말"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "내 패턴은 어떻게 보나요?",
+    "때를 바꿔도 되나요?",
+    "바쁜 주에는 어떻게 하나요?"
+   ]
+  },
+  {
+   "w": 24,
+   "theme": "덜어낼 것 고르기",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "빼도 되는 공부 하나 골라 덜어내기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w24:reading:trim",
+     "text": "빼도 되는 공부 하나 골라 탭",
+     "cite": "marugoto",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "단어 카드",
+       "한자",
+       "쓰기",
+       "예문 읽기"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w24:listening:trim",
+     "text": "빼도 되는 공부 하나 골라 탭",
+     "cite": "nhk",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "받아 적기",
+       "반복 듣기",
+       "따라 말하기",
+       "대본 보기"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "왜 공부를 줄이나요?",
+    "무엇을 남기면 좋을까요?",
+    "줄이면 잊어버리지 않나요?"
+   ]
+  },
+  {
+   "w": 25,
+   "theme": "유지 루틴 초안",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "주 몇 회·무엇을 할지 한 줄로 정하기",
+   "unlock": null,
+   "actions": {
+    "reading": {
+     "id": "w25:reading:plan",
+     "text": "앞으로 주 몇 회 할지 탭",
+     "cite": "jlpt",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주 2회",
+       "주 3~4회",
+       "거의 매일"
+      ]
+     }
+    },
+    "listening": {
+     "id": "w25:listening:plan",
+     "text": "앞으로 주 몇 회 할지 탭",
+     "cite": "nhk",
+     "minutes": 3,
+     "input": {
+      "kind": "choice",
+      "options": [
+       "주 2회",
+       "주 3~4회",
+       "거의 매일"
+      ]
+     }
+    }
+   },
+   "ask_chips": [
+    "주 몇 회가 적당한가요?",
+    "다음 목표는 어떻게 정하나요?",
+    "JLPT는 언제 보면 되나요?"
+   ]
+  },
+  {
+   "w": 26,
+   "theme": "유지 루틴 확정",
+   "goal_days": 4,
+   "support_cap": 1,
+   "mission": "가장 잘 지킨 습관 1개에 유지 표시",
+   "unlock": "내 학습 루틴 카드",
+   "actions": {
+    "reading": {
+     "id": "w26:reading:keep",
+     "text": "가장 잘 지킨 습관에 유지 표시",
+     "cite": "marugoto",
+     "minutes": 3,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    },
+    "listening": {
+     "id": "w26:listening:keep",
+     "text": "가장 잘 지킨 습관에 유지 표시",
+     "cite": "nhk",
+     "minutes": 3,
+     "input": {
+      "kind": "tap",
+      "options": []
+     }
+    }
+   },
+   "ask_chips": [
+    "다음엔 무엇을 해 볼까요?",
+    "루틴을 다시 시작할 수 있나요?",
+    "유지 표시는 어디에 쓰여요?"
+   ]
+  }
+ ],
+ "support_pool": {
+  "reading": [
+   {
+    "key": "kana5",
+    "text": "헷갈리는 가나 5개 다시 쓰기",
+    "cite": "marugoto",
+    "tags": [
+     "kana"
+    ]
+   },
+   {
+    "key": "reread",
+    "text": "어제 읽은 문장 한 번 더 읽기",
+    "cite": "marugoto",
+    "tags": [
+     "review"
+    ]
+   },
+   {
+    "key": "card",
+    "text": "오늘 단어 3개 카드에 적기",
+    "cite": "marugoto",
+    "tags": [
+     "vocab"
+    ]
+   },
+   {
+    "key": "shadow",
+    "text": "음성 따라 1분 섀도잉",
+    "cite": "nhk",
+    "tags": [
+     "listen"
+    ]
+   }
+  ],
+  "listening": [
+   {
+    "key": "kana_say",
+    "text": "가나 소리 5개 따라 말하기",
+    "cite": "nhk",
+    "tags": [
+     "kana"
+    ]
+   },
+   {
+    "key": "slow",
+    "text": "느린 속도로 한 번 더 듣기",
+    "cite": "nhk",
+    "tags": [
+     "review"
+    ]
+   },
+   {
+    "key": "word",
+    "text": "들린 단어 하나 적어 두기",
+    "cite": "nhk",
+    "tags": [
+     "vocab"
+    ]
+   },
+   {
+    "key": "script",
+    "text": "대본 보며 한 번 따라 읽기",
+    "cite": "nhk",
+    "tags": [
+     "read"
+    ]
+   }
+  ]
+ },
+ "support_rules": {
+  "reading": {
+   "rules": [
+    {
+     "when": {
+      "level": [
+       "zero"
+      ]
+     },
+     "add": [
+      "kana5",
+      "reread"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "kana"
+      ]
+     },
+     "add": [
+      "card",
+      "reread"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "basic"
+      ]
+     },
+     "add": [
+      "shadow",
+      "card"
+     ]
+    }
+   ],
+   "default": [
+    "reread"
+   ]
+  },
+  "listening": {
+   "rules": [
+    {
+     "when": {
+      "level": [
+       "zero"
+      ]
+     },
+     "add": [
+      "kana_say",
+      "slow"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "kana"
+      ]
+     },
+     "add": [
+      "slow",
+      "word"
+     ]
+    },
+    {
+     "when": {
+      "level": [
+       "basic"
+      ]
+     },
+     "add": [
+      "script",
+      "word"
+     ]
+    }
+   ],
+   "default": [
+    "slow"
+   ]
+  }
+ },
+ "support_pool_cap": {
+  "default": 4
+ },
+ "banners": {},
+ "transition": {
+  "advance": 0.7,
+  "simplify": 0.4
+ },
+ "sources": [
+  {
+   "key": "jlpt",
+   "label": "JLPT 일본어능력시험 공식 N5 인정 기준",
+   "url": "https://www.jlpt.jp/about/levelsummary.html"
+  },
+  {
+   "key": "marugoto",
+   "label": "국제교류기금 「まるごと」 입문(A1) 교재",
+   "url": "https://marugoto.jpf.go.jp"
+  },
+  {
+   "key": "nhk",
+   "label": "NHK WORLD-JAPAN 일본어 강좌(한국어판)",
+   "url": "https://www3.nhk.or.jp/nhkworld/lesson/ko/"
+  }
+ ]
+}
