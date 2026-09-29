@@ -236,11 +236,16 @@ def _provider(model_id):
     return p
 
 
-class TestReasoningEffort:
-    def setup_method(self):
-        import llm_router
-        llm_router._EFFORTS_LEARNED.clear()
+@pytest.fixture(autouse=True)
+def _fresh_learned_efforts():
+    """400 에서 배운 지원값은 모듈 전역(프로세스 수명) — 테스트 앞뒤로 비워 다음 테스트로 새지 않게."""
+    import llm_router
+    llm_router._EFFORTS_LEARNED.clear()
+    yield
+    llm_router._EFFORTS_LEARNED.clear()
 
+
+class TestReasoningEffort:
     def test_fastest_step_maps_per_family(self):
         from llm_router import resolve_reasoning_effort as r
         assert r("gpt-5", "minimal") == "minimal"
@@ -309,10 +314,6 @@ def _efforts_sent(p):
 
 
 class TestReasoningEffortRetry:
-    def setup_method(self):
-        import llm_router
-        llm_router._EFFORTS_LEARNED.clear()
-
     def test_minimal_rejected_retried_with_none_and_streams(self):
         """'minimal' 400 → 'none' 으로 한 번 다시 보내고 그 스트림이 그대로 나간다.
         표가 minimal 을 받는다고 보는 gpt-5 로 재현 — gpt-5.4-mini 가 조용히 바뀐 것과 같은 상황."""
