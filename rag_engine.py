@@ -57,6 +57,13 @@ EVIDENCE_LEVEL_WEIGHT: Dict[str, float] = {"A": 1.0, "B": 0.7, "C": 0.4}
 # KB의 evidence_topic 컬럼이 비어있거나 임베딩 공간과 불일치할 때 임시 사용
 ENABLE_EVIDENCE_TOPIC_CHECK = os.environ.get("ENABLE_EVIDENCE_TOPIC_CHECK", "true").lower() != "false"
 
+# evidence_topic 라벨 → 한국어 표시어 (주제 정렬 비교용). 불러오지 못하면 라벨 그대로 비교한다.
+try:
+    from evidence_topic_ko import topic_phrase as _topic_phrase
+except Exception:  # pragma: no cover
+    def _topic_phrase(label):
+        return label
+
 # ─── 모듈 레벨 상수 ──────────────────────────────────────────
 _DENSE_LIMIT = 20   # dense 검색 후보 수
 _SPARSE_LIMIT = 20  # sparse 검색 후보 수
@@ -679,6 +686,9 @@ def check_evidence_topic_alignment(
     - "소아 발열 시나리오에서 아토피·movement disorder·항말라리아제 참고문헌이
        노출된 문제"를 score 기반 게이트로 걸러낸다.
 
+    라벨은 영문 snake_case 가 대부분이라 한국어 질의와 코사인이 0.1대로 낮다.
+    비교할 때만 한국어 표시어(evidence_topic_ko.topic_phrase)로 바꿔 임베딩한다.
+
     Args:
         results: boost 적용 후 청크 리스트
         query: 사용자 질의
@@ -704,7 +714,7 @@ def check_evidence_topic_alignment(
     try:
         import numpy as np
         topic_vecs = embedding_provider.embed(
-            [t if t else "unknown" for t in topics]
+            [_topic_phrase(t) if t else "unknown" for t in topics]
         )
         query_vec = embedding_provider.embed([query])[0]
 
