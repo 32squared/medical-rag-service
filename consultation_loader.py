@@ -8,5 +8,12 @@ import sys as _sys
 import importlib as _importlib
 
 _impl = _importlib.import_module('packages.medical_shared.compliance_rules.consultation_loader')
+
+
+def __getattr__(name):
+    # 교체 전 shim 객체를 받은 동시 import 스레드도 구현을 보게 한다 — analyzer.py 주석 참고.
+    return getattr(_impl, name)
+
+
 _sys.modules['consultation_loader'] = _impl
 _sys.modules[__name__] = _impl

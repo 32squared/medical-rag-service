@@ -16,6 +16,13 @@ import importlib as _importlib
 
 # 패키지 모듈을 로드하고 'dbcommon' 이름으로 등록
 _impl = _importlib.import_module('packages.medical_shared.dbcommon')
+
+
+def __getattr__(name):
+    # 교체 전 shim 객체를 받은 동시 import 스레드도 구현을 보게 한다 — analyzer.py 주석 참고.
+    return getattr(_impl, name)
+
+
 _sys.modules['dbcommon'] = _impl
 
 # 이 모듈 자체도 같은 객체로 교체하여 `import dbcommon` 후 속성 패치가
