@@ -2,7 +2,7 @@
 evidence_topic 한국어 표시어 — 근거 게이트 주제 정렬.
 
 영문 snake_case 라벨('fasting_glucose')은 한국어 질의와 임베딩 코사인이 0.1대라 게이트의
-topic_match 문턱(0.30)을 거의 넘지 못했다. check_evidence_topic_alignment 는 비교할 때만
+topic_match 문턱(당시 0.30)을 거의 넘지 못했다. check_evidence_topic_alignment 는 비교할 때만
 라벨을 한국어 표시어로 바꾼다(evidence_topic_ko.topic_phrase). DB 라벨은 그대로다.
 """
 import os
@@ -136,3 +136,21 @@ class TestAlignmentUsesKoreanPhrase:
 
     def test_phrase_hook_is_wired(self):
         assert rag_engine._topic_phrase("fever") == "발열"
+
+
+class TestTopicThreshold:
+    """표시어는 짧아서 무관한 한국어 질의와도 0.3 안팎이 나온다 — 기본 문턱 0.35.
+
+    0.30 이면 근거 없는 질의 5/55 가 통과했다(2026-10-02 재현, 0.35 는 2/55).
+    """
+
+    @pytest.mark.parametrize("score, decision", [
+        (0.32, "INSUFFICIENT"), (0.34, "INSUFFICIENT"), (0.35, "WEAK_PASS"), (0.40, "WEAK_PASS")])
+    def test_default_threshold(self, score, decision):
+        if "GATE_TOPIC_ALIGNMENT_THRESHOLD" in os.environ:
+            pytest.skip("env 로 문턱을 덮어쓴 환경")
+        chunks = [{"chunk_id": "c1", "evidence_topic": "headache", "topic_alignment_score": score,
+                   "cosine_score": 0.50, "evidence_level": "B"}]
+        gate = evaluate_retrieval_gate(chunks)
+        assert gate["topic_match_count"] == (1 if decision == "WEAK_PASS" else 0)
+        assert gate["decision"] == decision
