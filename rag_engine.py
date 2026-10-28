@@ -838,7 +838,21 @@ def hybrid_search(
     # SQLite 모드 차단
     _require_postgres()
 
-    logger.info("[RAGEngine] hybrid_search 시작 query=%r top_k=%d", query[:50], top_k)
+    # Step 0: 공인 기관 출처만 검색(source_trust — 기본 on, RAG_TRUSTED_SOURCES_ONLY=0 으로 해제)
+    # 검색 함수는 빈 필터를 '전체'로 보므로, 교집합이 비면 여기서 끝낸다(근거 없음 → 게이트 INSUFFICIENT).
+    from source_trust import restrict_source_types, trusted_sources_only
+    source_types = restrict_source_types(source_types)
+    if source_types is not None and not source_types:
+        logger.warning(
+            "[hybrid_search] 요청한 출처가 모두 신뢰 출처 밖 — 검색 생략 query=%r", query[:50],
+        )
+        return []
+
+    logger.info(
+        "[RAGEngine] hybrid_search 시작 query=%r top_k=%d trusted_only=%s sources=%s",
+        query[:50], top_k, trusted_sources_only(),
+        "all" if source_types is None else len(source_types),
+    )
 
     # Step A: Dense 임베딩 + 검색
     embedding_provider = _get_embedding_provider()
@@ -2082,22 +2096,24 @@ def _build_rag_user_prompt(query: str, chunks: List[dict]) -> str:
 
     형식:
       ## 검토 자료
-      [1] 내용 (출처: source_id, evidence: evidence_level)
+      [1] 내용 (출처: 기관명(source_trust 표시명), evidence: evidence_level)
       [2] ...
 
       ## 질문
       {query}
     """
+    from source_trust import source_display_name
     parts = ["## 검토 자료"]
     for i, c in enumerate(chunks, start=1):
         content = c.get("content", "")
-        source_id = c.get("source_id", "unknown")
+        # 출처는 기관 공식 명칭으로(답변의 출처 표기 근거 — 가이드라인 '출처·근거 명시')
+        source_name = source_display_name(c.get("source_id", "unknown"))
         evidence_level = c.get("evidence_level", "unknown")
         # 내용이 너무 길면 500자로 자름 (토큰 절약)
         if len(content) > 500:
             content = content[:500] + "..."
         parts.append(
-            f"[{i}] {content} (출처: {source_id}, evidence: {evidence_level})"
+            f"[{i}] {content} (출처: {source_name}, evidence: {evidence_level})"
         )
 
     parts.append("")
@@ -2736,6 +2752,14 @@ def _build_emergency_response() -> str:
 #  인용 + DB 헬퍼
 # ════════════════════════════════════════════════════════════
 
+
+def _source_display_name(source_id: str) -> str:
+    try:
+        from source_trust import source_display_name
+        return source_display_name(source_id)
+    except Exception:
+        return source_id or ""
+
 def _extract_citations(text: str, chunks: List[dict]) -> List[dict]:
     """
     응답 텍스트의 [N] 마커를 chunk_id로 매핑한다.
@@ -2759,6 +2783,7 @@ def _extract_citations(text: str, chunks: List[dict]) -> List[dict]:
             "marker": marker,
             "chunk_id": ch["chunk_id"],
             "source_id": ch.get("source_id") or "",
+            "source_name": _source_display_name(ch.get("source_id") or ""),  # 기관명(표시용)
             "title": ch.get("title") or "",
             "source_url": ch.get("source_url") or "",  # 원문 URL (있으면 링크)
         })

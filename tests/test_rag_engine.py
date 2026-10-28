@@ -563,8 +563,9 @@ class TestSourceTypesFilter:
         passed_source_types = call_kwargs[0][1]
         assert passed_source_types == ["kdca"]
 
-    def test_none_source_types_no_filter(self):
-        """source_types=None이면 필터 없이 전체 검색."""
+    def test_none_source_types_no_filter(self, monkeypatch):
+        """source_types=None이면 필터 없이 전체 검색 (신뢰 출처 모드 off 일 때)."""
+        monkeypatch.setenv("RAG_TRUSTED_SOURCES_ONLY", "0")
         with patch("rag_engine._is_postgres", return_value=True), \
              patch("rag_engine._get_embedding_provider") as mock_ep, \
              patch("rag_engine._dense_search") as mock_dense, \
