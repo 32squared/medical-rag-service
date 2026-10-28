@@ -4,7 +4,7 @@ evidence_topic_ko.py — evidence_topic 라벨 → 한국어 표시어 (근거 �
 KB 청크의 evidence_topic 은 대부분 영문 snake_case 다. 수집기(collect_public_kb.label_evidence_topic)는
 42증상 symptom_key 또는 'general' 을 붙이고, 시드는 자체 키('fasting_glucose', 'navigation_department' …)를 쓴다.
 rag_engine.check_evidence_topic_alignment 는 이 문자열을 질의와 임베딩 비교해 topic_alignment_score 를 매기고,
-evaluate_retrieval_gate 는 0.30(GATE_TOPIC_ALIGNMENT_THRESHOLD) 이상만 주제 일치로 센다. 그런데 영문 라벨과
+evaluate_retrieval_gate 는 GATE_TOPIC_ALIGNMENT_THRESHOLD 이상만 주제 일치로 센다. 그런데 영문 라벨과
 한국어 질의의 코사인은 0.1대라('fasting_glucose' ↔ '공복혈당은 어떤 편인가요?' 0.13, '공복혈당' 은 0.83)
 라벨이 붙은 청크가 거의 주제 일치로 잡히지 않았다(2026-09-29 dev 재현: 검색된 청크의 4%).
 
@@ -14,6 +14,9 @@ evaluate_retrieval_gate 는 0.30(GATE_TOPIC_ALIGNMENT_THRESHOLD) 이상만 주�
   - 한글이 든 라벨(검진 판정기준 시드 등)·모르는 라벨: 그대로
   - 'general'(수집기가 42증상에 못 맞춘 문서, dev KB 의 27%): 주제 정보가 없어 그대로 둔다.
     '일반 건강 정보' 로 바꾸면 '내 건강상태 어때?' 같은 막연한 질의와 0.3 이상으로 맞았다(210 질의 중 16).
+
+표시어는 짧아서 무관한 한국어 질의와도 0.3 안팎이 나온다. 그래서 문턱을 0.30 → 0.35 로 올렸다(2026-10-02).
+같은 재현에서 근거 없는 질의 통과 5/55 → 2/55, 근거 있는 질의 통과 69/155 → 67/155.
 """
 import re
 from functools import lru_cache
