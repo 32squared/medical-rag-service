@@ -581,6 +581,15 @@ class RagRoutesMixin:
                         'license': r[3], 'url': r[4], 'update_frequency': r[5],
                         'last_updated_at': r[6], 'is_active': r[7], 'created_at': r[8],
                     })
+            # 출처 성격·신뢰 모드 포함 여부 (source_trust — 공인 기관 출처만 검색)
+            try:
+                from source_trust import provenance_of, is_trusted_source, trusted_sources_only
+                _mode = trusted_sources_only()
+                for src in sources:
+                    src['provenance'] = provenance_of(src.get('id'))
+                    src['searchable'] = (not _mode) or is_trusted_source(src.get('id'))
+            except Exception:
+                pass
             return self._send_json(200, sources)
         except Exception as e:
             self._add_log(f"[RAG-KB] sources 조회 실패: {e}")

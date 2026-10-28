@@ -22,6 +22,23 @@ from typing import Dict, List
 
 from retrieval_router import source_priority_for
 
+
+def _display_name(source_id: str) -> str:
+    """source_id → 기관 공식 명칭(source_trust). 미등록이면 id."""
+    try:
+        from source_trust import source_display_name
+        return source_display_name(source_id)
+    except Exception:
+        return source_id or ""
+
+
+def _jurisdiction(source_id: str) -> str:
+    try:
+        from source_trust import source_jurisdiction
+        return source_jurisdiction(source_id)
+    except Exception:
+        return "KR"
+
 # evidence 최종 개수 (스펙 §5.4: 4~8개)
 _MIN_EVIDENCE = 1
 _MAX_EVIDENCE = 8
@@ -83,7 +100,7 @@ def build_evidence_pack(
         if classification.get("intent") == "drug_safety" or "pregnancy" in pop or "child" in pop:
             limitations.append("개인별 복용·적용 가능 여부는 단정할 수 없으며 의료진·약사 확인이 필요합니다.")
         # 해외/오래된 근거 표시 (스펙 §7.5 규칙4)
-        juris = c.get("jurisdiction", "KR")
+        juris = c.get("jurisdiction") or _jurisdiction(c.get("source_id", ""))
         if juris and juris != "KR":
             limitations.append(f"해외({juris}) 근거로 국내 기준과 다를 수 있습니다.")
 
@@ -91,9 +108,9 @@ def build_evidence_pack(
             "evidence_id": f"E{i}",
             "chunk_id": c.get("chunk_id", ""),
             "source_id": c.get("source_id", ""),
-            "source_name": c.get("source_name") or c.get("source_id", ""),
+            "source_name": c.get("source_name") or _display_name(c.get("source_id", "")),
             "source_type": c.get("source_type", ""),
-            "institution": c.get("institution", ""),
+            "institution": c.get("institution") or _display_name(c.get("source_id", "")),
             "jurisdiction": juris or "KR",
             "source_priority": sp,
             "document_title": c.get("document_title") or c.get("title", ""),
