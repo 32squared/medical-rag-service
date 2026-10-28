@@ -147,6 +147,8 @@ jobs:
             tests/test_medical_classifier.py \
             tests/test_router_evidence.py \
             tests/test_source_trust.py \
+            tests/test_kb_catalog.py \
+            tests/test_kb_collect.py \
             tests/test_dur_collector.py \
             tests/test_review_queue.py \
             tests/test_seed_consultation_kb.py \
