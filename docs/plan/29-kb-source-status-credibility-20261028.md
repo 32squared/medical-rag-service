@@ -13,12 +13,12 @@
 | consultation_checklist | 42증상 문진 가이드(의사 자문) | 자체 작성 | proprietary | 42 / 210 | 42 / 210 |
 | nemc | 응급의료포털 응급처치 | ① 공적 기관 | kogl_type1 → 영리 이용 사전 협의 고지 | 19 / 139 | 19 / 139 |
 | guideline_internal | 의료법 준수 내부 기준 9건 | 내부 규칙(의학 정보 아님) | proprietary | 9 / 36 | 9 / 36 |
-| checkup_std_kr | 보건복지부 고시 「건강검진 실시기준」 판정기준 | ① 정부 고시(저작권법 7조) | public_domain(법무 확인 대기) | 8 / 17 | **0** |
+| checkup_std_kr | 보건복지부 고시 「건강검진 실시기준」 판정기준 — 수치는 고시, 문장은 재작성 | ① 정부 고시 기준값이나 **원문 전사 아님**(신뢰 모드 제외, 별표 원문 적재가 후속) | public_domain(법무 확인 대기) | 8 / 17 | **0** |
 | lifecycle_kr | 암검진·정신건강·임신·노인·희귀·만성 큐레이션 | 공공 원문 요약 = 자체 작성 | kogl_type1(원문 표기 미부착) | 14 / 14 | **0** |
 | vital_refs | 생체신호·환경 참조범위 | 공식 기준값 인용 | kogl_type1 | 11 / 13 | **0** |
 | nip | 예방접종도우미 NIP | ① 공적 기관(자체 요약) | kogl_type1(표기 미부착) | 5 / 5 | **0** |
 | safety_kr / navigation_kr | 가정 안전·의료 이용 안내 | 자체 작성 | kogl_type1 | 5+5 / 5+5 | **0** |
-| kr_law | 의료법·개인정보 핵심 조항 | ① 법령 | kogl_type1 | 4 / 4 | 4 / 4 |
+| kr_law | 의료법·개인정보 핵심 조항 취지 요약(AI 적용 해석 포함) | 법령 기반이나 **원문 전사 아님**(신뢰 모드 제외) | kogl_type1 | 4 / 4 | 4 / 4 |
 | kdca_api / mfds / gpt_generated_v1 | 등록만 되고 비어 있음 | — | — | 0 | 0 |
 | **합계(active)** | | | | **459 문서 / 3,728 청크** | **411 문서 / 3,669 청크** |
 
@@ -66,6 +66,9 @@
 **F. 전환 검증 (운영 RAG 대체 판단용)**
 - medical-eval 배치(PHR 350·일반 650)를 자체 RAG dev 로 돌려 법률 위반·INSUFFICIENT·답변 품질을 운영 RAG 와 비교. 검진 질문 게이트는 9/29 기준 PASS/WEAK_PASS 가 대부분이고 콜레스테롤·크레아티닌 PHR·'전반' 질문은 INSUFFICIENT.
 - 결정 대기 항목: 게이트 문턱 0.35(PR #18 미병합), 가드레일 fail-closed, 메인 모델 gpt-5 유지 여부.
+
+## 3-1. 2026-10-28 구성 변경 — 공인 기관 출처만 검색 (PR #19)
+`source_trust.py` 가 출처 성격을 등록하고 `RAG_TRUSTED_SOURCES_ONLY`(기본 on)로 기관 원문(health_kdca·mfds_dur·nemc, 비어 있는 kdca_api·mfds·hira_kdca)만 검색한다. 고시·법령 시드(checkup_std_kr·kr_law)는 문장을 다시 쓴 요약이라 제외 — PHR 검진 질문의 주 근거(답변 148건 인용)가 빠지므로 **고시 [별표 4]·별첨 원문을 그대로 적재한 출처를 만들어 `official_record` 로 등록하는 것이 다음 할 일**이다. 프롬프트·인용의 출처는 id 대신 기관명으로 표기한다.
 
 ## 4. 참고
 - 숏리스트·정제 규칙: `docs/plan/25-kb-source-shortlist.md`, `kb_shortlist_sources.py`
