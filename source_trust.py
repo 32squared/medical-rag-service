@@ -57,6 +57,15 @@ SOURCE_REGISTRY: Dict[str, Dict[str, str]] = {
     "nemc":           {"name": "중앙응급의료센터 응급의료포털(E-Gen)", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
     "phwr":           {"name": "질병관리청 주간 건강과 질병(PHWR)", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
     "mentalhealth_kr": {"name": "국립정신건강센터 국가정신건강정보포털", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    # ── 카탈로그(kb_catalog) 후보 — 접근·라이선스 확인 뒤 수집 ──
+    "law_kr_notice":       {"name": "국가법령정보센터 — 보건복지부 고시·행정규칙 원문", "provenance": OFFICIAL_RECORD, "jurisdiction": "KR"},
+    "cancer_go_kr":        {"name": "국립암센터 국가암정보센터", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "nhis_health_in":      {"name": "국민건강보험공단 건강iN", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "kdca_press":          {"name": "질병관리청 보도자료", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "kdca_nip":            {"name": "질병관리청 예방접종도우미", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "mfds_food_nutrition": {"name": "식품의약품안전처 식품영양성분 DB", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "mfds_drug_permit":    {"name": "식품의약품안전처 의약품 제품허가정보", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
+    "mfds_hff":            {"name": "식품의약품안전처 식품안전나라 건강기능식품", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
     # ── 고시·법령 — 현재 시드는 원문 전사가 아니라 우리가 다시 쓴 요약이라 신뢰 모드에서 제외 ──
     # seed_checkup_criteria_kb: 기준 수치는 고시 [별표 4]·별첨에서 옮겼지만 "문장은 쉬운 말로 다시 썼다"
     #   + 자체 안전 문장. 별표 원문을 그대로 적재하면 그 출처를 OFFICIAL_RECORD 로 등록한다(후속).
