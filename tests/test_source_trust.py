@@ -25,8 +25,9 @@ _DB_SOURCE_IDS = [
     "kmle_seed", "hira_kdca", "internal_md",
 ]
 
+# checkup_std_kr·kr_law 는 고시·법령을 우리가 다시 쓴 요약이라 원문 전사(official_record)가 아니다.
 _EXPECTED_TRUSTED_IN_DB = {
-    "health_kdca", "mfds_dur", "nemc", "checkup_std_kr", "kr_law", "kdca_api", "mfds", "hira_kdca",
+    "health_kdca", "mfds_dur", "nemc", "kdca_api", "mfds", "hira_kdca",
 }
 
 
@@ -55,7 +56,7 @@ def test_trusted_set_matches_expectation():
 def test_self_authored_and_curated_are_excluded():
     for sid in ("consultation_seed", "consultation_checklist", "lifecycle_kr", "vital_refs",
                 "nip", "safety_kr", "navigation_kr", "guideline_internal", "gpt_generated_v1",
-                "pubmed", "kmle_seed"):
+                "pubmed", "kmle_seed", "checkup_std_kr", "kr_law"):
         assert not st.is_trusted_source(sid), sid
 
 
@@ -105,7 +106,8 @@ def test_describe_shape(mode_on):
     d = st.describe()
     assert d["trusted_sources_only"] is True
     assert set(d["trusted_source_ids"]).isdisjoint(d["excluded_source_ids"])
-    assert d["provenance"]["checkup_std_kr"] == st.OFFICIAL_RECORD
+    assert d["provenance"]["checkup_std_kr"] == st.CURATED_SUMMARY
+    assert st.OFFICIAL_RECORD in st.TRUSTED_PROVENANCES  # 원문 전사 출처가 생기면 바로 신뢰 대상
 
 
 # ── 3. hybrid_search 연결 ───────────────────────────────────

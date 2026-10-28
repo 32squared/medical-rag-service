@@ -8,7 +8,8 @@ source_trust.py — KB 출처의 출처 성격(provenance)과 "공인 기관 출
 
 출처 성격(provenance):
   institution_verbatim — 공공 기관 사이트·OpenAPI 에서 받은 원문 그대로
-  official_record      — 고시·법령 원문 전사(저작권법 7조 비보호 저작물)
+  official_record      — 고시·법령 원문 전사(저작권법 7조 비보호 저작물). 문장을 고쳐 쓴
+                         요약은 여기 넣지 않는다(curated_summary) — 2026-10-28 기준 해당 출처 없음
   curated_summary      — 공공 원문을 우리가 요약·재구성(감수 기록 없음)
   self_authored        — 자체 작성(의사 자문 반영 포함, 감수자·감수일 기록 없음)
   generated            — LLM 생성
@@ -56,9 +57,12 @@ SOURCE_REGISTRY: Dict[str, Dict[str, str]] = {
     "nemc":           {"name": "중앙응급의료센터 응급의료포털(E-Gen)", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
     "phwr":           {"name": "질병관리청 주간 건강과 질병(PHWR)", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
     "mentalhealth_kr": {"name": "국립정신건강센터 국가정신건강정보포털", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "KR"},
-    # ── 고시·법령 전사 ──
-    "checkup_std_kr": {"name": "보건복지부 고시 「건강검진 실시기준」 판정기준", "provenance": OFFICIAL_RECORD, "jurisdiction": "KR"},
-    "kr_law":         {"name": "국가법령정보센터(의료법·개인정보보호법)", "provenance": OFFICIAL_RECORD, "jurisdiction": "KR"},
+    # ── 고시·법령 — 현재 시드는 원문 전사가 아니라 우리가 다시 쓴 요약이라 신뢰 모드에서 제외 ──
+    # seed_checkup_criteria_kb: 기준 수치는 고시 [별표 4]·별첨에서 옮겼지만 "문장은 쉬운 말로 다시 썼다"
+    #   + 자체 안전 문장. 별표 원문을 그대로 적재하면 그 출처를 OFFICIAL_RECORD 로 등록한다(후속).
+    # seed_legal_kb: "핵심 취지를 큐레이션" + 'AI 포함' 같은 적용 해석이 들어 있다.
+    "checkup_std_kr": {"name": "국가건강검진 판정기준 요약(보건복지부 고시 기준 수치)", "provenance": CURATED_SUMMARY, "jurisdiction": "KR"},
+    "kr_law":         {"name": "의료법·개인정보보호법 핵심 조항 요약", "provenance": CURATED_SUMMARY, "jurisdiction": "KR"},
     # ── 해외 공공·전문기관 원문(보조) ──
     "cdc_mmwr":       {"name": "미국 질병통제예방센터(CDC) MMWR", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "US"},
     "cdc":            {"name": "미국 질병통제예방센터(CDC)", "provenance": INSTITUTION_VERBATIM, "jurisdiction": "US"},
