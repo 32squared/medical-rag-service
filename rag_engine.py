@@ -49,7 +49,8 @@ GATE_TOPIC_MATCH_PASS = int(os.environ.get("GATE_TOPIC_MATCH_PASS", "2"))
 GATE_WEIGHTED_PASS = float(os.environ.get("GATE_WEIGHTED_PASS", "2.0"))
 GATE_TOPIC_THRESHOLD = float(os.environ.get("GATE_TOPIC_THRESHOLD", "0.30"))
 # evidence_topic 라벨링된 청크에만 적용하는 임계값 (미라벨링 청크는 자동 통과)
-GATE_TOPIC_ALIGNMENT_THRESHOLD = float(os.environ.get("GATE_TOPIC_ALIGNMENT_THRESHOLD", "0.30"))
+# 0.35: 한국어 표시어(evidence_topic_ko)는 짧아서 무관한 한국어 질의와도 0.3 안팎이 나와 0.30 에서 올림
+GATE_TOPIC_ALIGNMENT_THRESHOLD = float(os.environ.get("GATE_TOPIC_ALIGNMENT_THRESHOLD", "0.35"))
 GATE_RELEVANT_COSINE = float(os.environ.get("GATE_RELEVANT_COSINE", "0.42"))
 EVIDENCE_LEVEL_WEIGHT: Dict[str, float] = {"A": 1.0, "B": 0.7, "C": 0.4}
 

@@ -23,7 +23,7 @@ seed_checkup_criteria_kb.py — 국가건강검진 판정기준 → KB 적재.
   동반 질환·나이·반복 검사에 따라 해석이 달라져 RAG 가 개인 구간 분류를 막는 항목이다.
 - evidence_topic 은 사용자가 쓰는 한국어 낱말로 쓴다 — 근거 게이트가 이 문자열을 질의와
   임베딩 비교하는데 영문 snake_case('fasting_glucose')는 한국어 질의와 0.13~0.15 로
-  문턱(0.30)을 넘지 못한다.
+  문턱(0.35)을 넘지 못한다.
 
 build_checkup_documents()는 순수 함수 — 키/DB/네트워크 없이 테스트 가능.
 """
